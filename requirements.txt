@@ -1,0 +1,7 @@
+numpy
+scipy
+matplotlib
+pyhepmc
+hist
+mplhep
+particle
