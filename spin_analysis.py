@@ -120,7 +120,20 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
     k_hat, r_hat, n_hat = _define_basis(p_tau_m_H, p_beam_m_H)
     basis = np.array([n_hat, r_hat, k_hat])  # shape (3, 3), rows are basis vecs
 
-    # Boost pions to their parent tau rest frames
+    # Boost pions to their parent tau rest frames.
+    #
+    # WHY TAU REST FRAMES? The pion direction in the tau rest frame is the
+    # spin analyser: dGamma/d(cos theta) ~ (1 + alpha_pi * P * cos theta)
+    # with alpha_pi = 1 for tau -> pi nu. The spin information lives in
+    # the tau RF, not the Higgs RF.
+    #
+    # WHY IS THE {n,r,k} BASIS STILL VALID? The boost from Higgs RF to each
+    # tau RF is along k-hat (the tau flight direction). The transverse axes
+    # {n, r} are perpendicular to the boost and therefore identical in both
+    # frames. The k-hat direction is parallel to the boost and also unchanged.
+    # So projecting the pion direction (measured in tau RF) onto {n, r, k}
+    # (defined in Higgs RF) is correct — the basis vectors are the same in
+    # both frames.
     beta_tau_m = beta_vec(p_tau_m_H)
     beta_tau_p = beta_vec(p_tau_p_H)
 
@@ -131,7 +144,7 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
     pi_m_hat = p3hat(p_pi_m_taurf)
     pi_p_hat = p3hat(p_pi_p_taurf)
 
-    # Project onto the {n, r, k} basis
+    # Project onto the {n, r, k} basis (same in Higgs RF and tau RF, see above)
     cos_theta_minus = basis @ pi_m_hat  # shape (3,): (n, r, k) components
     cos_theta_plus = basis @ pi_p_hat
 
