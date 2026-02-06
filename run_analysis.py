@@ -8,6 +8,13 @@ Usage:
 Analyses e+e- -> ZH -> mu+mu- tau+tau- events at sqrt(s) = 240 GeV.
 Measures quantum entanglement between the two tau leptons as a function
 of the spacetime separation between their decay points.
+
+The primary measurement uses only experimentally observable quantities:
+  - Pion momenta (measured tracks)
+  - Reconstructed tau momenta (Jeans method)
+  - Reconstructed decay vertices (track geometry)
+
+Truth-level information is used only for validation plots.
 """
 import argparse
 import sys
@@ -86,37 +93,46 @@ def process_events(filepath, max_events=None):
     # Phase 3: Compute spacetime intervals
     # ------------------------------------------------------------------
     print("\n[Phase 3] Computing spacetime intervals...")
-    truth_intervals = [compute_truth_intervals(evt) for evt in events_good]
+
+    # PRIMARY: Jeans-reconstructed vertices (the experimental observable)
     reco_intervals = [compute_reco_intervals(r) for r in reco_good]
-
-    n_spacelike = sum(1 for iv in truth_intervals if iv['is_spacelike'])
-    n_timelike = N - n_spacelike
-    print(f"  Truth: {n_spacelike} spacelike, {n_timelike} timelike")
-
-    v_signal_truth = np.array([iv['v_signal_c'] for iv in truth_intervals])
     v_signal_reco = np.array([iv['v_signal_c'] for iv in reco_intervals])
-    print(f"  Truth v_signal/c: median={np.median(v_signal_truth):.1f}, "
-          f"mean={np.mean(np.clip(v_signal_truth, 0, 1e6)):.1f}")
+    n_spacelike_reco = sum(1 for iv in reco_intervals if iv['is_spacelike'])
+    n_timelike_reco = N - n_spacelike_reco
+    print(f"  Reco:  {n_spacelike_reco} spacelike, {n_timelike_reco} timelike")
+    print(f"  Reco  v_signal/c: median={np.median(v_signal_reco):.1f}, "
+          f"mean={np.mean(np.clip(v_signal_reco, 0, 1e6)):.1f}")
+
+    # VALIDATION ONLY: truth vertices
+    truth_intervals = [compute_truth_intervals(evt) for evt in events_good]
+    v_signal_truth = np.array([iv['v_signal_c'] for iv in truth_intervals])
+    n_spacelike_truth = sum(1 for iv in truth_intervals if iv['is_spacelike'])
+    n_timelike_truth = N - n_spacelike_truth
+    print(f"  Truth: {n_spacelike_truth} spacelike, {n_timelike_truth} timelike (validation)")
 
     # ------------------------------------------------------------------
     # Phase 4: Compute spin observables
     # ------------------------------------------------------------------
     print("\n[Phase 4] Extracting spin observables...")
+
+    # PRIMARY: using reconstructed tau momenta (experimental observable)
     cos_theta_plus_reco = []
     cos_theta_minus_reco = []
+    acoplanarity_reco = []
+
+    # VALIDATION: using truth tau momenta
     cos_theta_plus_truth = []
     cos_theta_minus_truth = []
-    acoplanarity_reco = []
     acoplanarity_truth = []
 
     for evt, reco in zip(events_good, reco_good):
-        # Using reconstructed tau momenta
+        # Primary measurement: reconstructed tau momenta for boosts
         spin_reco = compute_spin_observables(evt, reco, use_reco_tau=True)
         cos_theta_plus_reco.append(spin_reco['cos_theta_plus'])
         cos_theta_minus_reco.append(spin_reco['cos_theta_minus'])
         acoplanarity_reco.append(spin_reco['acoplanarity'])
 
-        # Using truth tau momenta
+        # Validation: truth tau momenta for boosts
         spin_truth = compute_spin_observables(evt, reco, use_reco_tau=False)
         cos_theta_plus_truth.append(spin_truth['cos_theta_plus'])
         cos_theta_minus_truth.append(spin_truth['cos_theta_minus'])
@@ -134,47 +150,46 @@ def process_events(filepath, max_events=None):
     # ------------------------------------------------------------------
     print("\n[Phase 5] Computing entanglement observables...")
 
-    # Use truth tau momenta for the spin analysis (cleanest)
-    print("  Using truth tau momenta for spin projections...")
-    global_truth = bootstrap_entanglement(
-        cos_theta_plus_truth, cos_theta_minus_truth, n_bootstrap=N_BOOTSTRAP)
-
-    print(f"  [Truth] m12 = {global_truth['m12']:.4f} ± {global_truth['m12_err']:.4f}")
-    print(f"  [Truth] Concurrence = {global_truth['concurrence']:.4f} ± {global_truth['concurrence_err']:.4f}")
-    print(f"  [Truth] Bell score = {global_truth['bell_score']:.4f} ± {global_truth['bell_score_err']:.4f}")
-
-    print("  Using reco tau momenta for spin projections...")
+    # PRIMARY: reco-based measurement
+    print("  Measurement (reco tau momenta):")
     global_reco = bootstrap_entanglement(
         cos_theta_plus_reco, cos_theta_minus_reco, n_bootstrap=N_BOOTSTRAP)
-    print(f"  [Reco]  m12 = {global_reco['m12']:.4f} ± {global_reco['m12_err']:.4f}")
-    print(f"  [Reco]  Concurrence = {global_reco['concurrence']:.4f} ± {global_reco['concurrence_err']:.4f}")
+    print(f"    m12 = {global_reco['m12']:.4f} +/- {global_reco['m12_err']:.4f}")
+    print(f"    Concurrence = {global_reco['concurrence']:.4f} +/- {global_reco['concurrence_err']:.4f}")
+    print(f"    Bell score = {global_reco['bell_score']:.4f} +/- {global_reco['bell_score_err']:.4f}")
 
-    # Significance
-    loc_sigma = locality_rejection_sigma(global_truth['m12'], global_truth['m12_err'])
-    ent_sigma = entanglement_rejection_sigma(global_truth['concurrence'], global_truth['concurrence_err'])
+    # VALIDATION: truth-based
+    print("  Validation (truth tau momenta):")
+    global_truth = bootstrap_entanglement(
+        cos_theta_plus_truth, cos_theta_minus_truth, n_bootstrap=N_BOOTSTRAP)
+    print(f"    m12 = {global_truth['m12']:.4f} +/- {global_truth['m12_err']:.4f}")
+    print(f"    Concurrence = {global_truth['concurrence']:.4f} +/- {global_truth['concurrence_err']:.4f}")
 
-    print(f"\n  Reject locality:      {loc_sigma:.1f} sigma")
-    print(f"  Reject separability:  {ent_sigma:.1f} sigma")
+    # Significance from the RECO measurement
+    loc_sigma = locality_rejection_sigma(global_reco['m12'], global_reco['m12_err'])
+    ent_sigma = entanglement_rejection_sigma(global_reco['concurrence'], global_reco['concurrence_err'])
+
+    print(f"\n  Reject locality (m12 <= 1):    {loc_sigma:.1f} sigma")
+    print(f"  Reject separability (C <= 0):  {ent_sigma:.1f} sigma")
 
     # ------------------------------------------------------------------
-    # Phase 6: Entanglement vs spacetime interval
+    # Phase 6: Entanglement vs spacetime interval (all reco-based)
     # ------------------------------------------------------------------
     print("\n[Phase 6] Binning entanglement vs spacetime variables...")
 
-    # Use truth v_signal for the physics measurement
-    # (this is the actual causal signal speed)
-    v_arr = v_signal_truth
+    # Use RECO spacetime quantities for all physics plots
+    signed_ds_reco = np.array([iv['signed_ds_mm'] for iv in reco_intervals])
+    v_arr = v_signal_reco
 
     # --- Binned m12 vs signed ds ---
-    signed_ds_truth = np.array([iv['signed_ds_mm'] for iv in truth_intervals])
-    ds_finite = signed_ds_truth[np.isfinite(signed_ds_truth)]
+    ds_finite = signed_ds_reco[np.isfinite(signed_ds_reco)]
     ds_lo = np.percentile(ds_finite, 2)
     ds_hi = np.percentile(ds_finite, 98)
     ds_edges = np.linspace(ds_lo, ds_hi, N_BINS_SPACETIME + 1)
 
     binned_ds = []
     for b in range(N_BINS_SPACETIME):
-        mask = (signed_ds_truth >= ds_edges[b]) & (signed_ds_truth < ds_edges[b+1])
+        mask = (signed_ds_reco >= ds_edges[b]) & (signed_ds_reco < ds_edges[b+1])
         n_in_bin = np.sum(mask)
         if n_in_bin < 10:
             binned_ds.append({'m12': np.nan, 'm12_err': np.nan,
@@ -182,14 +197,13 @@ def process_events(filepath, max_events=None):
                               'n_events': n_in_bin})
             continue
         res = bootstrap_entanglement(
-            cos_theta_plus_truth[mask], cos_theta_minus_truth[mask],
+            cos_theta_plus_reco[mask], cos_theta_minus_reco[mask],
             n_bootstrap=N_BOOTSTRAP)
         res['n_events'] = n_in_bin
         binned_ds.append(res)
 
     # --- Binned m12 vs v_signal ---
     v_finite = v_arr[np.isfinite(v_arr)]
-    # Use log spacing for v_signal
     if len(v_finite) > 0 and np.min(v_finite) > 0:
         v_lo = max(np.percentile(v_finite, 2), 0.5)
         v_hi = np.percentile(v_finite, 98)
@@ -207,25 +221,25 @@ def process_events(filepath, max_events=None):
                              'n_events': n_in_bin})
             continue
         res = bootstrap_entanglement(
-            cos_theta_plus_truth[mask], cos_theta_minus_truth[mask],
+            cos_theta_plus_reco[mask], cos_theta_minus_reco[mask],
             n_bootstrap=N_BOOTSTRAP)
         res['n_events'] = n_in_bin
         binned_v.append(res)
 
     # ------------------------------------------------------------------
-    # Phase 7: v_psi hypothesis scan
+    # Phase 7: v_psi hypothesis scan (all reco-based)
     # ------------------------------------------------------------------
     print("\n[Phase 7] Scanning v_psi hypotheses...")
     vpsi_results = scan_vpsi(
-        cos_theta_plus_truth, cos_theta_minus_truth, v_arr,
+        cos_theta_plus_reco, cos_theta_minus_reco, v_arr,
         V_PSI_SCAN, n_bootstrap=N_BOOTSTRAP)
 
     for r in vpsi_results:
         if r['n_events'] >= 10:
             print(f"  v_psi = {r['v_psi']:6.1f}c : N={r['n_events']:5d}, "
-                  f"m12={r['m12']:.3f}±{r['m12_err']:.3f}, "
-                  f"reject m12=0 at {r['sigma_vs_0']:.1f}σ, "
-                  f"reject m12≤1 at {r['sigma_vs_1']:.1f}σ")
+                  f"m12={r['m12']:.3f}+/-{r['m12_err']:.3f}, "
+                  f"reject m12=0 at {r['sigma_vs_0']:.1f}sig, "
+                  f"reject m12<=1 at {r['sigma_vs_1']:.1f}sig")
 
     # ------------------------------------------------------------------
     # Phase 8: Generate plots
@@ -233,23 +247,22 @@ def process_events(filepath, max_events=None):
     print(f"\n[Phase 8] Generating plots in {OUTPUT_DIR}/...")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # 1. Spacetime distributions
+    # 1. Spacetime distributions (truth + reco overlaid for comparison)
     plot_spacetime_distributions(truth_intervals, reco_intervals)
 
-    # 2. Entanglement vs spacetime interval
+    # 2. Entanglement vs spacetime interval (RECO)
     plot_entanglement_vs_spacetime(
         binned_ds, ds_edges,
         xlabel=r"signed $\sqrt{|\Delta s^2|}$ [mm]",
         suffix="spacetime_interval")
 
-    # 3. Entanglement vs signal speed
+    # 3. Entanglement vs signal speed (RECO)
     plot_entanglement_vs_spacetime(
         binned_v, v_edges,
         xlabel=r"$v_{\rm signal} / c$",
         suffix="signal_speed")
 
     # 4. v_psi overlay plot (the money plot)
-    # Select a few representative v_psi values for the overlay
     v_psi_overlay = [v for v in V_PSI_SCAN if v <= v_edges[-1] * 1.5]
     if len(v_psi_overlay) > 6:
         v_psi_overlay = v_psi_overlay[:6]
@@ -258,22 +271,22 @@ def process_events(filepath, max_events=None):
     # 5. v_psi exclusion curve
     plot_vpsi_exclusion(vpsi_results)
 
-    # 6. Correlation matrix heatmap
-    plot_correlation_matrix(global_truth['C'], global_truth['C_err'], suffix="_truth")
-    plot_correlation_matrix(global_reco['C'], global_reco['C_err'], suffix="_reco")
+    # 6. Correlation matrix heatmaps (reco = measurement, truth = validation)
+    plot_correlation_matrix(global_reco['C'], global_reco['C_err'], suffix="")
+    plot_correlation_matrix(global_truth['C'], global_truth['C_err'], suffix="_truth_validation")
 
-    # 7. Acoplanarity
-    plot_acoplanarity(acoplanarity_truth, suffix="_truth")
-    plot_acoplanarity(acoplanarity_reco, suffix="_reco")
+    # 7. Acoplanarity (reco = measurement, truth = validation)
+    plot_acoplanarity(acoplanarity_reco, suffix="")
+    plot_acoplanarity(acoplanarity_truth, suffix="_truth_validation")
 
-    # 8. Vertex comparison
+    # 8. Vertex comparison (validation: reco vs truth)
     plot_vertex_comparison(reco_good)
 
     # ------------------------------------------------------------------
-    # Summary
+    # Summary (all numbers from reco measurement)
     # ------------------------------------------------------------------
-    print_summary(global_truth, loc_sigma, ent_sigma,
-                  n_spacelike, n_timelike, vpsi_results)
+    print_summary(global_reco, loc_sigma, ent_sigma,
+                  n_spacelike_reco, n_timelike_reco, vpsi_results)
 
     print(f"\nAll plots saved to {OUTPUT_DIR}/")
     print("Analysis complete.")
