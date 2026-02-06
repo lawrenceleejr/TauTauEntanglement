@@ -20,7 +20,7 @@ from config import (
 )
 from parse_hepmc import parse_events
 from tau_reconstruction import (
-    reconstruct_event, reconstruct_event_with_truth_vertices,
+    reconstruct_event,
     boost, beta_vec,
 )
 from spacetime import compute_truth_intervals, compute_reco_intervals
@@ -63,7 +63,7 @@ def process_events(filepath, max_events=None):
     reco_results = []
     n_reco_fail = 0
     for i, evt in enumerate(events):
-        reco = reconstruct_event_with_truth_vertices(evt)
+        reco = reconstruct_event(evt)
         if reco is None:
             n_reco_fail += 1
         reco_results.append(reco)

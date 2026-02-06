@@ -1,16 +1,92 @@
 """
 Quantum entanglement observables for tau-tau spin correlations.
 
-Computes:
-  - Horodecki value m12 (Bell nonlocality witness)
-  - Concurrence (entanglement measure)
-  - CHSH Bell score
-  - Statistical significance via bootstrap
-  - v_psi hypothesis rejection significance
+==========================================================================
+FROM COLLIDER ANGLES TO ENTANGLEMENT — A GUIDE FOR EXPERIMENTALISTS
+==========================================================================
+
+WHAT WE MEASURE (kinematic space)
+---------------------------------
+For each event with tau- -> pi- nu and tau+ -> pi+ nu:
+
+  1. Boost pions to their parent tau rest frames.
+  2. Project each pion direction onto the {n, r, k} basis defined in the
+     Higgs rest frame (k = tau- flight dir, r = beam component perp to k,
+     n = k x r).
+  3. This gives 6 numbers per event:
+       cos_theta_minus = (n-, r-, k-)   projections of pi- in tau- RF
+       cos_theta_plus  = (n+, r+, k+)   projections of pi+ in tau+ RF
+
+     These are just direction cosines of the pion momentum in the tau
+     rest frame, projected onto a fixed coordinate system.
+
+HOW WE BUILD THE SPIN CORRELATION MATRIX C_ij
+----------------------------------------------
+C_ij is a 3x3 matrix extracted from the angular distributions:
+
+  C_ij = 9 * <cos_theta_i^+  *  cos_theta_j^->      (average over events)
+
+  B_i^+ = +3 * <cos_theta_i^+>      (tau+ polarisation)
+  B_i^- = -3 * <cos_theta_i^->      (tau- polarisation)
+
+The factor 9 arises because for tau -> pi nu (unit analysing power),
+the angular distribution is:
+  (1/sigma) d^2sigma / d(cos_i+) d(cos_j-)  =  (1/4)(1 + C_ij cos_i+ cos_j-)
+and <cos^2> = 1/3 for a uniform distribution, so C_ij = 9 * <cos_i+ cos_j->.
+
+For H -> tau+tau- (SM, CP-even), the prediction in the helicity basis is:
+  C = diag(2*beta^2 - 1,  1,  1 - 2*beta^2)
+    ~ diag(+1, +1, -1)     for beta ~ 1
+
+where beta = |p_tau|/E_tau.  The diagonal structure means: the tau spins
+are anti-correlated along k (helicity axis), and correlated transversely.
+
+WHAT THE ENTANGLEMENT QUANTITIES MEAN
+--------------------------------------
+All entanglement quantities are derived from C_ij (and B_i):
+
+  * DENSITY MATRIX rho (4x4):
+      Built from C_ij and B_i using Pauli matrices.
+      rho = (1/4)[I*I + B_i^+(sigma_i*I) + B_j^-(I*sigma_j) + C_ij(sigma_i*sigma_j)]
+      This is the quantum state of the two-tau spin system.
+
+  * m12 (Horodecki parameter):
+      - Form the matrix M = C^T C  (3x3, positive semi-definite)
+      - m1, m2 = two largest eigenvalues of M
+      - m12 = m1 + m2
+      - m12 > 1  =>  Bell nonlocality (CHSH inequality violation)
+      - For SM H->tautau: m12 ~ 2 (maximal)
+      - For uncorrelated taus (C=0): m12 = 0
+      - For classical correlations: m12 <= 1
+
+  * CHSH Bell score = 2*sqrt(m12):
+      - Classical limit: score <= 2
+      - Tsirelson (QM) bound: score <= 2*sqrt(2) ~ 2.83
+      - For SM H->tautau: score ~ 2.83
+
+  * CONCURRENCE:
+      - 0 = no entanglement (separable state)
+      - 1 = maximal entanglement
+      - Computed from the eigenvalues of an auxiliary matrix built from rho
+      - For SM H->tautau: concurrence = 1 (exact, for any beta)
+
+PHYSICAL PICTURE
+----------------
+The Higgs is spin-0, so the tau+tau- pair is produced in a definite
+(pure) quantum state. The two tau spins are maximally entangled —
+measuring one instantly determines the other, regardless of how far
+apart the two taus have traveled before decaying. This is the EPR
+paradox realized with tau leptons.
+
+The pion direction in the tau rest frame is a perfect spin analyser
+(analysing power = 1) because tau -> pi nu is a two-body decay of a
+spin-1/2 particle, and angular momentum conservation forces the pion
+to carry full spin information.
 
 References:
   - arXiv:2602.03960 (tau pair entanglement at FCC-ee)
   - Horodecki, Horodecki, Horodecki, Phys. Lett. A 200 (1995) 340
+  - Fabbrichesi et al., arXiv:2208.11723 (entanglement in H->tautau)
 """
 import numpy as np
 from config import N_BOOTSTRAP
