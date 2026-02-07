@@ -21,6 +21,7 @@ Truth-level information is used only for validation plots.
 import argparse
 import sys
 import os
+import json
 import numpy as np
 
 from config import (
@@ -99,7 +100,7 @@ def _bin_entanglement(cos_plus, cos_minus, variable, bin_edges, n_bootstrap):
     return results
 
 
-def process_events(filepath, max_events=None):
+def process_events(filepath, max_events=None, smear=False):
     """Run the full analysis pipeline."""
 
     # ------------------------------------------------------------------
@@ -115,13 +116,26 @@ def process_events(filepath, max_events=None):
     print(f"\n  Selected {len(events)} pi x pi events for analysis.")
 
     # ------------------------------------------------------------------
+    # Phase 1b: Apply detector smearing (if enabled)
+    # ------------------------------------------------------------------
+    if smear:
+        from smearing import smear_event, print_resolution_summary
+        print("\n[Phase 1b] Applying ILC detector smearing...")
+        print_resolution_summary()
+        smear_rng = np.random.default_rng(123)
+        events_meas = [smear_event(evt, smear_rng) for evt in events]
+        print(f"  Smeared {len(events_meas)} events.")
+    else:
+        events_meas = events
+
+    # ------------------------------------------------------------------
     # Phase 2: Reconstruct tau kinematics (Jeans method)
     # ------------------------------------------------------------------
     print("\n[Phase 2] Reconstructing tau kinematics (Jeans method)...")
     reco_results = []
     n_reco_fail = 0
-    for i, evt in enumerate(events):
-        reco = reconstruct_event(evt)
+    for i, evt_meas in enumerate(events_meas):
+        reco = reconstruct_event(evt_meas)
         if reco is None:
             n_reco_fail += 1
         reco_results.append(reco)
@@ -136,7 +150,8 @@ def process_events(filepath, max_events=None):
 
     # Filter to successfully reconstructed events
     good_indices = [i for i, r in enumerate(reco_results) if r is not None]
-    events_good = [events[i] for i in good_indices]
+    events_good = [events[i] for i in good_indices]          # truth
+    events_meas_good = [events_meas[i] for i in good_indices]  # measured (= truth if no smearing)
     reco_good = [reco_results[i] for i in good_indices]
     N = len(events_good)
     print(f"  Proceeding with {N} events.")
@@ -176,15 +191,16 @@ def process_events(filepath, max_events=None):
     cos_theta_minus_truth = []
     acoplanarity_truth = []
 
-    for evt, reco in zip(events_good, reco_good):
+    for evt_truth, evt_meas, reco in zip(events_good, events_meas_good, reco_good):
         # Primary measurement: reco tau direction + kinematic constraints
-        spin_reco = compute_spin_observables(evt, reco, use_reco_tau=True)
+        # Uses measured (possibly smeared) pion momenta for spin analysis
+        spin_reco = compute_spin_observables(evt_meas, reco, use_reco_tau=True)
         cos_theta_plus_reco.append(spin_reco['cos_theta_plus'])
         cos_theta_minus_reco.append(spin_reco['cos_theta_minus'])
         acoplanarity_reco.append(spin_reco['acoplanarity'])
 
-        # Validation: truth tau momenta for boosts
-        spin_truth = compute_spin_observables(evt, reco, use_reco_tau=False)
+        # Validation: truth tau momenta and truth pion momenta
+        spin_truth = compute_spin_observables(evt_truth, reco, use_reco_tau=False)
         cos_theta_plus_truth.append(spin_truth['cos_theta_plus'])
         cos_theta_minus_truth.append(spin_truth['cos_theta_minus'])
         acoplanarity_truth.append(spin_truth['acoplanarity'])
@@ -227,6 +243,16 @@ def process_events(filepath, max_events=None):
 
     print(f"\n  Reject locality (m12 <= 1):    {loc_sigma:.1f} sigma")
     print(f"  Reject separability (C <= 0):  {ent_sigma:.1f} sigma")
+
+    # C_ij comparison: reco vs truth
+    print("\n  C_ij comparison (reco vs truth):")
+    _nrk = ['n', 'r', 'k']
+    print(f"    {'':>5s} {'reco':>10s} {'truth':>10s} {'diff':>10s}")
+    for i in range(3):
+        for j in range(3):
+            c_r = global_reco['C'][i, j]
+            c_t = global_truth['C'][i, j]
+            print(f"    C_{_nrk[i]}{_nrk[j]}: {c_r:+8.4f}  {c_t:+8.4f}  {c_r-c_t:+8.4f}")
 
     # ------------------------------------------------------------------
     # Phase 6: Entanglement vs spacetime interval (all reco-based)
@@ -321,10 +347,64 @@ def process_events(filepath, max_events=None):
     plot_vertex_comparison(reco_good)
 
     # ------------------------------------------------------------------
+    # Save numerical results to JSON
+    # ------------------------------------------------------------------
+    def _to_json(v):
+        """Convert numpy types for JSON serialization."""
+        if isinstance(v, (np.floating, float)):
+            return float(v)
+        if isinstance(v, (np.integer, int)):
+            return int(v)
+        if isinstance(v, np.ndarray):
+            return v.tolist()
+        return v
+
+    results_dict = {
+        'settings': {
+            'smear': smear,
+            'hepmc_file': filepath,
+            'n_events': N,
+            'n_spacelike': n_spacelike_reco,
+            'n_timelike': n_timelike_reco,
+        },
+        'reco': {
+            'm12': float(global_reco['m12']),
+            'm12_err': float(global_reco['m12_err']),
+            'concurrence': float(global_reco['concurrence']),
+            'concurrence_err': float(global_reco['concurrence_err']),
+            'bell_score': float(global_reco['bell_score']),
+            'bell_score_err': float(global_reco['bell_score_err']),
+            'C': global_reco['C'].tolist(),
+            'C_err': global_reco['C_err'].tolist(),
+        },
+        'truth': {
+            'm12': float(global_truth['m12']),
+            'm12_err': float(global_truth['m12_err']),
+            'concurrence': float(global_truth['concurrence']),
+            'concurrence_err': float(global_truth['concurrence_err']),
+            'C': global_truth['C'].tolist(),
+            'C_err': global_truth['C_err'].tolist(),
+        },
+        'vpsi_scan': [
+            {k: _to_json(v) for k, v in r.items()}
+            for r in vpsi_results
+        ],
+    }
+
+    json_path = os.path.join(OUTPUT_DIR, "results.json")
+    with open(json_path, 'w') as f:
+        json.dump(results_dict, f, indent=2)
+    print(f"  Saved {json_path}")
+
+    # ------------------------------------------------------------------
     # Summary (all numbers from reco measurement)
     # ------------------------------------------------------------------
     print_summary(global_reco, loc_sigma, ent_sigma,
                   n_spacelike_reco, n_timelike_reco, vpsi_results)
+
+    if smear:
+        print("\n  NOTE: Detector smearing was ENABLED for this run.")
+        print("  Compare with --no smear to see the unsmeared baseline.")
 
     print(f"\nAll plots saved to {OUTPUT_DIR}/")
     print("Analysis complete.")
@@ -336,13 +416,16 @@ def main():
     parser.add_argument("hepmc_file", help="Path to HepMC3 file")
     parser.add_argument("--max-events", type=int, default=None,
                         help="Maximum number of events to process")
+    parser.add_argument("--smear", action="store_true",
+                        help="Apply ILC/ILD-like detector smearing")
     args = parser.parse_args()
 
     if not os.path.isfile(args.hepmc_file):
         print(f"ERROR: File not found: {args.hepmc_file}")
         sys.exit(1)
 
-    process_events(args.hepmc_file, max_events=args.max_events)
+    process_events(args.hepmc_file, max_events=args.max_events,
+                   smear=args.smear)
 
 
 if __name__ == "__main__":
