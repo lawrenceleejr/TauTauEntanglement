@@ -254,9 +254,14 @@ def reconstruct_single_tau(p_pi, pv_xyz, decay_vtx_xyz_truth):
 
     # Step 3: Scan alpha and solve mass constraint
     # alpha must be positive (tau direction tilted towards d, i.e., towards PV side)
-    # and small (pion is nearly collinear with tau at these energies)
+    # and small (pion is nearly collinear with tau at these energies).
+    # Typical opening angle ~ m_tau^2 / (2 * E_tau * E_pi) ~ 0.0005-0.003 rad,
+    # so we use LOG-spaced scan to densely cover the small-angle regime.
     results = []
-    alpha_values = np.linspace(0.001, 0.5, 300)
+    alpha_values = np.concatenate([
+        np.logspace(-5, -2, 200),    # 1e-5 to 0.01: dense at small angles
+        np.linspace(0.01, 0.5, 100), # 0.01 to 0.5: linear at larger angles
+    ])
 
     for alpha in alpha_values:
         tau_dir = np.cos(alpha) * pi_hat + np.sin(alpha) * d_hat

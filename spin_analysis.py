@@ -5,7 +5,7 @@ For tau -> pi nu, the pion direction in the tau rest frame is a perfect
 spin analyser (analysing power = 1). The spin correlation matrix C_ij
 is extracted from the angular distributions:
 
-  C_ij = -9 * <cos(theta_i^+) * cos(theta_j^-)>
+  C_ij = 9 * <cos(theta_i^+) * cos(theta_j^-)>
 
 where theta_i^pm is the angle of the pi^pm momentum (in the tau^pm rest
 frame) projected onto axis i of the {n, r, k} basis defined in the
@@ -27,8 +27,8 @@ The single-tau polarisation B_i is extracted from:
 (sign from the tau+/tau- convention in arXiv:2602.03960)
 """
 import numpy as np
-from config import P_BEAM_MINUS
-from tau_reconstruction import boost, p3hat, p3vec, p3mag, beta_vec
+from config import P_BEAM_MINUS, P_BEAM_TOTAL, M_TAU
+from tau_reconstruction import boost, p3hat, p3vec, p3mag, beta_vec, mass
 
 
 def _define_basis(p_tau_minus, p_beam_minus):
@@ -93,28 +93,46 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
         'cos_theta_minus' : array of 3 (n, r, k projections for tau-)
         'acoplanarity'    : delta phi between the two decay planes
     """
-    # Get tau momenta
-    if use_reco_tau and reco is not None:
-        p_tau_m = reco['tau_minus']['p_tau_reco']
-        p_tau_p = reco['tau_plus']['p_tau_reco']
-    else:
-        p_tau_m = event.tau_minus.tau_p4
-        p_tau_p = event.tau_plus.tau_p4
-
     # Pion momenta (always from truth -- these are the "measured" decay products)
     p_pi_m = event.tau_minus.charged_pion_p4
     p_pi_p = event.tau_plus.charged_pion_p4
 
-    # Higgs rest frame = tau-pair rest frame
-    p_H = p_tau_m + p_tau_p
-    beta_H = beta_vec(p_H)
+    if use_reco_tau and reco is not None:
+        # CRITICAL: Use the Higgs 4-momentum from beam - Z (measured muons),
+        # NOT from the reco tau sum, which has large errors and corrupts the
+        # Higgs rest frame boost.
+        p_H = reco['p_H']
+        beta_H = beta_vec(p_H)
+        m_H = mass(p_H)
 
-    # Boost everything to Higgs rest frame
-    p_tau_m_H = boost(p_tau_m, beta_H)
-    p_tau_p_H = boost(p_tau_p, beta_H)
-    p_pi_m_H = boost(p_pi_m, beta_H)
-    p_pi_p_H = boost(p_pi_p, beta_H)
-    p_beam_m_H = boost(P_BEAM_MINUS, beta_H)
+        # Boost reco taus to Higgs RF to get the tau- direction
+        p_tau_m_lab = reco['tau_minus']['p_tau_reco']
+        p_tau_m_H_reco = boost(p_tau_m_lab, beta_H)
+        tau_m_dir = p3hat(p_tau_m_H_reco)
+
+        # Apply kinematic constraints: in the Higgs RF, taus are back-to-back
+        # with known energy E = m_H/2 and momentum |p| = sqrt(E^2 - m_tau^2).
+        # The Jeans reco gives us the direction; kinematics fixes the magnitude.
+        E_tau = m_H / 2.0
+        p_tau_mag = np.sqrt(max(E_tau**2 - M_TAU**2, 0.0))
+        p_tau_m_H = np.array([E_tau, *(p_tau_mag * tau_m_dir)])
+        p_tau_p_H = np.array([E_tau, *(-p_tau_mag * tau_m_dir)])  # back-to-back
+
+        # Boost pions to this (correct) Higgs rest frame
+        p_pi_m_H = boost(p_pi_m, beta_H)
+        p_pi_p_H = boost(p_pi_p, beta_H)
+        p_beam_m_H = boost(P_BEAM_MINUS, beta_H)
+    else:
+        # Truth: use exact tau momenta
+        p_tau_m = event.tau_minus.tau_p4
+        p_tau_p = event.tau_plus.tau_p4
+        p_H = p_tau_m + p_tau_p
+        beta_H = beta_vec(p_H)
+        p_tau_m_H = boost(p_tau_m, beta_H)
+        p_tau_p_H = boost(p_tau_p, beta_H)
+        p_pi_m_H = boost(p_pi_m, beta_H)
+        p_pi_p_H = boost(p_pi_p, beta_H)
+        p_beam_m_H = boost(P_BEAM_MINUS, beta_H)
 
     # Define the {n, r, k} basis using tau- direction in Higgs rest frame
     k_hat, r_hat, n_hat = _define_basis(p_tau_m_H, p_beam_m_H)

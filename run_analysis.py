@@ -11,7 +11,9 @@ of the spacetime separation between their decay points.
 
 The primary measurement uses only experimentally observable quantities:
   - Pion momenta (measured tracks)
-  - Reconstructed tau momenta (Jeans method)
+  - Higgs 4-momentum from beam - Z (measured muons)
+  - Reconstructed tau direction (Jeans track geometry)
+  - Tau momentum magnitude from Higgs-mass kinematic constraint
   - Reconstructed decay vertices (track geometry)
 
 Truth-level information is used only for validation plots.
@@ -43,9 +45,58 @@ from plotting import (
     plot_vpsi_exclusion,
     plot_correlation_matrix,
     plot_acoplanarity,
+    plot_acoplanarity_vs_vsignal,
     plot_vertex_comparison,
     print_summary,
 )
+
+
+def _build_lightlike_binning(signed_ds_arr, n_spacelike_bins):
+    """Build bin edges for signed ds with a lightlike boundary at 0.
+
+    Returns edges with the boundary at ds=0 (lightlike), one bin for
+    timelike events (ds > 0), and n_spacelike_bins bins for spacelike.
+    """
+    ds_finite = signed_ds_arr[np.isfinite(signed_ds_arr)]
+    spacelike = ds_finite[ds_finite < 0]
+    timelike = ds_finite[ds_finite >= 0]
+
+    if len(spacelike) == 0:
+        # All timelike — uniform binning
+        return np.linspace(0, np.percentile(timelike, 98), n_spacelike_bins + 2)
+
+    # Spacelike bins: equal-width from the 2nd percentile to 0
+    sl_lo = np.percentile(spacelike, 2)
+    sl_edges = np.linspace(sl_lo, 0, n_spacelike_bins + 1)
+
+    # One timelike bin: 0 to 98th percentile (or reasonable max)
+    if len(timelike) > 0:
+        tl_hi = np.percentile(timelike, 98) if len(timelike) > 5 else np.max(timelike)
+        tl_hi = max(tl_hi, 0.1)  # at least a small window
+    else:
+        tl_hi = 1.0
+
+    edges = np.concatenate([sl_edges, [tl_hi]])
+    return edges
+
+
+def _bin_entanglement(cos_plus, cos_minus, variable, bin_edges, n_bootstrap):
+    """Bin events by a variable and compute entanglement in each bin."""
+    n_bins = len(bin_edges) - 1
+    results = []
+    for b in range(n_bins):
+        mask = (variable >= bin_edges[b]) & (variable < bin_edges[b+1])
+        n_in_bin = int(np.sum(mask))
+        if n_in_bin < 10:
+            results.append({'m12': np.nan, 'm12_err': np.nan,
+                            'concurrence': np.nan, 'concurrence_err': np.nan,
+                            'n_events': n_in_bin})
+            continue
+        res = bootstrap_entanglement(cos_plus[mask], cos_minus[mask],
+                                      n_bootstrap=n_bootstrap)
+        res['n_events'] = n_in_bin
+        results.append(res)
+    return results
 
 
 def process_events(filepath, max_events=None):
@@ -78,7 +129,8 @@ def process_events(filepath, max_events=None):
             print(f"  Processed {i+1}/{len(events)} events...")
 
     n_good = sum(1 for r in reco_results if r is not None)
-    print(f"  Successfully reconstructed: {n_good}/{len(events)} ({100*n_good/len(events):.1f}%)")
+    print(f"  Successfully reconstructed: {n_good}/{len(events)} "
+          f"({100*n_good/len(events):.1f}%)")
     if n_reco_fail > 0:
         print(f"  Failed: {n_reco_fail}")
 
@@ -108,25 +160,24 @@ def process_events(filepath, max_events=None):
     v_signal_truth = np.array([iv['v_signal_c'] for iv in truth_intervals])
     n_spacelike_truth = sum(1 for iv in truth_intervals if iv['is_spacelike'])
     n_timelike_truth = N - n_spacelike_truth
-    print(f"  Truth: {n_spacelike_truth} spacelike, {n_timelike_truth} timelike (validation)")
+    print(f"  Truth: {n_spacelike_truth} spacelike, {n_timelike_truth} timelike "
+          "(validation)")
 
     # ------------------------------------------------------------------
     # Phase 4: Compute spin observables
     # ------------------------------------------------------------------
     print("\n[Phase 4] Extracting spin observables...")
 
-    # PRIMARY: using reconstructed tau momenta (experimental observable)
     cos_theta_plus_reco = []
     cos_theta_minus_reco = []
     acoplanarity_reco = []
 
-    # VALIDATION: using truth tau momenta
     cos_theta_plus_truth = []
     cos_theta_minus_truth = []
     acoplanarity_truth = []
 
     for evt, reco in zip(events_good, reco_good):
-        # Primary measurement: reconstructed tau momenta for boosts
+        # Primary measurement: reco tau direction + kinematic constraints
         spin_reco = compute_spin_observables(evt, reco, use_reco_tau=True)
         cos_theta_plus_reco.append(spin_reco['cos_theta_plus'])
         cos_theta_minus_reco.append(spin_reco['cos_theta_minus'])
@@ -151,23 +202,28 @@ def process_events(filepath, max_events=None):
     print("\n[Phase 5] Computing entanglement observables...")
 
     # PRIMARY: reco-based measurement
-    print("  Measurement (reco tau momenta):")
+    print("  Measurement (reco tau momenta + kinematic constraints):")
     global_reco = bootstrap_entanglement(
         cos_theta_plus_reco, cos_theta_minus_reco, n_bootstrap=N_BOOTSTRAP)
     print(f"    m12 = {global_reco['m12']:.4f} +/- {global_reco['m12_err']:.4f}")
-    print(f"    Concurrence = {global_reco['concurrence']:.4f} +/- {global_reco['concurrence_err']:.4f}")
-    print(f"    Bell score = {global_reco['bell_score']:.4f} +/- {global_reco['bell_score_err']:.4f}")
+    print(f"    Concurrence = {global_reco['concurrence']:.4f} "
+          f"+/- {global_reco['concurrence_err']:.4f}")
+    print(f"    Bell score = {global_reco['bell_score']:.4f} "
+          f"+/- {global_reco['bell_score_err']:.4f}")
 
     # VALIDATION: truth-based
     print("  Validation (truth tau momenta):")
     global_truth = bootstrap_entanglement(
         cos_theta_plus_truth, cos_theta_minus_truth, n_bootstrap=N_BOOTSTRAP)
     print(f"    m12 = {global_truth['m12']:.4f} +/- {global_truth['m12_err']:.4f}")
-    print(f"    Concurrence = {global_truth['concurrence']:.4f} +/- {global_truth['concurrence_err']:.4f}")
+    print(f"    Concurrence = {global_truth['concurrence']:.4f} "
+          f"+/- {global_truth['concurrence_err']:.4f}")
 
     # Significance from the RECO measurement
-    loc_sigma = locality_rejection_sigma(global_reco['m12'], global_reco['m12_err'])
-    ent_sigma = entanglement_rejection_sigma(global_reco['concurrence'], global_reco['concurrence_err'])
+    loc_sigma = locality_rejection_sigma(
+        global_reco['m12'], global_reco['m12_err'])
+    ent_sigma = entanglement_rejection_sigma(
+        global_reco['concurrence'], global_reco['concurrence_err'])
 
     print(f"\n  Reject locality (m12 <= 1):    {loc_sigma:.1f} sigma")
     print(f"  Reject separability (C <= 0):  {ent_sigma:.1f} sigma")
@@ -177,54 +233,31 @@ def process_events(filepath, max_events=None):
     # ------------------------------------------------------------------
     print("\n[Phase 6] Binning entanglement vs spacetime variables...")
 
-    # Use RECO spacetime quantities for all physics plots
     signed_ds_reco = np.array([iv['signed_ds_mm'] for iv in reco_intervals])
     v_arr = v_signal_reco
 
-    # --- Binned m12 vs signed ds ---
-    ds_finite = signed_ds_reco[np.isfinite(signed_ds_reco)]
-    ds_lo = np.percentile(ds_finite, 2)
-    ds_hi = np.percentile(ds_finite, 98)
-    ds_edges = np.linspace(ds_lo, ds_hi, N_BINS_SPACETIME + 1)
+    # --- Binned m12 vs signed ds (with lightlike boundary) ---
+    ds_edges = _build_lightlike_binning(signed_ds_reco,
+                                         n_spacelike_bins=N_BINS_SPACETIME - 1)
+    n_ds_bins = len(ds_edges) - 1
+    print(f"  Spacetime binning: {n_ds_bins} bins, "
+          f"lightlike boundary at ds=0")
 
-    binned_ds = []
-    for b in range(N_BINS_SPACETIME):
-        mask = (signed_ds_reco >= ds_edges[b]) & (signed_ds_reco < ds_edges[b+1])
-        n_in_bin = np.sum(mask)
-        if n_in_bin < 10:
-            binned_ds.append({'m12': np.nan, 'm12_err': np.nan,
-                              'concurrence': np.nan, 'concurrence_err': np.nan,
-                              'n_events': n_in_bin})
-            continue
-        res = bootstrap_entanglement(
-            cos_theta_plus_reco[mask], cos_theta_minus_reco[mask],
-            n_bootstrap=N_BOOTSTRAP)
-        res['n_events'] = n_in_bin
-        binned_ds.append(res)
+    binned_ds = _bin_entanglement(cos_theta_plus_reco, cos_theta_minus_reco,
+                                   signed_ds_reco, ds_edges, N_BOOTSTRAP)
 
     # --- Binned m12 vs v_signal ---
     v_finite = v_arr[np.isfinite(v_arr)]
     if len(v_finite) > 0 and np.min(v_finite) > 0:
         v_lo = max(np.percentile(v_finite, 2), 0.5)
         v_hi = np.percentile(v_finite, 98)
-        v_edges = np.logspace(np.log10(v_lo), np.log10(v_hi), N_BINS_SIGNAL_SPEED + 1)
+        v_edges = np.logspace(np.log10(v_lo), np.log10(v_hi),
+                               N_BINS_SIGNAL_SPEED + 1)
     else:
         v_edges = np.logspace(0, 3, N_BINS_SIGNAL_SPEED + 1)
 
-    binned_v = []
-    for b in range(N_BINS_SIGNAL_SPEED):
-        mask = (v_arr >= v_edges[b]) & (v_arr < v_edges[b+1])
-        n_in_bin = np.sum(mask)
-        if n_in_bin < 10:
-            binned_v.append({'m12': np.nan, 'm12_err': np.nan,
-                             'concurrence': np.nan, 'concurrence_err': np.nan,
-                             'n_events': n_in_bin})
-            continue
-        res = bootstrap_entanglement(
-            cos_theta_plus_reco[mask], cos_theta_minus_reco[mask],
-            n_bootstrap=N_BOOTSTRAP)
-        res['n_events'] = n_in_bin
-        binned_v.append(res)
+    binned_v = _bin_entanglement(cos_theta_plus_reco, cos_theta_minus_reco,
+                                  v_arr, v_edges, N_BOOTSTRAP)
 
     # ------------------------------------------------------------------
     # Phase 7: v_psi hypothesis scan (all reco-based)
@@ -250,13 +283,14 @@ def process_events(filepath, max_events=None):
     # 1. Spacetime distributions (truth + reco overlaid for comparison)
     plot_spacetime_distributions(truth_intervals, reco_intervals)
 
-    # 2. Entanglement vs spacetime interval (RECO)
+    # 2. Entanglement vs spacetime interval (lightlike boundary)
     plot_entanglement_vs_spacetime(
         binned_ds, ds_edges,
         xlabel=r"signed $\sqrt{|\Delta s^2|}$ [mm]",
-        suffix="spacetime_interval")
+        suffix="spacetime_interval",
+        lightlike_boundary=True)
 
-    # 3. Entanglement vs signal speed (RECO)
+    # 3. Entanglement vs signal speed
     plot_entanglement_vs_spacetime(
         binned_v, v_edges,
         xlabel=r"$v_{\rm signal} / c$",
@@ -268,18 +302,22 @@ def process_events(filepath, max_events=None):
         v_psi_overlay = v_psi_overlay[:6]
     plot_vpsi_overlay(binned_v, v_edges, v_psi_overlay)
 
-    # 5. v_psi exclusion curve
+    # 5. v_psi exclusion curve (with 95% CL line)
     plot_vpsi_exclusion(vpsi_results)
 
-    # 6. Correlation matrix heatmaps (reco = measurement, truth = validation)
+    # 6. Correlation matrix heatmaps
     plot_correlation_matrix(global_reco['C'], global_reco['C_err'], suffix="")
-    plot_correlation_matrix(global_truth['C'], global_truth['C_err'], suffix="_truth_validation")
+    plot_correlation_matrix(global_truth['C'], global_truth['C_err'],
+                            suffix="_truth_validation")
 
-    # 7. Acoplanarity (reco = measurement, truth = validation)
+    # 7. Acoplanarity with cosine fit
     plot_acoplanarity(acoplanarity_reco, suffix="")
     plot_acoplanarity(acoplanarity_truth, suffix="_truth_validation")
 
-    # 8. Vertex comparison (validation: reco vs truth)
+    # 8. Acoplanarity vs signal speed
+    plot_acoplanarity_vs_vsignal(acoplanarity_reco, v_arr, v_edges)
+
+    # 9. Vertex comparison (with ratio diagnostic)
     plot_vertex_comparison(reco_good)
 
     # ------------------------------------------------------------------

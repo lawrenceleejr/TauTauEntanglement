@@ -168,12 +168,31 @@ def compute_density_matrix(C, B_plus, B_minus):
     return rho
 
 
+def _physicalize_density_matrix(rho):
+    """Project a density matrix onto the nearest physical (PSD, trace-1) state.
+
+    With finite statistics, the C_ij extraction can yield a density matrix
+    with small negative eigenvalues.  We clip these to zero and renormalize
+    so that the concurrence calculation remains meaningful.
+    """
+    eigvals, eigvecs = np.linalg.eigh(rho)
+    eigvals = np.real(eigvals)
+    eigvals = np.maximum(eigvals, 0.0)
+    s = eigvals.sum()
+    if s > 0:
+        eigvals /= s
+    return (eigvecs * eigvals) @ eigvecs.conj().T
+
+
 def compute_concurrence(rho):
     """Compute the concurrence of a 4x4 density matrix.
 
     C = max(0, r1 - r2 - r3 - r4)
     where r_i are the square roots of the eigenvalues (in decreasing order)
     of the matrix R = rho * (sigma_y x sigma_y) * rho* * (sigma_y x sigma_y)
+
+    The density matrix is first projected onto the nearest physical state
+    (positive semi-definite, trace 1) to handle statistical noise.
 
     Parameters
     ----------
@@ -183,6 +202,9 @@ def compute_concurrence(rho):
     -------
     concurrence : float
     """
+    # Ensure physical density matrix
+    rho = _physicalize_density_matrix(rho)
+
     sigma_y = np.array([[0, -1j], [1j, 0]], dtype=complex)
     Y = np.kron(sigma_y, sigma_y)
 
