@@ -180,8 +180,9 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
 
     # (c) Event count per bin
     ax = axes[2]
-    ax.bar(bin_centers, n_events, width=np.diff(bin_edges), color='lightgray',
-           edgecolor='gray', alpha=0.7)
+    half_widths = np.diff(bin_edges) / 2
+    ax.errorbar(bin_centers, n_events, xerr=half_widths,
+                fmt='o', color='gray', markersize=4, capsize=0, linewidth=1)
     ax.set_ylabel('Events')
     ax.set_xlabel(xlabel, fontsize=14)
     if lightlike_boundary:
@@ -285,13 +286,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
 
     # Event count
     ax2 = axes[1]
-    # Use log-spaced bar widths
-    for i, (v, n) in enumerate(zip(v_psi_arr, n_events)):
-        if i == 0:
-            w = v_psi_arr[1] - v_psi_arr[0] if len(v_psi_arr) > 1 else v
-        else:
-            w = v_psi_arr[i] - v_psi_arr[i-1]
-        ax2.bar(v, n, width=w*0.8, color='lightgray', edgecolor='gray', alpha=0.7)
+    ax2.plot(v_psi_arr[valid], n_events[valid], 'o', color='gray', markersize=5)
     ax2.set_xlabel(r'$v_\psi / c$', fontsize=14)
     ax2.set_ylabel('Events')
     ax2.set_xscale('log')
@@ -470,8 +465,9 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
         ax.set_ylim(ylo, yhi)
 
     ax2 = axes[1]
-    ax2.bar(bin_centers_v, n_events, width=np.diff(v_edges),
-            color='lightgray', edgecolor='gray', alpha=0.7)
+    half_w = np.diff(v_edges) / 2
+    ax2.errorbar(bin_centers_v, n_events, xerr=half_w,
+                 fmt='o', color='gray', markersize=4, capsize=0, linewidth=1)
     ax2.set_ylabel('Events')
     ax2.set_xlabel(r'$v_{\rm signal} / c$', fontsize=14)
 
