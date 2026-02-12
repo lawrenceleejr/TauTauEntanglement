@@ -1,496 +1,577 @@
 """
 Plotting module for the tau-tau entanglement analysis.
 
-Uses the `hist` package for histogramming and matplotlib for rendering.
+Style: Tufte-inspired (maximize data-ink, remove chartjunk, direct labels).
+Layout: sized for PRL two-column format.
+  - Single column: 3.375 in wide
+  - Double column: 7.0 in wide
 """
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator, MaxNLocator
 from scipy.optimize import curve_fit
-import mplhep as hep
-import hist
 import os
 from config import OUTPUT_DIR
 
-hep.style.use("CMS")  # clean HEP style
+# ---------------------------------------------------------------------------
+# PRL dimensions (inches)
+# ---------------------------------------------------------------------------
+COL1 = 3.375          # single-column width
+COL2 = 7.0            # double-column width
+GOLDEN = (1 + np.sqrt(5)) / 2  # ~1.618
+
+# ---------------------------------------------------------------------------
+# Tufte-inspired global style
+# ---------------------------------------------------------------------------
+_TUFTE_RC = {
+    # Font
+    'font.family': 'serif',
+    'font.serif': ['CMU Serif', 'Computer Modern', 'DejaVu Serif'],
+    'font.size': 8,
+    'mathtext.fontset': 'cm',
+    # Axes
+    'axes.linewidth': 0.5,
+    'axes.spines.top': False,
+    'axes.spines.right': False,
+    'axes.labelsize': 8,
+    'axes.titlesize': 9,
+    'axes.titlepad': 4,
+    # Ticks
+    'xtick.major.size': 3,
+    'xtick.minor.size': 1.5,
+    'xtick.major.width': 0.4,
+    'xtick.minor.width': 0.3,
+    'xtick.direction': 'in',
+    'xtick.labelsize': 7,
+    'ytick.major.size': 3,
+    'ytick.minor.size': 1.5,
+    'ytick.major.width': 0.4,
+    'ytick.minor.width': 0.3,
+    'ytick.direction': 'in',
+    'ytick.labelsize': 7,
+    # Legend
+    'legend.fontsize': 6.5,
+    'legend.frameon': False,
+    'legend.handlelength': 1.5,
+    'legend.handletextpad': 0.4,
+    'legend.labelspacing': 0.3,
+    'legend.columnspacing': 1.0,
+    # Figure
+    'figure.dpi': 300,
+    'savefig.dpi': 300,
+    'savefig.bbox': 'tight',
+    'savefig.pad_inches': 0.02,
+    # Lines / markers
+    'lines.linewidth': 0.8,
+    'lines.markersize': 3,
+}
+
+
+def _apply_style():
+    """Apply the Tufte RC params (call at top of every plot function)."""
+    plt.rcParams.update(_TUFTE_RC)
+
 
 def _ensure_output_dir():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
+# Muted colour palette
+_C = {
+    'data':     '#1a1a1a',   # near-black for measured data
+    'truth':    '#4878A8',   # steel blue
+    'reco':     '#C0392B',   # muted red
+    'sm':       '#888888',   # grey for SM reference
+    'bell':     '#D4A017',   # dark gold for thresholds
+    'accent':   '#2E7D32',   # dark green
+    'light':    '#B0B0B0',   # light grey for secondary
+}
+
+
+def _step_hist(ax, edges, values, **kwargs):
+    """Draw a step histogram (no fill) from pre-computed bin edges and values."""
+    x = np.repeat(edges, 2)
+    y = np.concatenate([[0], np.repeat(values, 2), [0]])
+    ax.plot(x, y, **kwargs)
+
+
+def _annotate_inline(ax, x, y, text, color='k', fontsize=6, offset=(4, 2)):
+    """Place a small inline annotation near a data point."""
+    ax.annotate(text, (x, y), textcoords='offset points', xytext=offset,
+                fontsize=fontsize, color=color, va='center')
+
+
 # ---------------------------------------------------------------------------
-# 1. Spacetime interval distributions
+# 1. Spacetime interval distributions  (double-wide)
 # ---------------------------------------------------------------------------
 
 def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
-    """Plot distributions of spacetime intervals, dr, dt, v_signal."""
+    _apply_style()
     _ensure_output_dir()
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig, axes = plt.subplots(2, 2, figsize=(COL2, COL2 / GOLDEN))
+    fig.subplots_adjust(hspace=0.35, wspace=0.32)
 
-    # (a) signed ds in mm
+    # --- helpers ---
+    def _hist_vals(data, lo, hi, nbins=50):
+        counts, edges = np.histogram(np.clip(data, lo, hi), bins=nbins, range=(lo, hi))
+        return edges, counts
+
+    # (a) signed ds
     ax = axes[0, 0]
-    signed_ds_truth = np.array([iv['signed_ds_mm'] for iv in truth_intervals])
-    signed_ds_reco = np.array([iv['signed_ds_mm'] for iv in reco_intervals])
-
-    ds_all = np.concatenate([signed_ds_truth, signed_ds_reco])
+    sd_t = np.array([iv['signed_ds_mm'] for iv in truth_intervals])
+    sd_r = np.array([iv['signed_ds_mm'] for iv in reco_intervals])
+    ds_all = np.concatenate([sd_t, sd_r])
     ds_lo, ds_hi = np.percentile(ds_all[np.isfinite(ds_all)], [1, 99])
-    ds_lo = min(ds_lo, -1)
-    ds_hi = max(ds_hi, 1)
+    ds_lo, ds_hi = min(ds_lo, -1), max(ds_hi, 1)
 
-    h_truth = hist.Hist(hist.axis.Regular(50, ds_lo, ds_hi, label=r"signed $\sqrt{|\Delta s^2|}$ [mm]"))
-    h_truth.fill(np.clip(signed_ds_truth, ds_lo, ds_hi))
-    h_reco = hist.Hist(hist.axis.Regular(50, ds_lo, ds_hi, label=r"signed $\sqrt{|\Delta s^2|}$ [mm]"))
-    h_reco.fill(np.clip(signed_ds_reco, ds_lo, ds_hi))
-
-    hep.histplot(h_truth, ax=ax, label="Truth", histtype="step", color="blue")
-    hep.histplot(h_reco, ax=ax, label="Reco (Jeans)", histtype="step", color="red", linestyle="--")
-    ax.axvline(0, color='gray', linestyle=':', alpha=0.5)
-    ax.set_ylabel("Events")
+    e, v = _hist_vals(sd_t, ds_lo, ds_hi)
+    _step_hist(ax, e, v, color=_C['truth'], label='Truth')
+    e, v = _hist_vals(sd_r, ds_lo, ds_hi)
+    _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
+    ax.axvline(0, color=_C['light'], linewidth=0.4, zorder=0)
+    ax.set_xlabel(r'Signed $\sqrt{|\Delta s^2|}$ [mm]')
+    ax.set_ylabel('Events')
     ax.legend()
-    ax.set_title("Spacetime interval")
-    ax.text(0.03, 0.92, r"spacelike $\leftarrow$  $\rightarrow$ timelike",
-            transform=ax.transAxes, fontsize=9, color='gray')
+    ax.text(0.03, 0.93, r'spacelike $\leftarrow|\rightarrow$ timelike',
+            transform=ax.transAxes, fontsize=5.5, color=_C['light'])
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
 
-    # (b) dr in mm
+    # (b) dr
     ax = axes[0, 1]
-    dr_truth = np.array([iv['dr_mm'] for iv in truth_intervals])
-    dr_reco = np.array([iv['dr_mm'] for iv in reco_intervals])
-    dr_max = np.percentile(np.concatenate([dr_truth, dr_reco]), 99) * 1.1
+    dr_t = np.array([iv['dr_mm'] for iv in truth_intervals])
+    dr_r = np.array([iv['dr_mm'] for iv in reco_intervals])
+    dr_max = np.percentile(np.concatenate([dr_t, dr_r]), 99) * 1.1
 
-    h = hist.Hist(hist.axis.Regular(50, 0, dr_max, label=r"$\Delta r$ [mm]"))
-    h.fill(np.clip(dr_truth, 0, dr_max))
-    h2 = hist.Hist(hist.axis.Regular(50, 0, dr_max, label=r"$\Delta r$ [mm]"))
-    h2.fill(np.clip(dr_reco, 0, dr_max))
-    hep.histplot(h, ax=ax, label="Truth", histtype="step", color="blue")
-    hep.histplot(h2, ax=ax, label="Reco", histtype="step", color="red", linestyle="--")
-    ax.set_ylabel("Events")
+    e, v = _hist_vals(dr_t, 0, dr_max)
+    _step_hist(ax, e, v, color=_C['truth'], label='Truth')
+    e, v = _hist_vals(dr_r, 0, dr_max)
+    _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
+    ax.set_xlabel(r'$\Delta r$ [mm]')
+    ax.set_ylabel('Events')
     ax.legend()
-    ax.set_title("Spatial separation")
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
 
-    # (c) v_signal / c
+    # (c) v_signal
     ax = axes[1, 0]
-    v_truth = np.array([iv['v_signal_c'] for iv in truth_intervals])
-    v_reco = np.array([iv['v_signal_c'] for iv in reco_intervals])
-    v_max = np.percentile(np.concatenate([
-        np.clip(v_truth, 0, 1e6), np.clip(v_reco, 0, 1e6)]), 99)
-    v_max = max(v_max, 10) * 1.1
+    v_t = np.array([iv['v_signal_c'] for iv in truth_intervals])
+    v_r = np.array([iv['v_signal_c'] for iv in reco_intervals])
+    v_max = max(np.percentile(np.concatenate([
+        np.clip(v_t, 0, 1e6), np.clip(v_r, 0, 1e6)]), 99), 10) * 1.1
 
-    h = hist.Hist(hist.axis.Regular(60, 0, v_max, label=r"$v_{\rm signal} / c$"))
-    h.fill(np.clip(v_truth, 0, v_max))
-    h2 = hist.Hist(hist.axis.Regular(60, 0, v_max, label=r"$v_{\rm signal} / c$"))
-    h2.fill(np.clip(v_reco, 0, v_max))
-    hep.histplot(h, ax=ax, label="Truth", histtype="step", color="blue")
-    hep.histplot(h2, ax=ax, label="Reco", histtype="step", color="red", linestyle="--")
-    ax.axvline(1.0, color='green', linestyle='-', linewidth=2, label='$v = c$')
-    ax.set_ylabel("Events")
+    e, v = _hist_vals(v_t, 0, v_max, nbins=60)
+    _step_hist(ax, e, v, color=_C['truth'], label='Truth')
+    e, v = _hist_vals(v_r, 0, v_max, nbins=60)
+    _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
+    ax.axvline(1.0, color=_C['accent'], linewidth=0.6, label='$v = c$')
+    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
+    ax.set_ylabel('Events')
     ax.set_yscale('log')
     ax.legend()
-    ax.set_title("Required causal signal speed")
 
-    # (d) spacelike fraction vs timelike
+    # (d) spacelike / timelike counts
     ax = axes[1, 1]
-    n_sl_truth = sum(1 for iv in truth_intervals if iv['is_spacelike'])
-    n_tl_truth = len(truth_intervals) - n_sl_truth
-    n_sl_reco = sum(1 for iv in reco_intervals if iv['is_spacelike'])
-    n_tl_reco = len(reco_intervals) - n_sl_reco
-    labels = ['Spacelike', 'Timelike']
-    x = np.arange(len(labels))
-    width = 0.35
-    ax.bar(x - width/2, [n_sl_truth, n_tl_truth], width, label='Truth', color='steelblue')
-    ax.bar(x + width/2, [n_sl_reco, n_tl_reco], width, label='Reco', color='indianred')
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_ylabel("Events")
-    ax.legend()
-    ax.set_title("Causal classification")
-    ymax_bar = max(n_sl_truth, n_tl_truth, n_sl_reco, n_tl_reco)
-    ax.set_ylim(0, ymax_bar * 1.15)
-    for i, (nt, nr) in enumerate(zip([n_sl_truth, n_tl_truth], [n_sl_reco, n_tl_reco])):
-        ax.text(i - width/2, nt + ymax_bar*0.02, str(nt), ha='center', fontsize=9, color='steelblue')
-        ax.text(i + width/2, nr + ymax_bar*0.02, str(nr), ha='center', fontsize=9, color='indianred')
+    n_sl_t = sum(1 for iv in truth_intervals if iv['is_spacelike'])
+    n_tl_t = len(truth_intervals) - n_sl_t
+    n_sl_r = sum(1 for iv in reco_intervals if iv['is_spacelike'])
+    n_tl_r = len(reco_intervals) - n_sl_r
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.pdf"), dpi=150)
-    fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.png"), dpi=150)
+    x = np.array([0, 1])
+    w = 0.28
+    ax.bar(x - w/2, [n_sl_t, n_tl_t], w, color=_C['truth'], alpha=0.75,
+           edgecolor='none', label='Truth')
+    ax.bar(x + w/2, [n_sl_r, n_tl_r], w, color=_C['reco'], alpha=0.75,
+           edgecolor='none', label='Reco')
+    ax.set_xticks(x)
+    ax.set_xticklabels(['Spacelike', 'Timelike'])
+    ax.set_ylabel('Events')
+    ax.legend()
+    ymax = max(n_sl_t, n_tl_t, n_sl_r, n_tl_r)
+    ax.set_ylim(0, ymax * 1.18)
+    for i, (nt, nr) in enumerate(zip([n_sl_t, n_tl_t], [n_sl_r, n_tl_r])):
+        ax.text(i - w/2, nt + ymax * 0.02, str(nt), ha='center', fontsize=6,
+                color=_C['truth'])
+        ax.text(i + w/2, nr + ymax * 0.02, str(nr), ha='center', fontsize=6,
+                color=_C['reco'])
+
+    fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.pdf"))
+    fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.png"))
     plt.close(fig)
     print(f"  Saved spacetime_distributions{suffix}.pdf")
 
 
 # ---------------------------------------------------------------------------
-# 2. Entanglement vs spacetime interval
+# 2. Entanglement vs spacetime interval  (single-column, tall)
 # ---------------------------------------------------------------------------
 
 def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
                                     lightlike_boundary=False):
-    """Plot m12 and concurrence vs a spacetime variable (ds or v_signal)."""
+    _apply_style()
     _ensure_output_dir()
 
-    bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    bc = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+    hw = np.diff(bin_edges) / 2
 
-    m12_vals = np.array([r['m12'] for r in binned_results])
-    m12_errs = np.array([r['m12_err'] for r in binned_results])
-    conc_vals = np.array([r['concurrence'] for r in binned_results])
-    conc_errs = np.array([r['concurrence_err'] for r in binned_results])
-    n_events = np.array([r.get('n_events', 0) for r in binned_results])
+    m12  = np.array([r['m12'] for r in binned_results])
+    m12e = np.array([r['m12_err'] for r in binned_results])
+    conc  = np.array([r['concurrence'] for r in binned_results])
+    conce = np.array([r['concurrence_err'] for r in binned_results])
+    nev   = np.array([r.get('n_events', 0) for r in binned_results])
+    ok    = ~np.isnan(m12)
+    ok_c  = ~np.isnan(conc)
 
-    valid = ~np.isnan(m12_vals)
-
-    fig, axes = plt.subplots(3, 1, figsize=(10, 12), sharex=True,
+    fig, axes = plt.subplots(3, 1, figsize=(COL1, COL1 * 1.45),
                               gridspec_kw={'height_ratios': [3, 3, 1]})
+    fig.subplots_adjust(hspace=0.08)
 
     # (a) m12
     ax = axes[0]
-    ax.errorbar(bin_centers[valid], m12_vals[valid], yerr=m12_errs[valid],
-                fmt='o', color='navy', markersize=6, capsize=3, label=r'Measured $m_{12}$')
-    ax.axhline(2.0, color='red', linestyle='--', linewidth=1.5, label=r'SM prediction ($m_{12}=2$)')
-    ax.axhline(1.0, color='orange', linestyle=':', linewidth=1.5, label='Bell nonlocality threshold')
+    ax.errorbar(bc[ok], m12[ok], yerr=m12e[ok], xerr=hw[ok],
+                fmt='o', color=_C['data'], markersize=3, capsize=0,
+                elinewidth=0.5, zorder=5)
+    ax.axhline(2.0, color=_C['sm'], linewidth=0.5, linestyle='--', zorder=1)
+    ax.axhline(1.0, color=_C['bell'], linewidth=0.5, linestyle=':', zorder=1)
     if lightlike_boundary:
-        ax.axvline(0, color='gray', linestyle='-', linewidth=1, alpha=0.5, label='Lightlike boundary')
-    ax.set_ylabel(r'$m_{12}$', fontsize=14)
-    ax.legend(fontsize=10)
-    # Auto y-range with padding
-    valid_m12 = m12_vals[valid]
-    valid_m12_err = m12_errs[valid]
-    if len(valid_m12) > 0:
-        ylo = max(0, np.min(valid_m12 - valid_m12_err) - 0.5)
-        yhi = max(3.0, np.max(valid_m12 + valid_m12_err) + 0.5)
+        ax.axvline(0, color=_C['light'], linewidth=0.4, zorder=0)
+    # Direct labels instead of legend
+    ax.text(0.97, 0.92, r'$m_{12}$', transform=ax.transAxes, ha='right',
+            fontsize=8, fontweight='bold')
+    ax.text(0.97, 0.78, r'SM ($m_{12}=2$)', transform=ax.transAxes, ha='right',
+            fontsize=5.5, color=_C['sm'])
+    ax.text(0.97, 0.15, 'Bell threshold', transform=ax.transAxes, ha='right',
+            fontsize=5.5, color=_C['bell'])
+    ax.set_ylabel(r'$m_{12}$')
+    ax.tick_params(labelbottom=False)
+    if len(m12[ok]) > 0:
+        ylo = max(0, np.min(m12[ok] - m12e[ok]) - 0.5)
+        yhi = max(3.0, np.max(m12[ok] + m12e[ok]) + 0.5)
         ax.set_ylim(ylo, yhi)
-    ax.set_title(r"Horodecki parameter $m_{12}$ vs " + xlabel, fontsize=13)
 
     # (b) Concurrence
     ax = axes[1]
-    valid_c = ~np.isnan(conc_vals)
-    ax.errorbar(bin_centers[valid_c], conc_vals[valid_c], yerr=conc_errs[valid_c],
-                fmt='s', color='darkgreen', markersize=6, capsize=3, label='Measured concurrence')
-    ax.axhline(1.0, color='red', linestyle='--', linewidth=1.5, label=r'SM prediction ($\mathcal{C}=1$)')
-    ax.axhline(0.0, color='orange', linestyle=':', linewidth=1.5, label='Separability threshold')
+    ax.errorbar(bc[ok_c], conc[ok_c], yerr=conce[ok_c], xerr=hw[ok_c],
+                fmt='s', color=_C['accent'], markersize=2.5, capsize=0,
+                elinewidth=0.5, zorder=5)
+    ax.axhline(1.0, color=_C['sm'], linewidth=0.5, linestyle='--', zorder=1)
+    ax.axhline(0.0, color=_C['bell'], linewidth=0.5, linestyle=':', zorder=1)
     if lightlike_boundary:
-        ax.axvline(0, color='gray', linestyle='-', linewidth=1, alpha=0.5)
-    ax.set_ylabel('Concurrence', fontsize=14)
-    ax.legend(fontsize=10)
-    # Auto y-range
-    vc = conc_vals[valid_c]
-    vc_err = conc_errs[valid_c]
-    if len(vc) > 0:
-        ylo_c = min(-0.2, np.min(vc - vc_err) - 0.15)
-        yhi_c = max(1.3, np.max(vc + vc_err) + 0.15)
-        ax.set_ylim(ylo_c, yhi_c)
+        ax.axvline(0, color=_C['light'], linewidth=0.4, zorder=0)
+    ax.text(0.97, 0.92, 'Concurrence', transform=ax.transAxes, ha='right',
+            fontsize=8, fontweight='bold')
+    ax.text(0.97, 0.78, r'SM ($\mathcal{C}=1$)', transform=ax.transAxes,
+            ha='right', fontsize=5.5, color=_C['sm'])
+    ax.set_ylabel(r'$\mathcal{C}$')
+    ax.tick_params(labelbottom=False)
+    if len(conc[ok_c]) > 0:
+        ylo = min(-0.2, np.min(conc[ok_c] - conce[ok_c]) - 0.15)
+        yhi = max(1.3, np.max(conc[ok_c] + conce[ok_c]) + 0.15)
+        ax.set_ylim(ylo, yhi)
 
-    # (c) Event count per bin
+    # (c) Event count
     ax = axes[2]
-    half_widths = np.diff(bin_edges) / 2
-    ax.errorbar(bin_centers, n_events, xerr=half_widths,
-                fmt='o', color='gray', markersize=4, capsize=0, linewidth=1)
+    ax.bar(bc, nev, width=np.diff(bin_edges), color=_C['light'], edgecolor='none',
+           alpha=0.6)
     ax.set_ylabel('Events')
-    ax.set_xlabel(xlabel, fontsize=14)
+    ax.set_xlabel(xlabel)
     if lightlike_boundary:
-        ax.axvline(0, color='gray', linestyle='-', linewidth=1, alpha=0.5)
+        ax.axvline(0, color=_C['light'], linewidth=0.4, zorder=0)
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.pdf"), dpi=150)
-    fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.png"), dpi=150)
+    fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.pdf"))
+    fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.png"))
     plt.close(fig)
     print(f"  Saved entanglement_vs_{suffix}.pdf")
 
 
 # ---------------------------------------------------------------------------
-# 3. v_psi hypothesis overlay plot
+# 3. v_psi hypothesis overlay  (double-wide)
 # ---------------------------------------------------------------------------
 
 def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values):
-    """The money plot: m12 vs v_signal with v_psi model step-functions overlaid."""
+    _apply_style()
     _ensure_output_dir()
 
-    bin_centers = 0.5 * (bin_edges_v[:-1] + bin_edges_v[1:])
-    m12_vals = np.array([r['m12'] for r in binned_results_vs_v])
-    m12_errs = np.array([r['m12_err'] for r in binned_results_vs_v])
-    valid = ~np.isnan(m12_vals)
+    bc = 0.5 * (bin_edges_v[:-1] + bin_edges_v[1:])
+    hw = np.diff(bin_edges_v) / 2
+    m12  = np.array([r['m12'] for r in binned_results_vs_v])
+    m12e = np.array([r['m12_err'] for r in binned_results_vs_v])
+    ok   = ~np.isnan(m12)
 
-    fig, ax = plt.subplots(figsize=(12, 7))
+    fig, ax = plt.subplots(figsize=(COL2, COL2 / GOLDEN / 1.3))
 
-    ax.errorbar(bin_centers[valid], m12_vals[valid], yerr=m12_errs[valid],
-                fmt='o', color='black', markersize=7, capsize=4, zorder=10,
-                label=r'Measured $m_{12}$')
+    # Data points
+    ax.errorbar(bc[ok], m12[ok], yerr=m12e[ok], xerr=hw[ok],
+                fmt='o', color=_C['data'], markersize=3.5, capsize=0,
+                elinewidth=0.6, zorder=10, label=r'Measured $m_{12}$')
 
-    colors = plt.cm.coolwarm(np.linspace(0.15, 0.85, len(v_psi_values)))
+    # v_psi step models — thin grey lines with direct end labels
     v_fine = np.linspace(bin_edges_v[0], bin_edges_v[-1], 500)
-
-    for v_psi, color in zip(v_psi_values, colors):
+    greys = np.linspace(0.45, 0.80, len(v_psi_values))
+    for v_psi, g in zip(v_psi_values, greys):
+        c = str(g)
         m12_model = np.where(v_fine <= v_psi, 2.0, 0.0)
-        ax.plot(v_fine, m12_model, color=color, linewidth=1.5, alpha=0.7,
-                label=rf'$v_{{\psi}} = {v_psi:.0f}\,c$')
+        ax.plot(v_fine, m12_model, color=c, linewidth=0.6, zorder=2)
+        ax.text(v_psi, 2.12, rf'${v_psi:.0f}c$', fontsize=5, color=c,
+                ha='center', va='bottom', rotation=0)
 
-    ax.axhline(1.0, color='orange', linestyle=':', linewidth=1.5, alpha=0.7,
-               label='Bell nonlocality threshold')
-    ax.axhline(2.0, color='red', linestyle='--', linewidth=1, alpha=0.5)
+    ax.axhline(1.0, color=_C['bell'], linewidth=0.5, linestyle=':', zorder=1)
+    ax.text(bin_edges_v[-1], 1.05, 'Bell threshold', fontsize=5.5,
+            color=_C['bell'], ha='right', va='bottom')
+    ax.axhline(2.0, color=_C['sm'], linewidth=0.4, linestyle='--', zorder=1)
 
-    ax.set_xlabel(r'$v_{\rm signal} / c$', fontsize=14)
-    ax.set_ylabel(r'$m_{12}$', fontsize=14)
-    ax.set_title(r'Entanglement vs required signal speed: $v_\psi$ hypothesis test', fontsize=13)
-    ax.legend(fontsize=9, ncol=2, loc='center right')
-    # Auto y-range
-    if np.any(valid):
-        yhi = max(3.5, np.nanmax(m12_vals[valid] + m12_errs[valid]) + 0.5)
-        ax.set_ylim(-0.5, yhi)
+    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
+    ax.set_ylabel(r'$m_{12}$')
+    ax.legend(loc='upper right', fontsize=7)
+    if np.any(ok):
+        yhi = max(3.5, np.nanmax(m12[ok] + m12e[ok]) + 0.5)
+        ax.set_ylim(-0.3, yhi)
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.pdf"), dpi=150)
-    fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.png"), dpi=150)
+    fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.pdf"))
+    fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.png"))
     plt.close(fig)
     print("  Saved vpsi_overlay.pdf")
 
 
 # ---------------------------------------------------------------------------
-# 4. v_psi exclusion curve (significance vs v_psi)
+# 4. v_psi exclusion curve  (single-column, tall)
 # ---------------------------------------------------------------------------
 
 def plot_vpsi_exclusion(vpsi_scan_results):
-    """Plot the rejection significance as a function of v_psi.
-
-    Includes 95% CL (1.96 sigma) exclusion line alongside 2/3/5 sigma markers.
-    """
+    _apply_style()
     _ensure_output_dir()
 
-    v_psi_arr = np.array([r['v_psi'] for r in vpsi_scan_results])
-    sigma_0 = np.array([r['sigma_vs_0'] for r in vpsi_scan_results])
-    sigma_1 = np.array([r['sigma_vs_1'] for r in vpsi_scan_results])
-    n_events = np.array([r['n_events'] for r in vpsi_scan_results])
+    v_psi = np.array([r['v_psi'] for r in vpsi_scan_results])
+    sig0  = np.array([r['sigma_vs_0'] for r in vpsi_scan_results])
+    sig1  = np.array([r['sigma_vs_1'] for r in vpsi_scan_results])
+    nev   = np.array([r['n_events'] for r in vpsi_scan_results])
+    ok    = ~np.isnan(sig0) & (nev >= 10)
 
-    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True,
+    fig, axes = plt.subplots(2, 1, figsize=(COL1, COL1 * 1.15),
                               gridspec_kw={'height_ratios': [3, 1]})
+    fig.subplots_adjust(hspace=0.08)
 
     ax = axes[0]
-    valid = ~np.isnan(sigma_0) & (n_events >= 10)
-    ax.plot(v_psi_arr[valid], sigma_0[valid], 'o-', color='navy',
-            markersize=6, label=r'Reject $m_{12}=0$ (no correlation)')
-    ax.plot(v_psi_arr[valid], sigma_1[valid], 's-', color='darkred',
-            markersize=6, label=r'Reject $m_{12}\leq 1$ (locality)')
-
-    # 95% CL exclusion line
-    ax.axhline(1.96, color='forestgreen', linestyle='-', linewidth=1.5,
-               alpha=0.7, label=r'95% CL ($1.96\sigma$)')
-    ax.axhline(3.0, color='gray', linestyle='--', alpha=0.5, label=r'$3\sigma$')
-    ax.axhline(5.0, color='gray', linestyle='-', alpha=0.3, label=r'$5\sigma$')
-
-    ax.set_ylabel(r'Rejection significance [$\sigma$]', fontsize=14)
-    ax.set_title(r'Exclusion of finite-speed signal hypothesis $v_\psi$', fontsize=13)
-    ax.legend(fontsize=10)
+    ax.plot(v_psi[ok], sig0[ok], 'o-', color=_C['truth'], markersize=2.5,
+            linewidth=0.7, label=r'Reject $m_{12}=0$')
+    ax.plot(v_psi[ok], sig1[ok], 's-', color=_C['reco'], markersize=2.5,
+            linewidth=0.7, label=r'Reject $m_{12}\leq 1$')
+    ax.axhline(1.96, color=_C['accent'], linewidth=0.5,
+               label=r'95\% CL')
+    ax.axhline(3.0, color=_C['light'], linewidth=0.4, linestyle='--')
+    ax.axhline(5.0, color=_C['light'], linewidth=0.4, linestyle='-')
+    # Direct labels for sigma lines
+    ax.text(v_psi[ok][-1] * 1.1, 3.15, r'$3\sigma$', fontsize=5,
+            color=_C['light'], va='bottom')
+    ax.text(v_psi[ok][-1] * 1.1, 5.15, r'$5\sigma$', fontsize=5,
+            color=_C['light'], va='bottom')
+    ax.set_ylabel(r'Rejection significance [$\sigma$]')
     ax.set_xscale('log')
-    # Auto y-range
-    all_sigma = np.concatenate([sigma_0[valid], sigma_1[valid]])
-    if len(all_sigma) > 0:
-        yhi = max(6, np.nanmax(all_sigma) * 1.15)
-        ax.set_ylim(0, yhi)
+    ax.legend(loc='upper right')
+    ax.tick_params(labelbottom=False)
+    all_sig = np.concatenate([sig0[ok], sig1[ok]])
+    if len(all_sig) > 0:
+        ax.set_ylim(0, max(6, np.nanmax(all_sig) * 1.15))
 
-    # Event count
     ax2 = axes[1]
-    ax2.plot(v_psi_arr[valid], n_events[valid], 'o', color='gray', markersize=5)
-    ax2.set_xlabel(r'$v_\psi / c$', fontsize=14)
+    ax2.plot(v_psi[ok], nev[ok], 'o', color=_C['light'], markersize=2.5)
+    ax2.set_xlabel(r'$v_\psi / c$')
     ax2.set_ylabel('Events')
     ax2.set_xscale('log')
+    ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.pdf"), dpi=150)
-    fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.png"), dpi=150)
+    fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.pdf"))
+    fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.png"))
     plt.close(fig)
     print("  Saved vpsi_exclusion.pdf")
 
 
 # ---------------------------------------------------------------------------
-# 5. Correlation matrix heatmap
+# 5. Correlation matrix heatmap  (single-column, square)
 # ---------------------------------------------------------------------------
 
 def plot_correlation_matrix(C, C_err, suffix=""):
-    """Plot the 3x3 spin correlation matrix as a heatmap."""
+    _apply_style()
     _ensure_output_dir()
 
-    fig, ax = plt.subplots(figsize=(7, 6))
-    labels = ['n', 'r', 'k']
+    fig, ax = plt.subplots(figsize=(COL1, COL1 * 0.92))
+    labels = ['$n$', '$r$', '$k$']
 
-    im = ax.imshow(C, cmap='RdBu_r', vmin=-2, vmax=2, aspect='equal')
-    plt.colorbar(im, ax=ax, label=r'$C_{ij}$')
+    # Use a diverging colourmap centered on zero
+    vlim = max(abs(C).max(), 1.0)
+    im = ax.imshow(C, cmap='RdBu_r', vmin=-vlim, vmax=vlim, aspect='equal',
+                   interpolation='nearest')
+    cbar = fig.colorbar(im, ax=ax, shrink=0.82, aspect=15, pad=0.04)
+    cbar.ax.tick_params(labelsize=6)
+    cbar.set_label(r'$C_{ij}$', fontsize=7)
 
     for i in range(3):
         for j in range(3):
-            text = f"{C[i,j]:.3f}\n" + r"$\pm$" + f"{C_err[i,j]:.3f}"
-            color = 'white' if abs(C[i,j]) > 1.0 else 'black'
-            ax.text(j, i, text, ha='center', va='center', fontsize=11, color=color)
+            txt = f'{C[i,j]:+.2f}\n$\\pm${C_err[i,j]:.2f}'
+            clr = 'white' if abs(C[i, j]) > 0.6 * vlim else _C['data']
+            ax.text(j, i, txt, ha='center', va='center', fontsize=6.5,
+                    color=clr)
 
     ax.set_xticks(range(3))
-    ax.set_xticklabels(labels, fontsize=13)
+    ax.set_xticklabels(labels)
     ax.set_yticks(range(3))
-    ax.set_yticklabels(labels, fontsize=13)
-    ax.set_xlabel(r'$j$ (from $\tau^+$ decay)', fontsize=13)
-    ax.set_ylabel(r'$i$ (from $\tau^-$ decay)', fontsize=13)
-    title_extra = f' ({suffix})' if suffix else ''
-    ax.set_title(r'Spin correlation matrix $C_{ij}$' + title_extra, fontsize=13)
+    ax.set_yticklabels(labels)
+    ax.set_xlabel(r'$j$ ($\tau^+$ decay)')
+    ax.set_ylabel(r'$i$ ($\tau^-$ decay)')
+    # Restore all spines for the matrix box
+    for sp in ax.spines.values():
+        sp.set_visible(True)
+        sp.set_linewidth(0.4)
+    ax.tick_params(top=True, right=True, direction='out', length=0)
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.pdf"), dpi=150)
-    fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.png"), dpi=150)
+    fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.pdf"))
+    fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.png"))
     plt.close(fig)
     print(f"  Saved correlation_matrix{suffix}.pdf")
 
 
 # ---------------------------------------------------------------------------
-# 6. Acoplanarity distribution with cosine fit
+# 6. Acoplanarity distribution  (single-column)
 # ---------------------------------------------------------------------------
 
 def _cosine_model(phi, A, B):
-    """Model: A * (1 + B * cos(phi))."""
     return A * (1.0 + B * np.cos(phi))
 
 
 def plot_acoplanarity(delta_phi_arr, suffix=""):
-    """Plot the acoplanarity angle distribution with a cosine fit."""
+    _apply_style()
     _ensure_output_dir()
 
-    n_bins = 30
-    fig, ax = plt.subplots(figsize=(8, 6))
+    n_bins = 25
+    fig, ax = plt.subplots(figsize=(COL1, COL1 / GOLDEN))
 
-    h = hist.Hist(hist.axis.Regular(n_bins, -np.pi, np.pi,
-                                     label=r"$\Delta\phi$ [rad]"))
-    h.fill(delta_phi_arr)
-    hep.histplot(h, ax=ax, histtype="fill", color="steelblue", alpha=0.7,
-                 edgecolor="navy", label="Data")
+    counts, edges = np.histogram(delta_phi_arr, bins=n_bins, range=(-np.pi, np.pi))
+    bc = 0.5 * (edges[:-1] + edges[1:])
+    bw = 2 * np.pi / n_bins
+    errs = np.sqrt(np.maximum(counts, 1))
 
-    # Cosine fit: N(phi) = A * (1 + B * cos(phi))
-    bin_centers = h.axes[0].centers
-    bin_counts = h.values()
-    bin_width = 2 * np.pi / n_bins
-    bin_errors = np.sqrt(np.maximum(bin_counts, 1))
+    # Data as points with error bars (Tufte: dots, not filled bars)
+    ax.errorbar(bc, counts, yerr=errs, fmt='o', color=_C['data'],
+                markersize=2.5, capsize=0, elinewidth=0.4, zorder=5)
 
+    # Cosine fit
     try:
-        popt, pcov = curve_fit(_cosine_model, bin_centers, bin_counts,
-                               p0=[np.mean(bin_counts), -0.5],
-                               sigma=bin_errors, absolute_sigma=True)
+        popt, pcov = curve_fit(_cosine_model, bc, counts,
+                               p0=[np.mean(counts), -0.5],
+                               sigma=errs, absolute_sigma=True)
         A_fit, B_fit = popt
-        A_err, B_err = np.sqrt(np.diag(pcov))
+        B_err = np.sqrt(pcov[1, 1])
 
         phi_fine = np.linspace(-np.pi, np.pi, 200)
-        ax.plot(phi_fine, _cosine_model(phi_fine, A_fit, B_fit), 'r-',
-                linewidth=2,
-                label=f'Fit: $A(1 + B\\cos\\phi)$\n  $B = {B_fit:.3f} \\pm {B_err:.3f}$')
+        ax.plot(phi_fine, _cosine_model(phi_fine, *popt), color=_C['reco'],
+                linewidth=0.7, zorder=3)
+        ax.text(0.03, 0.92,
+                rf'$B = {B_fit:.3f} \pm {B_err:.3f}$',
+                transform=ax.transAxes, fontsize=6.5, color=_C['reco'])
     except RuntimeError:
-        A_fit, B_fit, A_err, B_err = 0, 0, 0, 0
+        pass
 
-    # SM expectation (schematic)
+    # SM expectation
     phi_fine = np.linspace(-np.pi, np.pi, 200)
-    norm = len(delta_phi_arr) * bin_width / (2 * np.pi)
-    cp_even = norm * (1 - 0.5 * np.cos(phi_fine))
-    ax.plot(phi_fine, cp_even, 'g--', linewidth=1.5,
-            label='CP-even expectation ($B=-0.5$)')
+    norm = len(delta_phi_arr) * bw / (2 * np.pi)
+    ax.plot(phi_fine, norm * (1 - 0.5 * np.cos(phi_fine)),
+            color=_C['sm'], linewidth=0.5, linestyle='--', zorder=2)
+    ax.text(0.03, 0.82, r'SM ($B=-0.5$)', transform=ax.transAxes,
+            fontsize=5.5, color=_C['sm'])
 
-    ax.set_ylabel("Events", fontsize=13)
-    ax.set_xlabel(r"Acoplanarity $\Delta\phi$ [rad]", fontsize=13)
-    ax.set_title("Acoplanarity angle (CP-sensitive)", fontsize=13)
-    ax.legend(fontsize=10)
+    ax.set_xlabel(r'Acoplanarity $\Delta\phi$ [rad]')
+    ax.set_ylabel('Events')
     ax.set_ylim(bottom=0)
+    ax.xaxis.set_minor_locator(AutoMinorLocator())
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.pdf"), dpi=150)
-    fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.png"), dpi=150)
+    fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.pdf"))
+    fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.png"))
     plt.close(fig)
     print(f"  Saved acoplanarity{suffix}.pdf")
 
 
 # ---------------------------------------------------------------------------
-# 7. Acoplanarity vs signal speed
+# 7. Acoplanarity vs signal speed  (single-column, tall)
 # ---------------------------------------------------------------------------
 
 def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
-    """Plot the acoplanarity cosine fit parameter B vs signal speed."""
+    _apply_style()
     _ensure_output_dir()
 
     n_bins_v = len(v_edges) - 1
-    bin_centers_v = 0.5 * (v_edges[:-1] + v_edges[1:])
+    bc_v = 0.5 * (v_edges[:-1] + v_edges[1:])
+    hw_v = np.diff(v_edges) / 2
 
-    B_vals = []
-    B_errs = []
-    n_events = []
-
+    B_vals, B_errs, n_events = [], [], []
     for b in range(n_bins_v):
-        mask = (v_signal_arr >= v_edges[b]) & (v_signal_arr < v_edges[b+1])
+        mask = (v_signal_arr >= v_edges[b]) & (v_signal_arr < v_edges[b + 1])
         n = np.sum(mask)
         n_events.append(n)
-
         if n < 20:
-            B_vals.append(np.nan)
-            B_errs.append(np.nan)
+            B_vals.append(np.nan); B_errs.append(np.nan)
             continue
-
         dphi = acoplanarity_arr[mask]
-        h = hist.Hist(hist.axis.Regular(15, -np.pi, np.pi))
-        h.fill(dphi)
-        bc = h.axes[0].centers
-        counts = h.values()
-        errors = np.sqrt(np.maximum(counts, 1))
-
+        c, e = np.histogram(dphi, bins=15, range=(-np.pi, np.pi))
+        cbc = 0.5 * (e[:-1] + e[1:])
+        cerr = np.sqrt(np.maximum(c, 1))
         try:
-            popt, pcov = curve_fit(_cosine_model, bc, counts,
-                                   p0=[np.mean(counts), -0.5],
-                                   sigma=errors, absolute_sigma=True)
+            popt, pcov = curve_fit(_cosine_model, cbc, c,
+                                   p0=[np.mean(c), -0.5],
+                                   sigma=cerr, absolute_sigma=True)
             B_vals.append(popt[1])
             B_errs.append(np.sqrt(pcov[1, 1]))
         except RuntimeError:
-            B_vals.append(np.nan)
-            B_errs.append(np.nan)
+            B_vals.append(np.nan); B_errs.append(np.nan)
 
     B_vals = np.array(B_vals)
     B_errs = np.array(B_errs)
     n_events = np.array(n_events)
-    valid = ~np.isnan(B_vals)
+    ok = ~np.isnan(B_vals)
 
-    fig, axes = plt.subplots(2, 1, figsize=(10, 8), sharex=True,
+    fig, axes = plt.subplots(2, 1, figsize=(COL1, COL1 * 1.15),
                               gridspec_kw={'height_ratios': [3, 1]})
+    fig.subplots_adjust(hspace=0.08)
 
     ax = axes[0]
-    if np.any(valid):
-        ax.errorbar(bin_centers_v[valid], B_vals[valid], yerr=B_errs[valid],
-                    fmt='o', color='navy', markersize=6, capsize=3,
-                    label=r'Measured $B$ from $A(1+B\cos\phi)$ fit')
-    ax.axhline(-0.5, color='red', linestyle='--', linewidth=1.5,
-               label=r'SM CP-even ($B=-0.5$)')
-    ax.axhline(0.0, color='gray', linestyle=':', alpha=0.5)
-    ax.set_ylabel(r'Cosine coefficient $B$', fontsize=14)
-    ax.legend(fontsize=10)
-    ax.set_title(r'Acoplanarity modulation vs signal speed', fontsize=13)
-    # Auto y-range
-    vb = B_vals[valid]
+    if np.any(ok):
+        ax.errorbar(bc_v[ok], B_vals[ok], yerr=B_errs[ok], xerr=hw_v[ok],
+                    fmt='o', color=_C['data'], markersize=2.5, capsize=0,
+                    elinewidth=0.5)
+    ax.axhline(-0.5, color=_C['sm'], linewidth=0.5, linestyle='--')
+    ax.axhline(0.0, color=_C['light'], linewidth=0.3)
+    ax.text(0.97, 0.08, r'SM ($B=-0.5$)', transform=ax.transAxes,
+            ha='right', fontsize=5.5, color=_C['sm'])
+    ax.set_ylabel(r'Cosine coefficient $B$')
+    ax.tick_params(labelbottom=False)
+    vb = B_vals[ok]
     if len(vb) > 0:
-        ylo = min(-1.0, np.nanmin(vb - B_errs[valid]) - 0.2)
-        yhi = max(0.5, np.nanmax(vb + B_errs[valid]) + 0.2)
+        ylo = min(-1.0, np.nanmin(vb - B_errs[ok]) - 0.2)
+        yhi = max(0.5, np.nanmax(vb + B_errs[ok]) + 0.2)
         ax.set_ylim(ylo, yhi)
 
     ax2 = axes[1]
-    half_w = np.diff(v_edges) / 2
-    ax2.errorbar(bin_centers_v, n_events, xerr=half_w,
-                 fmt='o', color='gray', markersize=4, capsize=0, linewidth=1)
+    ax2.bar(bc_v, n_events, width=np.diff(v_edges), color=_C['light'],
+            edgecolor='none', alpha=0.6)
+    ax2.set_xlabel(r'$v_{\mathrm{signal}} / c$')
     ax2.set_ylabel('Events')
-    ax2.set_xlabel(r'$v_{\rm signal} / c$', fontsize=14)
+    ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.pdf"), dpi=150)
-    fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.png"), dpi=150)
+    fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.pdf"))
+    fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.png"))
     plt.close(fig)
     print("  Saved acoplanarity_vs_vsignal.pdf")
 
 
 # ---------------------------------------------------------------------------
-# 8. Truth vs reco vertex comparison (with ratio diagnostic)
+# 8. Vertex comparison  (double-wide)
 # ---------------------------------------------------------------------------
 
 def plot_vertex_comparison(reco_results):
-    """Compare truth and reconstructed decay vertices."""
+    _apply_style()
     _ensure_output_dir()
 
-    truth_L_m = []
-    reco_L_m = []
-    truth_L_p = []
-    reco_L_p = []
-
+    truth_L_m, reco_L_m, truth_L_p, reco_L_p = [], [], [], []
     for r in reco_results:
         if r is None:
             continue
@@ -502,62 +583,63 @@ def plot_vertex_comparison(reco_results):
     truth_L = np.array(truth_L_m + truth_L_p)
     reco_L = np.array(reco_L_m + reco_L_p)
 
-    fig, axes = plt.subplots(2, 2, figsize=(14, 12))
+    fig, axes = plt.subplots(2, 2, figsize=(COL2, COL2 / GOLDEN))
+    fig.subplots_adjust(hspace=0.38, wspace=0.32)
 
-    # (a) Scatter plot
-    ax = axes[0, 0]
-    ax.scatter(truth_L, reco_L, s=2, alpha=0.3, color='steelblue')
     p99 = np.percentile(np.concatenate([truth_L, reco_L]), 99)
     lim = p99 * 1.2
-    ax.plot([0, lim], [0, lim], 'r--', linewidth=1, label='Perfect reco')
-    ax.set_xlabel("Truth decay length [mm]", fontsize=12)
-    ax.set_ylabel("Reco decay length [mm]", fontsize=12)
-    ax.set_title("Decay length: truth vs reco", fontsize=13)
-    ax.legend()
+
+    # (a) Scatter
+    ax = axes[0, 0]
+    ax.scatter(truth_L, reco_L, s=0.5, alpha=0.2, color=_C['truth'],
+               edgecolors='none', rasterized=True)
+    ax.plot([0, lim], [0, lim], color=_C['sm'], linewidth=0.5, linestyle='--')
+    ax.set_xlabel('Truth decay length [mm]')
+    ax.set_ylabel('Reco decay length [mm]')
     ax.set_xlim(0, lim)
     ax.set_ylim(0, lim)
+    ax.set_aspect('equal')
 
-    # (b) Residual distribution
+    # (b) Residual
     ax = axes[0, 1]
     residual = reco_L - truth_L
-    res_lo, res_hi = np.percentile(residual, [2, 98])
-    res_range = max(abs(res_lo), abs(res_hi)) * 1.2
-    h = hist.Hist(hist.axis.Regular(50, -res_range, res_range,
-                                     label="Reco - Truth [mm]"))
-    h.fill(np.clip(residual, -res_range, res_range))
-    hep.histplot(h, ax=ax, histtype="fill", color="steelblue", alpha=0.7,
-                 edgecolor="navy")
-    ax.set_ylabel("Entries")
-    ax.set_title(f"Decay length residual\n"
-                 f"mean={np.mean(residual):.3f} mm, "
-                 f"RMS={np.std(residual):.3f} mm", fontsize=12)
+    res_range = max(abs(np.percentile(residual, 2)),
+                    abs(np.percentile(residual, 98))) * 1.2
+    c, e = np.histogram(np.clip(residual, -res_range, res_range),
+                        bins=50, range=(-res_range, res_range))
+    _step_hist(ax, e, c, color=_C['truth'])
+    ax.set_xlabel('Reco $-$ Truth [mm]')
+    ax.set_ylabel('Entries')
+    ax.text(0.97, 0.92,
+            f'mean {np.mean(residual):.3f}\nRMS {np.std(residual):.3f}',
+            transform=ax.transAxes, ha='right', va='top', fontsize=5.5,
+            color=_C['data'])
 
-    # (c) Ratio distribution (reco/truth) — diagnostic for the tail
+    # (c) Ratio distribution
     ax = axes[1, 0]
-    safe = truth_L > 0.01  # avoid division by zero
+    safe = truth_L > 0.01
     ratio = reco_L[safe] / truth_L[safe]
-    h_ratio = hist.Hist(hist.axis.Regular(60, 0, 5, label="Reco / Truth"))
-    h_ratio.fill(np.clip(ratio, 0, 5))
-    hep.histplot(h_ratio, ax=ax, histtype="fill", color="steelblue", alpha=0.7,
-                 edgecolor="navy")
-    ax.axvline(1.0, color='red', linestyle='--', linewidth=1.5, label='Perfect')
-    ax.set_ylabel("Entries")
-    ax.set_title(f"Decay length ratio (median={np.median(ratio):.3f})", fontsize=12)
-    ax.legend()
+    c, e = np.histogram(np.clip(ratio, 0, 5), bins=60, range=(0, 5))
+    _step_hist(ax, e, c, color=_C['truth'])
+    ax.axvline(1.0, color=_C['sm'], linewidth=0.5, linestyle='--')
+    ax.set_xlabel('Reco / Truth')
+    ax.set_ylabel('Entries')
+    ax.text(0.97, 0.92, f'median {np.median(ratio):.3f}',
+            transform=ax.transAxes, ha='right', va='top', fontsize=5.5,
+            color=_C['data'])
 
-    # (d) Reco/truth ratio vs truth decay length — shows where the tail comes from
+    # (d) Ratio vs truth
     ax = axes[1, 1]
-    ax.scatter(truth_L[safe], ratio, s=2, alpha=0.3, color='steelblue')
-    ax.axhline(1.0, color='red', linestyle='--', linewidth=1)
-    ax.set_xlabel("Truth decay length [mm]", fontsize=12)
-    ax.set_ylabel("Reco / Truth", fontsize=12)
-    ax.set_title("Ratio vs truth decay length", fontsize=12)
+    ax.scatter(truth_L[safe], ratio, s=0.5, alpha=0.2, color=_C['truth'],
+               edgecolors='none', rasterized=True)
+    ax.axhline(1.0, color=_C['sm'], linewidth=0.5, linestyle='--')
+    ax.set_xlabel('Truth decay length [mm]')
+    ax.set_ylabel('Reco / Truth')
     ax.set_ylim(0, 5)
-    ax.set_xlim(0, p99 * 1.2)
+    ax.set_xlim(0, lim)
 
-    fig.tight_layout()
-    fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.pdf"), dpi=150)
-    fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.png"), dpi=150)
+    fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.pdf"))
+    fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.png"))
     plt.close(fig)
     print("  Saved vertex_comparison.pdf")
 
@@ -568,10 +650,9 @@ def plot_vertex_comparison(reco_results):
 
 def print_summary(global_result, locality_sigma, entanglement_sigma,
                   n_spacelike, n_timelike, vpsi_scan_results=None):
-    """Print a summary of the entanglement analysis."""
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
     print("  TAU-TAU ENTANGLEMENT ANALYSIS SUMMARY")
-    print("="*70)
+    print("=" * 70)
 
     C = global_result['C']
     print(f"\n  Spin correlation matrix C_ij:")
@@ -585,17 +666,20 @@ def print_summary(global_result, locality_sigma, entanglement_sigma,
 
     print(f"\n  SM prediction: C = diag(+1, +1, -1)")
 
-    print(f"\n  Horodecki parameter:   m12 = {global_result['m12']:.4f} +/- {global_result['m12_err']:.4f}")
+    m12 = global_result['m12']
+    print(f"\n  Horodecki parameter:   m12 = {m12:.4f} +/- {global_result['m12_err']:.4f}")
     print(f"  SM prediction:         m12 = 2.0")
-    print(f"  Bell score:            2*sqrt(m12) = {global_result['bell_score']:.4f} +/- {global_result['bell_score_err']:.4f}")
-    print(f"  Concurrence:           C = {global_result['concurrence']:.4f} +/- {global_result['concurrence_err']:.4f}")
+    print(f"  Bell score:            2*sqrt(m12) = {global_result['bell_score']:.4f} "
+          f"+/- {global_result['bell_score_err']:.4f}")
+    print(f"  Concurrence:           C = {global_result['concurrence']:.4f} "
+          f"+/- {global_result['concurrence_err']:.4f}")
     print(f"  SM prediction:         C = 1.0")
 
     print(f"\n  Reject locality (m12 <= 1):    {locality_sigma:.1f} sigma")
     print(f"  Reject separability (C <= 0):  {entanglement_sigma:.1f} sigma")
 
-    print(f"\n  Spacetime classification:")
     n_total = n_spacelike + n_timelike
+    print(f"\n  Spacetime classification:")
     print(f"    Spacelike: {n_spacelike} ({100*n_spacelike/n_total:.1f}%)")
     print(f"    Timelike:  {n_timelike} ({100*n_timelike/n_total:.1f}%)")
 
@@ -605,9 +689,11 @@ def print_summary(global_result, locality_sigma, entanglement_sigma,
               f"{'sigma(m12>0)':>14s} {'sigma(m12>1)':>14s}")
         for r in vpsi_scan_results:
             if r['n_events'] >= 10:
-                print(f"    {r['v_psi']:10.1f} {r['n_events']:10d} {r['m12']:10.3f} "
+                print(f"    {r['v_psi']:10.1f} {r['n_events']:10d} "
+                      f"{r['m12']:10.3f} "
                       f"{r['sigma_vs_0']:14.1f} {r['sigma_vs_1']:14.1f}")
             else:
-                print(f"    {r['v_psi']:10.1f} {r['n_events']:10d}    (too few events)")
+                print(f"    {r['v_psi']:10.1f} {r['n_events']:10d}"
+                      f"    (too few events)")
 
-    print("\n" + "="*70)
+    print("\n" + "=" * 70)
