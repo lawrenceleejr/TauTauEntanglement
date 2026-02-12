@@ -82,9 +82,9 @@ _TUFTE_RC = {
     'legend.labelspacing': 0.3,
     'legend.columnspacing': 1.0,
     # Figure
-    'figure.dpi': 300,
+    'figure.dpi': 600,
     'figure.facecolor': 'white',
-    'savefig.dpi': 300,
+    'savefig.dpi': 600,
     'savefig.bbox': 'tight',
     'savefig.pad_inches': 0.04,
     'savefig.facecolor': 'white',
@@ -180,21 +180,11 @@ def _shadow_markers(ax, x, y, color=_C['data'], marker='o', ms=3,
 # ===================================================================
 
 def _paper_bg(fig, ax_or_axes):
-    """White background with a barely-visible diagonal hatch that gives
-    the plot area a faint engraved-plate texture — visible on close
-    inspection but never competing with data ink."""
-    from matplotlib.patches import Rectangle
-
+    """Set figure and axes to clean white for seamless PDF embedding."""
     fig.patch.set_facecolor(_C['paper'])
     axes = np.atleast_1d(ax_or_axes).ravel()
     for ax in axes:
         ax.set_facecolor(_C['paper'])
-        # Full-extent hatched rectangle behind everything
-        bg = Rectangle((0, 0), 1, 1, transform=ax.transAxes,
-                        facecolor='none', edgecolor='#e0e0e0',
-                        hatch='....', linewidth=0, alpha=0.35,
-                        zorder=0)
-        ax.add_patch(bg)
 
 
 # ===================================================================
@@ -304,7 +294,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     _ensure_output_dir()
 
     fig, axes = plt.subplots(2, 2, figsize=(COL2, COL2 / GOLDEN))
-    fig.subplots_adjust(hspace=0.35, wspace=0.32)
+    fig.subplots_adjust(hspace=0.42, wspace=0.35)
 
     # --- helpers ---
     def _hist_vals(data, lo, hi, nbins=50):
@@ -421,9 +411,9 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
     ok    = ~np.isnan(m12)
     ok_c  = ~np.isnan(conc)
 
-    fig, axes = plt.subplots(3, 1, figsize=(COL1, COL1 * 1.45),
+    fig, axes = plt.subplots(3, 1, figsize=(COL1, COL1 * 1.55),
                               gridspec_kw={'height_ratios': [3, 3, 1]})
-    fig.subplots_adjust(hspace=0.08)
+    fig.subplots_adjust(hspace=0.12, left=0.18, right=0.95, bottom=0.10, top=0.97)
 
     # (a) m12
     ax = axes[0]
@@ -445,8 +435,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
                   color=_C['bell'])
     ax.set_ylabel(r'$m_{12}$')
     ax.tick_params(labelbottom=False)
-    if np.any(ok):
-        _range_frame(ax, x_data=bc[ok], y_data=m12[ok])
+    ax.set_xlim(bin_edges[0], bin_edges[-1])
 
     # (b) Concurrence
     ax = axes[1]
@@ -466,8 +455,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
                   color=_C['sm'])
     ax.set_ylabel(r'$\mathcal{C}$')
     ax.tick_params(labelbottom=False)
-    if np.any(ok_c):
-        _range_frame(ax, x_data=bc[ok_c], y_data=conc[ok_c])
+    ax.set_xlim(bin_edges[0], bin_edges[-1])
 
     # (c) Event count — textured bars
     ax = axes[2]
@@ -478,6 +466,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
     ax.set_xlabel(xlabel)
     if lightlike_boundary:
         ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
+    ax.set_xlim(bin_edges[0], bin_edges[-1])
     ax.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
@@ -556,7 +545,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
 
     fig, axes = plt.subplots(2, 1, figsize=(COL1, COL1 * 1.15),
                               gridspec_kw={'height_ratios': [3, 1]})
-    fig.subplots_adjust(hspace=0.08)
+    fig.subplots_adjust(hspace=0.12, left=0.18, right=0.95, bottom=0.12, top=0.97)
 
     ax = axes[0]
     all_sig = np.concatenate([sig0[ok], sig1[ok]])
@@ -571,7 +560,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
             linewidth=0.5, label=r'Reject $m_{12}\leq 1$',
             path_effects=_LINE_SHADOW, markeredgewidth=0)
     ax.axhline(1.96, color=_C['accent'], linewidth=0.35,
-               label=r'95\% CL')
+               label='95% CL')
     ax.axhline(3.0, color=_C['light'], linewidth=0.3, linestyle='--')
     ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-')
     # Sigma labels
@@ -627,10 +616,7 @@ def plot_correlation_matrix(C, C_err, suffix=""):
             txt = f'{C[i,j]:+.2f}\n$\\pm${C_err[i,j]:.2f}'
             clr = 'white' if abs(C[i, j]) > 0.6 * vlim else _C['data']
             ax.text(j, i, txt, ha='center', va='center', fontsize=6.5,
-                    color=clr,
-                    path_effects=[pe.withStroke(linewidth=1.2,
-                                                foreground='white',
-                                                alpha=0.5)])
+                    color=clr)
 
     ax.set_xticks(range(3))
     ax.set_xticklabels(labels)
@@ -732,7 +718,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
         mask = (v_signal_arr >= v_edges[b]) & (v_signal_arr < v_edges[b + 1])
         n = np.sum(mask)
         n_events.append(n)
-        if n < 20:
+        if n < 10:
             B_vals.append(np.nan); B_errs.append(np.nan)
             continue
         dphi = acoplanarity_arr[mask]
@@ -755,9 +741,9 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
 
     fig, axes = plt.subplots(2, 1, figsize=(COL1, COL1 * 1.15),
                               gridspec_kw={'height_ratios': [3, 1]})
-    fig.subplots_adjust(hspace=0.08)
+    fig.subplots_adjust(hspace=0.12, left=0.18, right=0.95, bottom=0.12, top=0.97)
 
-    # (a) B coefficient
+    # (a) B coefficient — plot all bins that have a fit result
     ax = axes[0]
     vb = B_vals[ok]
     if len(vb) > 0:
@@ -774,16 +760,17 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
                   color=_C['sm'])
     ax.set_ylabel(r'Cosine coefficient $B$')
     ax.tick_params(labelbottom=False)
-    if np.any(ok):
-        _range_frame(ax, x_data=bc_v[ok], y_data=B_vals[ok])
+    # Shared x-limits with event count panel
+    ax.set_xlim(v_edges[0], v_edges[-1])
 
-    # (b) event count
+    # (b) event count — same bins as panel (a)
     ax2 = axes[1]
     ax2.set_ylim(0, max(n_events) * 1.2 if max(n_events) > 0 else 1)
     _textured_bar(ax2, bc_v, n_events, width=np.diff(v_edges),
                   color=_C['light'], hatch='....', alpha=0.50)
     ax2.set_xlabel(r'$v_{\mathrm{signal}} / c$')
     ax2.set_ylabel('Events')
+    ax2.set_xlim(v_edges[0], v_edges[-1])
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
@@ -814,22 +801,23 @@ def plot_vertex_comparison(reco_results):
     reco_L = np.array(reco_L_m + reco_L_p)
 
     fig, axes = plt.subplots(2, 2, figsize=(COL2, COL2 / GOLDEN))
-    fig.subplots_adjust(hspace=0.38, wspace=0.32)
+    fig.subplots_adjust(hspace=0.45, wspace=0.35)
 
     p99 = np.percentile(np.concatenate([truth_L, reco_L]), 99)
     lim = p99 * 1.2
 
-    # (a) Scatter with warm shadow tint
+    # (a) Scatter — symlog to reveal small-scale structure
     ax = axes[0, 0]
-    ax.scatter(truth_L, reco_L, s=0.6, alpha=0.25, color=_C['truth'],
+    ax.scatter(truth_L, reco_L, s=0.8, alpha=0.35, color=_C['data'],
                edgecolors='none', rasterized=True, zorder=3)
-    ax.plot([0, lim], [0, lim], color=_C['sm'], linewidth=0.35,
+    ax.plot([1e-4, lim], [1e-4, lim], color=_C['sm'], linewidth=0.35,
             linestyle='--')
     ax.set_xlabel('Truth decay length [mm]')
     ax.set_ylabel('Reco decay length [mm]')
+    ax.set_xscale('symlog', linthresh=0.01)
+    ax.set_yscale('symlog', linthresh=0.01)
     ax.set_xlim(0, lim)
     ax.set_ylim(0, lim)
-    ax.set_aspect('equal')
 
     # (b) Residual with hatched fill
     ax = axes[0, 1]
@@ -859,13 +847,14 @@ def plot_vertex_comparison(reco_results):
     _label_shadow(ax, 0.97, 0.92, f'median {np.median(ratio):.3f}',
                   fontsize=5.5, color=_C['data'])
 
-    # (d) Ratio vs truth
+    # (d) Ratio vs truth — symlog to match panel (a)
     ax = axes[1, 1]
-    ax.scatter(truth_L[safe], ratio, s=0.6, alpha=0.25, color=_C['truth'],
+    ax.scatter(truth_L[safe], ratio, s=0.8, alpha=0.35, color=_C['data'],
                edgecolors='none', rasterized=True, zorder=3)
     ax.axhline(1.0, color=_C['sm'], linewidth=0.35, linestyle='--')
     ax.set_xlabel('Truth decay length [mm]')
     ax.set_ylabel('Reco / Truth')
+    ax.set_xscale('symlog', linthresh=0.01)
     ax.set_ylim(0, 5)
     ax.set_xlim(0, lim)
 
