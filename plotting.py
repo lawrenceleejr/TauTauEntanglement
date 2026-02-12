@@ -285,11 +285,20 @@ def _label_shadow(ax, x_frac, y_frac, text, fontsize=8, color=_C['data'],
             path_effects=shadow_fx, **kw)
 
 
+def _stamp_lumi(fig, lumi_label):
+    """Place the luminosity / event-count annotation at the top of the figure."""
+    if not lumi_label:
+        return
+    fig.text(0.5, 0.995, lumi_label, ha='center', va='top',
+             fontsize=5, color=_C['sm'])
+
+
 # ---------------------------------------------------------------------------
 # 1. Spacetime interval distributions  (double-wide)
 # ---------------------------------------------------------------------------
 
-def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
+def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix="",
+                                 lumi_label=None):
     _apply_style()
     _ensure_output_dir()
 
@@ -317,10 +326,10 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
     ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
     ax.set_xlabel(r'Signed $\sqrt{|\Delta s^2|}$ [mm]')
-    ax.set_ylabel('Events')
+    ax.set_ylabel('Events / Bin')
     ax.legend()
     _label_shadow(ax, 0.03, 0.93,
-                  r'spacelike $\leftarrow|\rightarrow$ timelike',
+                  r'Spacelike $\leftarrow|\rightarrow$ Timelike',
                   fontsize=5.5, color=_C['light'], ha='left')
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
@@ -335,8 +344,8 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
                hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
     e, v = _hist_vals(dr_r, 0, dr_max)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
-    ax.set_xlabel(r'$\Delta r$ [mm]')
-    ax.set_ylabel('Events')
+    ax.set_xlabel(r'Spatial Separation $\Delta r$ [mm]')
+    ax.set_ylabel('Events / Bin')
     ax.legend()
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
@@ -353,8 +362,8 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     e, v = _hist_vals(v_r, 0, v_max, nbins=60)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
     ax.axvline(1.0, color=_C['accent'], linewidth=0.5, label='$v = c$')
-    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
-    ax.set_ylabel('Events')
+    ax.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
+    ax.set_ylabel('Events / Bin')
     ax.set_yscale('log')
     ax.legend()
 
@@ -378,13 +387,13 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     ax.set_ylabel('Events')
     ax.legend()
     for i, (nt, nr) in enumerate(zip([n_sl_t, n_tl_t], [n_sl_r, n_tl_r])):
-        _label_shadow(ax, 0, 0, str(nt), fontsize=6, color=_C['truth'])
         ax.text(i - w / 2, nt + ymax * 0.02, str(nt), ha='center',
                 fontsize=6, color=_C['truth'])
         ax.text(i + w / 2, nr + ymax * 0.02, str(nr), ha='center',
                 fontsize=6, color=_C['reco'])
 
     _paper_bg(fig, axes)
+    _stamp_lumi(fig, lumi_label)
     fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.png"))
     plt.close(fig)
@@ -396,7 +405,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
 # ---------------------------------------------------------------------------
 
 def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
-                                    lightlike_boundary=False):
+                                    lightlike_boundary=False, lumi_label=None):
     _apply_style()
     _ensure_output_dir()
 
@@ -470,6 +479,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
     ax.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
+    _stamp_lumi(fig, lumi_label)
     fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.png"))
     plt.close(fig)
@@ -480,7 +490,8 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
 # 3. v_psi hypothesis overlay  (double-wide)
 # ---------------------------------------------------------------------------
 
-def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values):
+def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
+                      lumi_label=None):
     _apply_style()
     _ensure_output_dir()
 
@@ -516,13 +527,14 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values):
                      color=_C['data'], marker='o', ms=3.5, elinewidth=0.5,
                      label=r'Measured $m_{12}$')
 
-    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
-    ax.set_ylabel(r'$m_{12}$')
+    ax.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
+    ax.set_ylabel(r'Horodecki Parameter $m_{12}$')
     ax.legend(loc='upper right', fontsize=7)
     if np.any(ok):
         _range_frame(ax, x_data=bc[ok], y_data=m12[ok])
 
     _paper_bg(fig, ax)
+    _stamp_lumi(fig, lumi_label)
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.png"))
     plt.close(fig)
@@ -533,7 +545,7 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values):
 # 4. v_psi exclusion curve  (single-column, tall)
 # ---------------------------------------------------------------------------
 
-def plot_vpsi_exclusion(vpsi_scan_results):
+def plot_vpsi_exclusion(vpsi_scan_results, lumi_label=None):
     _apply_style()
     _ensure_output_dir()
 
@@ -571,7 +583,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax.annotate(r'$5\sigma$', xy=(v_psi[ok][-1], 5.0),
                 xytext=(4, 3), textcoords='offset points',
                 fontsize=5, color=_C['light'], va='bottom')
-    ax.set_ylabel(r'Rejection significance [$\sigma$]')
+    ax.set_ylabel(r'Rejection Significance [$\sigma$]')
     ax.set_xscale('log')
     ax.legend(loc='upper right')
     ax.tick_params(labelbottom=False)
@@ -580,12 +592,13 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax2 = axes[1]
     _shadow_markers(ax2, v_psi[ok], nev[ok], color=_C['light'],
                     marker='o', ms=2.5)
-    ax2.set_xlabel(r'$v_\psi / c$')
+    ax2.set_xlabel(r'Signal Speed $v_\psi / c$')
     ax2.set_ylabel('Events')
     ax2.set_xscale('log')
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
+    _stamp_lumi(fig, lumi_label)
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.png"))
     plt.close(fig)
@@ -596,7 +609,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
 # 5. Correlation matrix heatmap  (single-column, square)
 # ---------------------------------------------------------------------------
 
-def plot_correlation_matrix(C, C_err, suffix=""):
+def plot_correlation_matrix(C, C_err, suffix="", lumi_label=None):
     _apply_style()
     _ensure_output_dir()
 
@@ -622,14 +635,15 @@ def plot_correlation_matrix(C, C_err, suffix=""):
     ax.set_xticklabels(labels)
     ax.set_yticks(range(3))
     ax.set_yticklabels(labels)
-    ax.set_xlabel(r'$j$ ($\tau^+$ decay)')
-    ax.set_ylabel(r'$i$ ($\tau^-$ decay)')
+    ax.set_xlabel(r'$j$ ($\tau^+$ Decay)')
+    ax.set_ylabel(r'$i$ ($\tau^-$ Decay)')
     for sp in ax.spines.values():
         sp.set_visible(True)
         sp.set_linewidth(0.3)
     ax.tick_params(top=True, right=True, direction='out', length=0)
 
     fig.patch.set_facecolor(_C['paper'])
+    _stamp_lumi(fig, lumi_label)
     fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.png"))
     plt.close(fig)
@@ -644,7 +658,7 @@ def _cosine_model(phi, A, B):
     return A * (1.0 + B * np.cos(phi))
 
 
-def plot_acoplanarity(delta_phi_arr, suffix=""):
+def plot_acoplanarity(delta_phi_arr, suffix="", lumi_label=None):
     _apply_style()
     _ensure_output_dir()
 
@@ -691,10 +705,11 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
                   color=_C['sm'], ha='left')
 
     ax.set_xlabel(r'Acoplanarity $\Delta\phi$ [rad]')
-    ax.set_ylabel('Events')
+    ax.set_ylabel('Events / Bin')
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
     _paper_bg(fig, ax)
+    _stamp_lumi(fig, lumi_label)
     fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.png"))
     plt.close(fig)
@@ -705,7 +720,8 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
 # 7. Acoplanarity vs signal speed  (single-column, tall)
 # ---------------------------------------------------------------------------
 
-def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
+def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
+                                 lumi_label=None):
     _apply_style()
     _ensure_output_dir()
 
@@ -758,7 +774,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
     ax.axhline(0.0, color=_C['light'], linewidth=0.25)
     _label_shadow(ax, 0.97, 0.08, r'SM ($B=-0.5$)', fontsize=5.5,
                   color=_C['sm'])
-    ax.set_ylabel(r'Cosine coefficient $B$')
+    ax.set_ylabel(r'Cosine Coefficient $B$')
     ax.tick_params(labelbottom=False)
     # Shared x-limits with event count panel
     ax.set_xlim(v_edges[0], v_edges[-1])
@@ -768,12 +784,13 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
     ax2.set_ylim(0, max(n_events) * 1.2 if max(n_events) > 0 else 1)
     _textured_bar(ax2, bc_v, n_events, width=np.diff(v_edges),
                   color=_C['light'], hatch='....', alpha=0.50)
-    ax2.set_xlabel(r'$v_{\mathrm{signal}} / c$')
+    ax2.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
     ax2.set_ylabel('Events')
     ax2.set_xlim(v_edges[0], v_edges[-1])
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
+    _stamp_lumi(fig, lumi_label)
     fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.png"))
     plt.close(fig)
@@ -784,7 +801,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
 # 8. Vertex comparison  (double-wide)
 # ---------------------------------------------------------------------------
 
-def plot_vertex_comparison(reco_results):
+def plot_vertex_comparison(reco_results, lumi_label=None):
     _apply_style()
     _ensure_output_dir()
 
@@ -812,8 +829,8 @@ def plot_vertex_comparison(reco_results):
                edgecolors='none', rasterized=True, zorder=3)
     ax.plot([1e-4, lim], [1e-4, lim], color=_C['sm'], linewidth=0.35,
             linestyle='--')
-    ax.set_xlabel('Truth decay length [mm]')
-    ax.set_ylabel('Reco decay length [mm]')
+    ax.set_xlabel('Truth Decay Length [mm]')
+    ax.set_ylabel('Reco Decay Length [mm]')
     ax.set_xscale('symlog', linthresh=0.01)
     ax.set_yscale('symlog', linthresh=0.01)
     ax.set_xlim(0, lim)
@@ -829,7 +846,7 @@ def plot_vertex_comparison(reco_results):
     _step_hist(ax, e, c, color=_C['truth'],
                hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
     ax.set_xlabel('Reco $-$ Truth [mm]')
-    ax.set_ylabel('Entries')
+    ax.set_ylabel('Entries / Bin')
     _label_shadow(ax, 0.97, 0.92,
                   f'mean {np.mean(residual):.3f}\nRMS {np.std(residual):.3f}',
                   fontsize=5.5, color=_C['data'])
@@ -843,7 +860,7 @@ def plot_vertex_comparison(reco_results):
                hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
     ax.axvline(1.0, color=_C['sm'], linewidth=0.35, linestyle='--')
     ax.set_xlabel('Reco / Truth')
-    ax.set_ylabel('Entries')
+    ax.set_ylabel('Entries / Bin')
     _label_shadow(ax, 0.97, 0.92, f'median {np.median(ratio):.3f}',
                   fontsize=5.5, color=_C['data'])
 
@@ -852,13 +869,14 @@ def plot_vertex_comparison(reco_results):
     ax.scatter(truth_L[safe], ratio, s=0.8, alpha=0.35, color=_C['data'],
                edgecolors='none', rasterized=True, zorder=3)
     ax.axhline(1.0, color=_C['sm'], linewidth=0.35, linestyle='--')
-    ax.set_xlabel('Truth decay length [mm]')
+    ax.set_xlabel('Truth Decay Length [mm]')
     ax.set_ylabel('Reco / Truth')
     ax.set_xscale('symlog', linthresh=0.01)
     ax.set_ylim(0, 5)
     ax.set_xlim(0, lim)
 
     _paper_bg(fig, axes)
+    _stamp_lumi(fig, lumi_label)
     fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.png"))
     plt.close(fig)

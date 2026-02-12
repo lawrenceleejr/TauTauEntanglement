@@ -26,7 +26,8 @@ import numpy as np
 
 from config import (
     N_BINS_SPACETIME, N_BINS_SIGNAL_SPEED, N_BOOTSTRAP,
-    V_PSI_SCAN, OUTPUT_DIR,
+    V_PSI_SCAN, OUTPUT_DIR, ALLOWED_DECAY_MODES,
+    SIGMA_ZH_FB, BR_H_TAUTAU, BR_Z_MUMU, BR_TAU_PI_NU, BR_TAU_RHO_NU,
 )
 from parse_hepmc import parse_events
 from tau_reconstruction import (
@@ -107,7 +108,8 @@ def process_events(filepath, max_events=None, smear=False):
     # Phase 1: Parse HepMC
     # ------------------------------------------------------------------
     print("\n[Phase 1] Parsing HepMC3 file...")
-    events = parse_events(filepath, max_events=max_events, require_pi_pi=True)
+    events = parse_events(filepath, max_events=max_events,
+                          allowed_modes=ALLOWED_DECAY_MODES)
 
     if len(events) == 0:
         print("ERROR: No pi x pi events found. Exiting.")
@@ -301,50 +303,93 @@ def process_events(filepath, max_events=None, smear=False):
                   f"reject m12<=1 at {r['sigma_vs_1']:.1f}sig")
 
     # ------------------------------------------------------------------
+    # Luminosity estimation
+    # ------------------------------------------------------------------
+    # Combined BR for the analysed final state:
+    #   sigma(ZH) * BR(H->tautau) * BR(Z->mumu) * BR(tau->X)^2
+    # where X is each allowed decay mode.
+    _br_tau_mode = {
+        "pi_nu":  BR_TAU_PI_NU,
+        "rho_nu": BR_TAU_RHO_NU,
+    }
+    br_tau_sq = sum(_br_tau_mode.get(m, 0) for m in ALLOWED_DECAY_MODES) ** 2
+    sigma_eff_fb = SIGMA_ZH_FB * BR_H_TAUTAU * BR_Z_MUMU * br_tau_sq
+    # N is the number of fully-reconstructed events analysed
+    if sigma_eff_fb > 0:
+        int_lumi_fb = N / sigma_eff_fb           # fb^-1
+        int_lumi_ab = int_lumi_fb * 1e-6          # ab^-1
+    else:
+        int_lumi_fb = 0.0
+        int_lumi_ab = 0.0
+
+    T_COLLECT = 1e7   # assumed data-taking time [s]
+    inst_lumi = int_lumi_fb / T_COLLECT if T_COLLECT > 0 else 0.0  # fb^-1 s^-1
+    # Convert to conventional units: cm^-2 s^-1  (1 fb = 1e-39 cm^2)
+    inst_lumi_cgs = inst_lumi * 1e-39  # cm^-2 s^-1
+
+    lumi_text = (f"$\\int\\!\\mathcal{{L}}\\,dt = {int_lumi_ab:.2f}$ ab$^{{-1}}$"
+                 f"  ({N} events)")
+    inst_text = (f"$\\mathcal{{L}} = {inst_lumi_cgs:.2e}$"
+                 f" cm$^{{-2}}$s$^{{-1}}$")
+    lumi_label = lumi_text + ",  " + inst_text
+
+    print(f"\n  Luminosity estimate (modes: {ALLOWED_DECAY_MODES}):")
+    print(f"    sigma_eff = {sigma_eff_fb:.4f} fb")
+    print(f"    N_analysed = {N}")
+    print(f"    int. lumi  = {int_lumi_fb:.0f} fb^-1  = {int_lumi_ab:.2f} ab^-1")
+    print(f"    inst. lumi = {inst_lumi_cgs:.2e} cm^-2 s^-1  (T = {T_COLLECT:.0e} s)")
+
+    # ------------------------------------------------------------------
     # Phase 8: Generate plots
     # ------------------------------------------------------------------
     print(f"\n[Phase 8] Generating plots in {OUTPUT_DIR}/...")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # 1. Spacetime distributions (truth + reco overlaid for comparison)
-    plot_spacetime_distributions(truth_intervals, reco_intervals)
+    plot_spacetime_distributions(truth_intervals, reco_intervals,
+                                lumi_label=lumi_label)
 
     # 2. Entanglement vs spacetime interval (lightlike boundary)
     plot_entanglement_vs_spacetime(
         binned_ds, ds_edges,
-        xlabel=r"signed $\sqrt{|\Delta s^2|}$ [mm]",
+        xlabel=r"Signed $\sqrt{|\Delta s^2|}$ [mm]",
         suffix="spacetime_interval",
-        lightlike_boundary=True)
+        lightlike_boundary=True, lumi_label=lumi_label)
 
     # 3. Entanglement vs signal speed
     plot_entanglement_vs_spacetime(
         binned_v, v_edges,
         xlabel=r"$v_{\rm signal} / c$",
-        suffix="signal_speed")
+        suffix="signal_speed", lumi_label=lumi_label)
 
     # 4. v_psi overlay plot (the money plot)
     v_psi_overlay = [v for v in V_PSI_SCAN if v <= v_edges[-1] * 1.5]
     if len(v_psi_overlay) > 6:
         v_psi_overlay = v_psi_overlay[:6]
-    plot_vpsi_overlay(binned_v, v_edges, v_psi_overlay)
+    plot_vpsi_overlay(binned_v, v_edges, v_psi_overlay,
+                      lumi_label=lumi_label)
 
     # 5. v_psi exclusion curve (with 95% CL line)
-    plot_vpsi_exclusion(vpsi_results)
+    plot_vpsi_exclusion(vpsi_results, lumi_label=lumi_label)
 
     # 6. Correlation matrix heatmaps
-    plot_correlation_matrix(global_reco['C'], global_reco['C_err'], suffix="")
+    plot_correlation_matrix(global_reco['C'], global_reco['C_err'],
+                            suffix="", lumi_label=lumi_label)
     plot_correlation_matrix(global_truth['C'], global_truth['C_err'],
-                            suffix="_truth_validation")
+                            suffix="_truth_validation", lumi_label=lumi_label)
 
     # 7. Acoplanarity with cosine fit
-    plot_acoplanarity(acoplanarity_reco, suffix="")
-    plot_acoplanarity(acoplanarity_truth, suffix="_truth_validation")
+    plot_acoplanarity(acoplanarity_reco, suffix="",
+                      lumi_label=lumi_label)
+    plot_acoplanarity(acoplanarity_truth, suffix="_truth_validation",
+                      lumi_label=lumi_label)
 
     # 8. Acoplanarity vs signal speed
-    plot_acoplanarity_vs_vsignal(acoplanarity_reco, v_arr, v_edges)
+    plot_acoplanarity_vs_vsignal(acoplanarity_reco, v_arr, v_edges,
+                                 lumi_label=lumi_label)
 
     # 9. Vertex comparison (with ratio diagnostic)
-    plot_vertex_comparison(reco_good)
+    plot_vertex_comparison(reco_good, lumi_label=lumi_label)
 
     # ------------------------------------------------------------------
     # Save numerical results to JSON

@@ -13,6 +13,7 @@ M_Z = 91.1876          # Z mass [GeV]
 M_MU = 0.10566         # muon mass [GeV]
 M_PI = 0.13957         # charged pion mass [GeV]
 M_PI0 = 0.13498        # neutral pion mass [GeV]
+M_RHO = 0.77526        # rho(770) mass [GeV]
 SQRT_S = 240.0         # centre-of-mass energy [GeV]
 C_LIGHT = 2.99792458e8 # speed of light [m/s]
 
@@ -21,6 +22,15 @@ E_BEAM = SQRT_S / 2.0  # 120 GeV per beam
 P_BEAM_MINUS = np.array([E_BEAM, 0.0, 0.0,  E_BEAM])  # (E, px, py, pz) e-
 P_BEAM_PLUS  = np.array([E_BEAM, 0.0, 0.0, -E_BEAM])  # (E, px, py, pz) e+
 P_BEAM_TOTAL = P_BEAM_MINUS + P_BEAM_PLUS               # (240, 0, 0, 0)
+
+# ---------------------------------------------------------------------------
+# Cross sections and branching ratios (for luminosity estimation)
+# ---------------------------------------------------------------------------
+SIGMA_ZH_FB = 240.0           # sigma(e+e- -> ZH) at 240 GeV [fb]  (ILC TDR)
+BR_H_TAUTAU = 0.0627          # BR(H -> tau tau)  (PDG 2024)
+BR_Z_MUMU   = 0.03366         # BR(Z -> mu mu)    (PDG 2024)
+BR_TAU_PI_NU  = 0.1082        # BR(tau -> pi nu)  (PDG 2024)
+BR_TAU_RHO_NU = 0.2549        # BR(tau -> rho nu) (PDG 2024)
 
 # ---------------------------------------------------------------------------
 # PDG IDs
@@ -42,8 +52,11 @@ PDGID_Z          = 23
 # ---------------------------------------------------------------------------
 # Analysis settings
 # ---------------------------------------------------------------------------
-# Require both taus decay to pi nu (single charged pion + neutrino)
-REQUIRED_DECAY_MODE = "pi_nu"
+# Accepted tau decay modes.  Options:
+#   "pi_nu"   — single charged pion (tau -> pi nu), cleanest channel
+#   "rho_nu"  — rho meson (tau -> rho nu -> pi pi0 nu), higher BR
+# Set to a list to accept multiple modes, e.g. ["pi_nu", "rho_nu"].
+ALLOWED_DECAY_MODES = ["pi_nu"]
 
 # Binning for spacetime interval plots
 N_BINS_SPACETIME = 8
