@@ -176,15 +176,25 @@ def _shadow_markers(ax, x, y, color=_C['data'], marker='o', ms=3,
 
 
 # ===================================================================
-# Paper ground + grain texture
+# Paper ground + background hatch texture
 # ===================================================================
 
 def _paper_bg(fig, ax_or_axes):
-    """Set figure and axes to clean white for seamless PDF embedding."""
+    """White background with a barely-visible diagonal hatch that gives
+    the plot area a faint engraved-plate texture — visible on close
+    inspection but never competing with data ink."""
+    from matplotlib.patches import Rectangle
+
     fig.patch.set_facecolor(_C['paper'])
     axes = np.atleast_1d(ax_or_axes).ravel()
     for ax in axes:
         ax.set_facecolor(_C['paper'])
+        # Full-extent hatched rectangle behind everything
+        bg = Rectangle((0, 0), 1, 1, transform=ax.transAxes,
+                        facecolor='none', edgecolor='#e0e0e0',
+                        hatch='....', linewidth=0, alpha=0.35,
+                        zorder=0)
+        ax.add_patch(bg)
 
 
 # ===================================================================
