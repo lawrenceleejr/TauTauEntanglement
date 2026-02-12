@@ -105,18 +105,23 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
         beta_H = beta_vec(p_H)
         m_H = mass(p_H)
 
-        # Boost reco taus to Higgs RF to get the tau- direction
-        p_tau_m_lab = reco['tau_minus']['p_tau_reco']
-        p_tau_m_H_reco = boost(p_tau_m_lab, beta_H)
+        # Boost BOTH reco taus independently to Higgs RF to get directions.
+        # Using independent directions avoids correlated errors: the
+        # back-to-back constraint locks tau+ and tau- direction errors
+        # to be anti-correlated, which introduces a systematic negative
+        # bias in the transverse C_ij (C_nn, C_rr).
+        p_tau_m_H_reco = boost(reco['tau_minus']['p_tau_reco'], beta_H)
+        p_tau_p_H_reco = boost(reco['tau_plus']['p_tau_reco'], beta_H)
         tau_m_dir = p3hat(p_tau_m_H_reco)
+        tau_p_dir = p3hat(p_tau_p_H_reco)
 
-        # Apply kinematic constraints: in the Higgs RF, taus are back-to-back
-        # with known energy E = m_H/2 and momentum |p| = sqrt(E^2 - m_tau^2).
-        # The Jeans reco gives us the direction; kinematics fixes the magnitude.
+        # Apply kinematic constraints: energy E = m_H/2 and
+        # momentum |p| = sqrt(E^2 - m_tau^2) are fixed by the Higgs mass.
+        # The Jeans reco gives the direction; kinematics fixes the magnitude.
         E_tau = m_H / 2.0
         p_tau_mag = np.sqrt(max(E_tau**2 - M_TAU**2, 0.0))
         p_tau_m_H = np.array([E_tau, *(p_tau_mag * tau_m_dir)])
-        p_tau_p_H = np.array([E_tau, *(-p_tau_mag * tau_m_dir)])  # back-to-back
+        p_tau_p_H = np.array([E_tau, *(p_tau_mag * tau_p_dir)])
 
         # Boost pions to this (correct) Higgs rest frame
         p_pi_m_H = boost(p_pi_m, beta_H)
