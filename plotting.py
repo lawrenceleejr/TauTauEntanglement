@@ -2,7 +2,7 @@
 Plotting module for the tau-tau entanglement analysis.
 
 Style: Tufte-inspired art — maximise data-ink, remove chartjunk, direct labels,
-drop shadows on data marks, subtle hatched texture in fills, range-frame axes,
+drop shadows on data marks, light translucent fills, range-frame axes,
 letterpress-thin ruling lines.  White background for clean PDF embedding.
 
 Layout: sized for PRL two-column format.
@@ -28,16 +28,16 @@ COL2 = 7.0            # double-column width
 GOLDEN = (1 + np.sqrt(5)) / 2  # ~1.618
 
 # ---------------------------------------------------------------------------
-# Palette — muted, ink-on-paper tones
+# Palette — jewel tones on white: striking, print-safe, colorblind-aware
 # ---------------------------------------------------------------------------
 _C = {
-    'data':     '#2b2b2b',   # warm near-black
-    'truth':    '#3e6b8a',   # dusted slate blue
-    'reco':     '#a0413a',   # brick red
-    'sm':       '#7a7a7a',   # warm grey
-    'bell':     '#b8942e',   # muted gold
-    'accent':   '#3b7a3e',   # forest green
-    'light':    '#b5b0a8',   # parchment grey
+    'data':     '#1a1a2e',   # midnight navy (near-black primary)
+    'truth':    '#0d7377',   # deep teal
+    'reco':     '#c23b48',   # ruby red
+    'sm':       '#7c8594',   # blue-grey (reference lines)
+    'bell':     '#c49030',   # burnished amber
+    'accent':   '#2a7f62',   # sea-green
+    'light':    '#aeb5c0',   # cool silver
     'paper':    '#ffffff',   # white — sits cleanly on PDF page
     'shadow':   '#c8c8c8',   # neutral light-grey shadow
 }
@@ -177,7 +177,7 @@ def _shadow_markers(ax, x, y, color=_C['data'], marker='o', ms=3,
 
 
 # ===================================================================
-# Paper ground + background hatch texture
+# Paper ground
 # ===================================================================
 
 def _paper_bg(fig, ax_or_axes):
@@ -189,17 +189,14 @@ def _paper_bg(fig, ax_or_axes):
 
 
 # ===================================================================
-# Textured / hatched fills
+# Histogram and bar helpers
 # ===================================================================
 
-def _step_hist(ax, edges, values, hatch=None, fill_alpha=0.0,
-               fill_color=None, **kwargs):
-    """Draw a step histogram with optional subtle diagonal-line fill.
+def _step_hist(ax, edges, values, fill_alpha=0.0, fill_color=None, **kwargs):
+    """Draw a step histogram with optional light translucent fill.
 
     Parameters
     ----------
-    hatch : str or None
-        Matplotlib hatch pattern, e.g. '////' for fine diagonals.
     fill_alpha : float
         Opacity of the filled region (0 = outline only).
     fill_color : str or None
@@ -212,16 +209,11 @@ def _step_hist(ax, edges, values, hatch=None, fill_alpha=0.0,
     ls = kwargs.get('linestyle', kwargs.get('ls', '-'))
     label = kwargs.get('label', None)
 
-    # filled region (hatched / translucent)
-    if fill_alpha > 0 or hatch:
+    # light solid fill
+    if fill_alpha > 0:
         fc = fill_color or color
         ax.fill(x, y, facecolor=fc, alpha=fill_alpha,
-                hatch=hatch, edgecolor=color, linewidth=0.0, zorder=1)
-        # hatching lines need their own edge colour
-        if hatch:
-            ax.fill(x, y, facecolor='none',
-                    hatch=hatch, edgecolor=color, linewidth=0.0,
-                    alpha=0.20, zorder=2)
+                edgecolor='none', linewidth=0.0, zorder=1)
 
     # outline
     ax.plot(x, y, color=color, linewidth=lw, linestyle=ls,
@@ -229,9 +221,9 @@ def _step_hist(ax, edges, values, hatch=None, fill_alpha=0.0,
             path_effects=_LINE_SHADOW if ls == '-' else [])
 
 
-def _textured_bar(ax, x, heights, width, color, hatch='....', alpha=0.65,
+def _textured_bar(ax, x, heights, width, color, alpha=0.55,
                   label=None, zorder=3):
-    """Bar chart with stipple-dot texture and a soft drop shadow."""
+    """Bar chart with light solid fill and a soft drop shadow."""
     # shadow bars (slightly offset)
     dx = width * 0.025
     dy_frac = -0.008
@@ -242,9 +234,6 @@ def _textured_bar(ax, x, heights, width, color, hatch='....', alpha=0.65,
     # real bars
     bars = ax.bar(x, heights, width, color=color, alpha=alpha,
                   edgecolor='none', label=label, zorder=zorder)
-    # overlay hatch
-    ax.bar(x, heights, width, facecolor='none', edgecolor=color,
-           hatch=hatch, linewidth=0, alpha=0.18, zorder=zorder + 1)
     return bars
 
 
@@ -322,7 +311,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix="",
 
     e, v = _hist_vals(sd_t, ds_lo, ds_hi)
     _step_hist(ax, e, v, color=_C['truth'], label='Truth',
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     e, v = _hist_vals(sd_r, ds_lo, ds_hi)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
     ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
@@ -342,7 +331,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix="",
 
     e, v = _hist_vals(dr_t, 0, dr_max)
     _step_hist(ax, e, v, color=_C['truth'], label='Truth',
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     e, v = _hist_vals(dr_r, 0, dr_max)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
     ax.set_xlabel(r'Spatial Separation $\Delta r$ [mm]')
@@ -359,7 +348,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix="",
 
     e, v = _hist_vals(v_t, 0, v_max, nbins=60)
     _step_hist(ax, e, v, color=_C['truth'], label='Truth',
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     e, v = _hist_vals(v_r, 0, v_max, nbins=60)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
     ax.axvline(1.0, color=_C['accent'], linewidth=0.5, label='$v = c$')
@@ -380,9 +369,9 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix="",
     ymax = max(n_sl_t, n_tl_t, n_sl_r, n_tl_r)
     ax.set_ylim(0, ymax * 1.18)
     _textured_bar(ax, x - w / 2, [n_sl_t, n_tl_t], w, color=_C['truth'],
-                  hatch='....', label='Truth')
+                  label='Truth')
     _textured_bar(ax, x + w / 2, [n_sl_r, n_tl_r], w, color=_C['reco'],
-                  hatch='....', label='Reco')
+                  label='Reco')
     ax.set_xticks(x)
     ax.set_xticklabels(['Spacelike', 'Timelike'])
     ax.set_ylabel('Events')
@@ -471,7 +460,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
     ax = axes[2]
     ax.set_ylim(0, max(nev) * 1.2 if max(nev) > 0 else 1)
     _textured_bar(ax, bc, nev, width=np.diff(bin_edges), color=_C['light'],
-                  hatch='....', alpha=0.50, zorder=3)
+                  alpha=0.50, zorder=3)
     ax.set_ylabel('Events')
     ax.set_xlabel(xlabel)
     if lightlike_boundary:
@@ -800,7 +789,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
     ax2 = axes[1]
     ax2.set_ylim(0, max(n_events) * 1.2 if max(n_events) > 0 else 1)
     _textured_bar(ax2, bc_v, n_events, width=np.diff(v_edges),
-                  color=_C['light'], hatch='....', alpha=0.50)
+                  color=_C['light'], alpha=0.50)
     ax2.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
     ax2.set_ylabel('Events')
     ax2.set_xlim(v_edges[0], v_edges[-1])
@@ -853,7 +842,7 @@ def plot_vertex_comparison(reco_results, lumi_label=None):
     ax.set_xlim(0, lim)
     ax.set_ylim(0, lim)
 
-    # (b) Residual with hatched fill
+    # (b) Residual distribution
     ax = axes[0, 1]
     residual = reco_L - truth_L
     res_range = max(abs(np.percentile(residual, 2)),
@@ -861,20 +850,20 @@ def plot_vertex_comparison(reco_results, lumi_label=None):
     c, e = np.histogram(np.clip(residual, -res_range, res_range),
                         bins=50, range=(-res_range, res_range))
     _step_hist(ax, e, c, color=_C['truth'],
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     ax.set_xlabel('Reco $-$ Truth [mm]')
     ax.set_ylabel('Entries / Bin')
     _label_shadow(ax, 0.97, 0.92,
                   f'mean {np.mean(residual):.3f}\nRMS {np.std(residual):.3f}',
                   fontsize=5.5, color=_C['data'])
 
-    # (c) Ratio distribution with hatched fill
+    # (c) Ratio distribution
     ax = axes[1, 0]
     safe = truth_L > 0.01
     ratio = reco_L[safe] / truth_L[safe]
     c, e = np.histogram(np.clip(ratio, 0, 5), bins=60, range=(0, 5))
     _step_hist(ax, e, c, color=_C['truth'],
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     ax.axvline(1.0, color=_C['sm'], linewidth=0.35, linestyle='--')
     ax.set_xlabel('Reco / Truth')
     ax.set_ylabel('Entries / Bin')
