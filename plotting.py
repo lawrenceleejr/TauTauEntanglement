@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 from matplotlib.ticker import AutoMinorLocator, MaxNLocator
 from scipy.optimize import curve_fit
+from scipy.special import erfc
 import os
 from config import OUTPUT_DIR
 
@@ -491,7 +492,16 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
 # ---------------------------------------------------------------------------
 
 def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
-                      lumi_label=None):
+                      lumi_label=None, sigma_v_frac=0.0):
+    """Plot m12 vs signal speed with v_psi hypothesis curves.
+
+    Parameters
+    ----------
+    sigma_v_frac : float
+        Fractional resolution on v_signal (sigma_v / v).  When > 0 the
+        sharp step-function hypothesis curves are convolved with the
+        detector resolution, producing smooth error-function turn-offs.
+    """
     _apply_style()
     _ensure_output_dir()
 
@@ -507,12 +517,19 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
         yhi = max(3.5, np.nanmax(m12[ok] + m12e[ok]) + 0.5)
         ax.set_ylim(-0.3, yhi)
 
-    # v_psi step models — thin grey lines with direct end labels
+    # v_psi hypothesis models — thin grey lines with direct end labels
     v_fine = np.linspace(bin_edges_v[0], bin_edges_v[-1], 500)
     greys = np.linspace(0.45, 0.78, len(v_psi_values))
     for v_psi, g in zip(v_psi_values, greys):
         c = str(g)
-        m12_model = np.where(v_fine <= v_psi, 2.0, 0.0)
+        if sigma_v_frac > 0:
+            # Smeared turn-off: erfc gives a smooth sigmoid whose width
+            # scales with the detector resolution at each v_signal.
+            sigma_v = sigma_v_frac * v_fine.clip(1e-6)
+            m12_model = 2.0 * 0.5 * erfc(
+                (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
+        else:
+            m12_model = np.where(v_fine <= v_psi, 2.0, 0.0)
         ax.plot(v_fine, m12_model, color=c, linewidth=0.45, zorder=2)
         ax.text(v_psi, 2.12, rf'${v_psi:.0f}c$', fontsize=5, color=c,
                 ha='center', va='bottom')

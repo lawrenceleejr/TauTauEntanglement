@@ -180,6 +180,18 @@ def process_events(filepath, max_events=None, smear=False):
     print(f"  Truth: {n_spacelike_truth} spacelike, {n_timelike_truth} timelike "
           "(validation)")
 
+    # Empirical v_signal resolution (used to smear hypothesis curves)
+    sigma_v_frac = 0.0
+    if smear:
+        _ok = np.isfinite(v_signal_truth) & np.isfinite(v_signal_reco) & (v_signal_truth > 0.1)
+        if np.sum(_ok) > 20:
+            _frac_resid = (v_signal_reco[_ok] - v_signal_truth[_ok]) / v_signal_truth[_ok]
+            # Use IQR-based robust width to ignore outliers
+            q75, q25 = np.percentile(_frac_resid, [75, 25])
+            sigma_v_frac = (q75 - q25) / 1.349  # IQR / 1.349 ≈ Gaussian sigma
+            print(f"  v_signal fractional resolution: {sigma_v_frac:.3f} "
+                  f"(IQR-based, {np.sum(_ok)} events)")
+
     # ------------------------------------------------------------------
     # Phase 4: Compute spin observables
     # ------------------------------------------------------------------
@@ -367,7 +379,7 @@ def process_events(filepath, max_events=None, smear=False):
     if len(v_psi_overlay) > 6:
         v_psi_overlay = v_psi_overlay[:6]
     plot_vpsi_overlay(binned_v, v_edges, v_psi_overlay,
-                      lumi_label=lumi_label)
+                      lumi_label=lumi_label, sigma_v_frac=sigma_v_frac)
 
     # 5. v_psi exclusion curve (with 95% CL line)
     plot_vpsi_exclusion(vpsi_results, lumi_label=lumi_label)
