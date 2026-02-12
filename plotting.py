@@ -2,8 +2,8 @@
 Plotting module for the tau-tau entanglement analysis.
 
 Style: Tufte-inspired art — maximise data-ink, remove chartjunk, direct labels,
-drop shadows on data marks, warm paper ground, subtle stipple texture in fills,
-range-frame axes, letterpress-thin ruling lines.
+drop shadows on data marks, subtle hatched texture in fills, range-frame axes,
+letterpress-thin ruling lines.  White background for clean PDF embedding.
 
 Layout: sized for PRL two-column format.
   - Single column: 3.375 in wide
@@ -37,8 +37,8 @@ _C = {
     'bell':     '#b8942e',   # muted gold
     'accent':   '#3b7a3e',   # forest green
     'light':    '#b5b0a8',   # parchment grey
-    'paper':    '#FAF8F4',   # warm ivory / cream paper
-    'shadow':   '#c5c0b8',   # warm shadow tone
+    'paper':    '#ffffff',   # white — sits cleanly on PDF page
+    'shadow':   '#c8c8c8',   # neutral light-grey shadow
 }
 
 # ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ _TUFTE_RC = {
     'axes.labelsize': 8,
     'axes.titlesize': 9,
     'axes.titlepad': 4,
-    'axes.facecolor': '#FAF8F4',
+    'axes.facecolor': 'white',
     'axes.edgecolor': '#555555',
     # Ticks
     'xtick.major.size': 3,
@@ -83,11 +83,11 @@ _TUFTE_RC = {
     'legend.columnspacing': 1.0,
     # Figure
     'figure.dpi': 300,
-    'figure.facecolor': '#FAF8F4',
+    'figure.facecolor': 'white',
     'savefig.dpi': 300,
     'savefig.bbox': 'tight',
     'savefig.pad_inches': 0.04,
-    'savefig.facecolor': '#FAF8F4',
+    'savefig.facecolor': 'white',
     # Lines / markers — whisper-thin
     'lines.linewidth': 0.6,
     'lines.markersize': 3,
@@ -180,34 +180,11 @@ def _shadow_markers(ax, x, y, color=_C['data'], marker='o', ms=3,
 # ===================================================================
 
 def _paper_bg(fig, ax_or_axes):
-    """Give the figure and all axes a warm ivory paper background with a faint
-    noise-grain overlay to mimic letterpress print on cotton stock."""
+    """Set figure and axes to clean white for seamless PDF embedding."""
     fig.patch.set_facecolor(_C['paper'])
-
     axes = np.atleast_1d(ax_or_axes).ravel()
     for ax in axes:
         ax.set_facecolor(_C['paper'])
-
-    # Stamp a very faint grain texture onto each axes
-    rng = np.random.RandomState(42)          # deterministic grain
-    for ax in axes:
-        extent = ax.get_xlim() + ax.get_ylim()
-        grain = rng.normal(loc=0.5, scale=0.08, size=(60, 80))
-        grain = np.clip(grain, 0, 1)
-        ax.imshow(grain, extent=extent, aspect='auto',
-                  cmap='Greys', alpha=0.018, interpolation='bilinear',
-                  zorder=0, origin='lower')
-
-
-def _add_grain(ax):
-    """Lighter single-axis grain overlay (for axes created after _paper_bg)."""
-    rng = np.random.RandomState(42)
-    extent = ax.get_xlim() + ax.get_ylim()
-    grain = rng.normal(loc=0.5, scale=0.08, size=(60, 80))
-    grain = np.clip(grain, 0, 1)
-    ax.imshow(grain, extent=extent, aspect='auto',
-              cmap='Greys', alpha=0.018, interpolation='bilinear',
-              zorder=0, origin='lower')
 
 
 # ===================================================================
@@ -301,7 +278,7 @@ def _annotate_inline(ax, x, y, text, color='k', fontsize=6, offset=(4, 2)):
 def _label_shadow(ax, x_frac, y_frac, text, fontsize=8, color=_C['data'],
                   ha='right', va='top', **kw):
     """Annotate inside axes with a very faint text shadow for depth."""
-    shadow_fx = [pe.withStroke(linewidth=1.5, foreground=_C['paper'], alpha=0.9),
+    shadow_fx = [pe.withStroke(linewidth=1.5, foreground='white', alpha=0.9),
                  pe.Normal()]
     ax.text(x_frac, y_frac, text, transform=ax.transAxes,
             fontsize=fontsize, color=color, ha=ha, va=va,
