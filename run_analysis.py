@@ -22,6 +22,7 @@ import argparse
 import sys
 import os
 import json
+import pickle
 import numpy as np
 
 from config import (
@@ -40,17 +41,7 @@ from entanglement import (
     bootstrap_entanglement, locality_rejection_sigma,
     entanglement_rejection_sigma, scan_vpsi,
 )
-from plotting import (
-    plot_spacetime_distributions,
-    plot_entanglement_vs_spacetime,
-    plot_vpsi_overlay,
-    plot_vpsi_exclusion,
-    plot_correlation_matrix,
-    plot_acoplanarity,
-    plot_acoplanarity_vs_vsignal,
-    plot_vertex_comparison,
-    print_summary,
-)
+# Plotting imports deferred to _run_plots() for fast --replot startup
 
 
 def _build_lightlike_binning(signed_ds_arr, n_spacelike_bins):
@@ -370,24 +361,76 @@ def process_events(filepath, max_events=None, smear=False):
     print(f"  Wrote {lumi_md_path}")
 
     # ------------------------------------------------------------------
-    # Phase 8: Generate plots
+    # Save intermediate data for replotting
     # ------------------------------------------------------------------
+    plot_data = _build_plot_data(
+        truth_intervals=truth_intervals,
+        reco_intervals=reco_intervals,
+        binned_ds=binned_ds, ds_edges=ds_edges,
+        binned_v=binned_v, v_edges=v_edges,
+        vpsi_results=vpsi_results,
+        global_reco=global_reco, global_truth=global_truth,
+        acoplanarity_reco=acoplanarity_reco,
+        acoplanarity_truth=acoplanarity_truth,
+        v_arr=v_arr,
+        sigma_v_frac=sigma_v_frac,
+        reco_good=reco_good,
+        loc_sigma=loc_sigma, ent_sigma=ent_sigma,
+        n_spacelike_reco=n_spacelike_reco,
+        n_timelike_reco=n_timelike_reco,
+        smear=smear, filepath=filepath, N=N,
+    )
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    cache_path = os.path.join(OUTPUT_DIR, "plot_data.pkl")
+    with open(cache_path, 'wb') as f:
+        pickle.dump(plot_data, f, protocol=4)
+    print(f"\n  Saved plot cache to {cache_path}  (use --replot to regenerate plots)")
+
+    # ------------------------------------------------------------------
+    # Phase 8: Generate plots + save results
+    # ------------------------------------------------------------------
+    _run_plots(plot_data)
+
+
+def _build_plot_data(**kwargs):
+    """Bundle all data needed for plotting into a single dict."""
+    return kwargs
+
+
+def _run_plots(pd):
+    """Phase 8: generate all plots and save numerical results."""
+    from plotting import (
+        plot_spacetime_distributions,
+        plot_entanglement_vs_spacetime,
+        plot_vpsi_overlay,
+        plot_vpsi_exclusion,
+        plot_correlation_matrix,
+        plot_acoplanarity,
+        plot_acoplanarity_vs_vsignal,
+        plot_vertex_comparison,
+        print_summary,
+    )
+
     print(f"\n[Phase 8] Generating plots in {OUTPUT_DIR}/...")
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+    v_edges = pd['v_edges']
+    sigma_v_frac = pd['sigma_v_frac']
+
     # 1. Spacetime distributions (truth + reco overlaid for comparison)
-    plot_spacetime_distributions(truth_intervals, reco_intervals)
+    plot_spacetime_distributions(pd['truth_intervals'], pd['reco_intervals'])
 
     # 2. Entanglement vs spacetime interval (lightlike boundary)
     plot_entanglement_vs_spacetime(
-        binned_ds, ds_edges,
+        pd['binned_ds'], pd['ds_edges'],
         xlabel=r"Signed $\sqrt{|\Delta s^2|}$ [mm]",
         suffix="spacetime_interval",
         lightlike_boundary=True)
 
     # 3. Entanglement vs signal speed
     plot_entanglement_vs_spacetime(
-        binned_v, v_edges,
+        pd['binned_v'], v_edges,
         xlabel=r"$v_{\rm signal} / c$",
         suffix="signal_speed")
 
@@ -395,33 +438,34 @@ def process_events(filepath, max_events=None, smear=False):
     v_psi_overlay = [v for v in V_PSI_SCAN if v <= v_edges[-1] * 1.5]
     if len(v_psi_overlay) > 6:
         v_psi_overlay = v_psi_overlay[:6]
-    plot_vpsi_overlay(binned_v, v_edges, v_psi_overlay,
+    plot_vpsi_overlay(pd['binned_v'], v_edges, v_psi_overlay,
                       sigma_v_frac=sigma_v_frac)
 
     # 5. v_psi exclusion curve (with 95% CL line)
-    plot_vpsi_exclusion(vpsi_results)
+    plot_vpsi_exclusion(pd['vpsi_results'])
 
     # 6. Correlation matrix heatmaps
-    plot_correlation_matrix(global_reco['C'], global_reco['C_err'],
+    plot_correlation_matrix(pd['global_reco']['C'], pd['global_reco']['C_err'],
                             suffix="")
-    plot_correlation_matrix(global_truth['C'], global_truth['C_err'],
+    plot_correlation_matrix(pd['global_truth']['C'], pd['global_truth']['C_err'],
                             suffix="_truth_validation")
 
     # 7. Acoplanarity with cosine fit
-    plot_acoplanarity(acoplanarity_reco, suffix="")
-    plot_acoplanarity(acoplanarity_truth, suffix="_truth_validation")
+    plot_acoplanarity(pd['acoplanarity_reco'], suffix="")
+    plot_acoplanarity(pd['acoplanarity_truth'], suffix="_truth_validation")
 
     # 8. Acoplanarity vs signal speed
-    plot_acoplanarity_vs_vsignal(acoplanarity_reco, v_arr, v_edges,
+    plot_acoplanarity_vs_vsignal(pd['acoplanarity_reco'], pd['v_arr'], v_edges,
                                  v_psi_values=v_psi_overlay,
                                  sigma_v_frac=sigma_v_frac)
 
     # 9. Vertex comparison (with ratio diagnostic)
-    plot_vertex_comparison(reco_good)
+    plot_vertex_comparison(pd['reco_good'])
 
-    # ------------------------------------------------------------------
     # Save numerical results to JSON
-    # ------------------------------------------------------------------
+    global_reco = pd['global_reco']
+    global_truth = pd['global_truth']
+
     def _to_json(v):
         """Convert numpy types for JSON serialization."""
         if isinstance(v, (np.floating, float)):
@@ -434,11 +478,11 @@ def process_events(filepath, max_events=None, smear=False):
 
     results_dict = {
         'settings': {
-            'smear': smear,
-            'hepmc_file': filepath,
-            'n_events': N,
-            'n_spacelike': n_spacelike_reco,
-            'n_timelike': n_timelike_reco,
+            'smear': pd['smear'],
+            'hepmc_file': pd['filepath'],
+            'n_events': pd['N'],
+            'n_spacelike': pd['n_spacelike_reco'],
+            'n_timelike': pd['n_timelike_reco'],
         },
         'reco': {
             'm12': float(global_reco['m12']),
@@ -460,7 +504,7 @@ def process_events(filepath, max_events=None, smear=False):
         },
         'vpsi_scan': [
             {k: _to_json(v) for k, v in r.items()}
-            for r in vpsi_results
+            for r in pd['vpsi_results']
         ],
     }
 
@@ -469,29 +513,46 @@ def process_events(filepath, max_events=None, smear=False):
         json.dump(results_dict, f, indent=2)
     print(f"  Saved {json_path}")
 
-    # ------------------------------------------------------------------
     # Summary (all numbers from reco measurement)
-    # ------------------------------------------------------------------
-    print_summary(global_reco, loc_sigma, ent_sigma,
-                  n_spacelike_reco, n_timelike_reco, vpsi_results)
+    print_summary(global_reco, pd['loc_sigma'], pd['ent_sigma'],
+                  pd['n_spacelike_reco'], pd['n_timelike_reco'],
+                  pd['vpsi_results'])
 
-    if smear:
+    if pd['smear']:
         print("\n  NOTE: Detector smearing was ENABLED for this run.")
         print("  Compare with --no smear to see the unsmeared baseline.")
 
     print(f"\nAll plots saved to {OUTPUT_DIR}/")
-    print("Analysis complete.")
+    print("Plotting complete.")
 
 
 def main():
     parser = argparse.ArgumentParser(
         description="Tau-tau entanglement analysis at ILC ZH(240)")
-    parser.add_argument("hepmc_file", help="Path to HepMC3 file")
+    parser.add_argument("hepmc_file", nargs='?', default=None,
+                        help="Path to HepMC3 file")
     parser.add_argument("--max-events", type=int, default=None,
                         help="Maximum number of events to process")
     parser.add_argument("--smear", action="store_true",
                         help="Apply ILC/ILD-like detector smearing")
+    parser.add_argument("--replot", action="store_true",
+                        help="Skip analysis; reload cached data and regenerate plots only")
     args = parser.parse_args()
+
+    if args.replot:
+        cache_path = os.path.join(OUTPUT_DIR, "plot_data.pkl")
+        if not os.path.isfile(cache_path):
+            print(f"ERROR: No cached plot data found at {cache_path}")
+            print("  Run the full analysis first, then use --replot.")
+            sys.exit(1)
+        print(f"[Replot] Loading cached data from {cache_path} ...")
+        with open(cache_path, 'rb') as f:
+            plot_data = pickle.load(f)
+        _run_plots(plot_data)
+        return
+
+    if args.hepmc_file is None:
+        parser.error("hepmc_file is required (unless using --replot)")
 
     if not os.path.isfile(args.hepmc_file):
         print(f"ERROR: File not found: {args.hepmc_file}")
