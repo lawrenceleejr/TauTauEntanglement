@@ -718,7 +718,8 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
 # 7. Acoplanarity vs signal speed  (single-column, tall)
 # ---------------------------------------------------------------------------
 
-def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
+def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
+                                 v_psi_values=None, sigma_v_frac=0.0):
     _apply_style()
     _ensure_output_dir()
 
@@ -763,6 +764,24 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
         ylo = min(-1.0, np.nanmin(vb - B_errs[ok]) - 0.2)
         yhi = max(0.5, np.nanmax(vb + B_errs[ok]) + 0.2)
         ax.set_ylim(ylo, yhi)
+
+    # v_psi hypothesis models for B: entangled B=-0.5, separable B=0
+    if v_psi_values is not None and len(v_psi_values) > 0:
+        v_fine = np.linspace(v_edges[0], v_edges[-1], 500)
+        greys = np.linspace(0.45, 0.78, len(v_psi_values))
+        for v_psi, g in zip(v_psi_values, greys):
+            c = str(g)
+            if sigma_v_frac > 0:
+                sigma_v = sigma_v_frac * v_fine.clip(1e-6)
+                frac_ent = 0.5 * erfc(
+                    (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
+                B_model = -0.5 * frac_ent
+            else:
+                B_model = np.where(v_fine <= v_psi, -0.5, 0.0)
+            ax.plot(v_fine, B_model, color=c, linewidth=0.45, zorder=2)
+            ax.text(v_psi, -0.55, rf'${v_psi:.0f}c$', fontsize=5, color=c,
+                    ha='center', va='top')
+
     if np.any(ok):
         _shadow_errorbar(ax, bc_v[ok], B_vals[ok], yerr=B_errs[ok],
                          xerr=hw_v[ok], color=_C['data'], marker='o',

@@ -412,7 +412,9 @@ def process_events(filepath, max_events=None, smear=False):
     plot_acoplanarity(acoplanarity_truth, suffix="_truth_validation")
 
     # 8. Acoplanarity vs signal speed
-    plot_acoplanarity_vs_vsignal(acoplanarity_reco, v_arr, v_edges)
+    plot_acoplanarity_vs_vsignal(acoplanarity_reco, v_arr, v_edges,
+                                 v_psi_values=v_psi_overlay,
+                                 sigma_v_frac=sigma_v_frac)
 
     # 9. Vertex comparison (with ratio diagnostic)
     plot_vertex_comparison(reco_good)
