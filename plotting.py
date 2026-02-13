@@ -275,20 +275,12 @@ def _label_shadow(ax, x_frac, y_frac, text, fontsize=8, color=_C['data'],
             path_effects=shadow_fx, **kw)
 
 
-def _stamp_lumi(fig, lumi_label):
-    """Place the luminosity / event-count annotation at the top of the figure."""
-    if not lumi_label:
-        return
-    fig.text(0.5, 0.995, lumi_label, ha='center', va='top',
-             fontsize=5, color=_C['sm'])
-
 
 # ---------------------------------------------------------------------------
 # 1. Spacetime interval distributions  (double-wide)
 # ---------------------------------------------------------------------------
 
-def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix="",
-                                 lumi_label=None):
+def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     _apply_style()
     _ensure_output_dir()
 
@@ -383,7 +375,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix="",
                 fontsize=6, color=_C['reco'])
 
     _paper_bg(fig, axes)
-    _stamp_lumi(fig, lumi_label)
+
     fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.png"))
     plt.close(fig)
@@ -395,7 +387,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix="",
 # ---------------------------------------------------------------------------
 
 def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
-                                    lightlike_boundary=False, lumi_label=None):
+                                    lightlike_boundary=False):
     _apply_style()
     _ensure_output_dir()
 
@@ -469,7 +461,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
     ax.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
-    _stamp_lumi(fig, lumi_label)
+
     fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.png"))
     plt.close(fig)
@@ -481,7 +473,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
 # ---------------------------------------------------------------------------
 
 def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
-                      lumi_label=None, sigma_v_frac=0.0):
+                      sigma_v_frac=0.0):
     """Plot m12 vs signal speed with v_psi hypothesis curves.
 
     Parameters
@@ -540,7 +532,7 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
         _range_frame(ax, x_data=bc[ok], y_data=m12[ok])
 
     _paper_bg(fig, ax)
-    _stamp_lumi(fig, lumi_label)
+
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.png"))
     plt.close(fig)
@@ -551,7 +543,7 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
 # 4. v_psi exclusion curve  (single-column, tall)
 # ---------------------------------------------------------------------------
 
-def plot_vpsi_exclusion(vpsi_scan_results, lumi_label=None):
+def plot_vpsi_exclusion(vpsi_scan_results):
     _apply_style()
     _ensure_output_dir()
 
@@ -604,7 +596,7 @@ def plot_vpsi_exclusion(vpsi_scan_results, lumi_label=None):
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
-    _stamp_lumi(fig, lumi_label)
+
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.png"))
     plt.close(fig)
@@ -615,7 +607,7 @@ def plot_vpsi_exclusion(vpsi_scan_results, lumi_label=None):
 # 5. Correlation matrix heatmap  (single-column, square)
 # ---------------------------------------------------------------------------
 
-def plot_correlation_matrix(C, C_err, suffix="", lumi_label=None):
+def plot_correlation_matrix(C, C_err, suffix=""):
     _apply_style()
     _ensure_output_dir()
 
@@ -649,7 +641,7 @@ def plot_correlation_matrix(C, C_err, suffix="", lumi_label=None):
     ax.tick_params(top=True, right=True, direction='out', length=0)
 
     fig.patch.set_facecolor(_C['paper'])
-    _stamp_lumi(fig, lumi_label)
+
     fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.png"))
     plt.close(fig)
@@ -664,7 +656,7 @@ def _cosine_model(phi, A, B):
     return A * (1.0 + B * np.cos(phi))
 
 
-def plot_acoplanarity(delta_phi_arr, suffix="", lumi_label=None):
+def plot_acoplanarity(delta_phi_arr, suffix=""):
     _apply_style()
     _ensure_output_dir()
 
@@ -715,7 +707,7 @@ def plot_acoplanarity(delta_phi_arr, suffix="", lumi_label=None):
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
     _paper_bg(fig, ax)
-    _stamp_lumi(fig, lumi_label)
+
     fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.png"))
     plt.close(fig)
@@ -726,8 +718,7 @@ def plot_acoplanarity(delta_phi_arr, suffix="", lumi_label=None):
 # 7. Acoplanarity vs signal speed  (single-column, tall)
 # ---------------------------------------------------------------------------
 
-def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
-                                 lumi_label=None):
+def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
     _apply_style()
     _ensure_output_dir()
 
@@ -796,7 +787,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
-    _stamp_lumi(fig, lumi_label)
+
     fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.png"))
     plt.close(fig)
@@ -807,7 +798,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
 # 8. Vertex comparison  (double-wide)
 # ---------------------------------------------------------------------------
 
-def plot_vertex_comparison(reco_results, lumi_label=None):
+def plot_vertex_comparison(reco_results):
     _apply_style()
     _ensure_output_dir()
 
@@ -882,7 +873,7 @@ def plot_vertex_comparison(reco_results, lumi_label=None):
     ax.set_xlim(0, lim)
 
     _paper_bg(fig, axes)
-    _stamp_lumi(fig, lumi_label)
+
     fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.png"))
     plt.close(fig)

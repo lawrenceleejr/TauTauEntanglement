@@ -339,17 +339,35 @@ def process_events(filepath, max_events=None, smear=False):
     # Convert to conventional units: cm^-2 s^-1  (1 fb = 1e-39 cm^2)
     inst_lumi_cgs = inst_lumi * 1e-39  # cm^-2 s^-1
 
-    lumi_text = (f"$\\int\\!\\mathcal{{L}}\\,dt = {int_lumi_ab:.2f}$ ab$^{{-1}}$"
-                 f"  ({N} events)")
-    inst_text = (f"$\\mathcal{{L}} = {inst_lumi_cgs:.2e}$"
-                 f" cm$^{{-2}}$s$^{{-1}}$")
-    lumi_label = lumi_text + ",  " + inst_text
-
     print(f"\n  Luminosity estimate (modes: {ALLOWED_DECAY_MODES}):")
     print(f"    sigma_eff = {sigma_eff_fb:.4f} fb")
     print(f"    N_analysed = {N}")
     print(f"    int. lumi  = {int_lumi_fb:.0f} fb^-1  = {int_lumi_ab:.2f} ab^-1")
     print(f"    inst. lumi = {inst_lumi_cgs:.2e} cm^-2 s^-1  (T = {T_COLLECT:.0e} s)")
+
+    # Write luminosity info to markdown file
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    lumi_md_path = os.path.join(OUTPUT_DIR, "luminosity.md")
+    with open(lumi_md_path, 'w') as f:
+        f.write("# Luminosity Estimate\n\n")
+        f.write(f"| Quantity | Value |\n")
+        f.write(f"|---|---|\n")
+        f.write(f"| Events analysed | {N} |\n")
+        f.write(f"| Allowed decay modes | {', '.join(ALLOWED_DECAY_MODES)} |\n")
+        f.write(f"| Effective cross section | {sigma_eff_fb:.4f} fb |\n")
+        f.write(f"| Integrated luminosity | {int_lumi_fb:.0f} fb⁻¹ ({int_lumi_ab:.2f} ab⁻¹) |\n")
+        f.write(f"| Data-taking time assumed | {T_COLLECT:.0e} s |\n")
+        f.write(f"| Instantaneous luminosity | {inst_lumi_cgs:.2e} cm⁻²s⁻¹ |\n")
+        f.write(f"\n## Cross Sections and Branching Ratios\n\n")
+        f.write(f"| Parameter | Value |\n")
+        f.write(f"|---|---|\n")
+        f.write(f"| σ(e⁺e⁻ → ZH) | {SIGMA_ZH_FB} fb |\n")
+        f.write(f"| BR(H → ττ) | {BR_H_TAUTAU} |\n")
+        f.write(f"| BR(Z → μμ) | {BR_Z_MUMU} |\n")
+        f.write(f"| BR(τ → πν) | {BR_TAU_PI_NU} |\n")
+        f.write(f"| BR(τ → ρν) | {BR_TAU_RHO_NU} |\n")
+        f.write(f"| Combined BR(τ → X)² | {br_tau_sq:.6f} |\n")
+    print(f"  Wrote {lumi_md_path}")
 
     # ------------------------------------------------------------------
     # Phase 8: Generate plots
@@ -358,50 +376,46 @@ def process_events(filepath, max_events=None, smear=False):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     # 1. Spacetime distributions (truth + reco overlaid for comparison)
-    plot_spacetime_distributions(truth_intervals, reco_intervals,
-                                lumi_label=lumi_label)
+    plot_spacetime_distributions(truth_intervals, reco_intervals)
 
     # 2. Entanglement vs spacetime interval (lightlike boundary)
     plot_entanglement_vs_spacetime(
         binned_ds, ds_edges,
         xlabel=r"Signed $\sqrt{|\Delta s^2|}$ [mm]",
         suffix="spacetime_interval",
-        lightlike_boundary=True, lumi_label=lumi_label)
+        lightlike_boundary=True)
 
     # 3. Entanglement vs signal speed
     plot_entanglement_vs_spacetime(
         binned_v, v_edges,
         xlabel=r"$v_{\rm signal} / c$",
-        suffix="signal_speed", lumi_label=lumi_label)
+        suffix="signal_speed")
 
     # 4. v_psi overlay plot (the money plot)
     v_psi_overlay = [v for v in V_PSI_SCAN if v <= v_edges[-1] * 1.5]
     if len(v_psi_overlay) > 6:
         v_psi_overlay = v_psi_overlay[:6]
     plot_vpsi_overlay(binned_v, v_edges, v_psi_overlay,
-                      lumi_label=lumi_label, sigma_v_frac=sigma_v_frac)
+                      sigma_v_frac=sigma_v_frac)
 
     # 5. v_psi exclusion curve (with 95% CL line)
-    plot_vpsi_exclusion(vpsi_results, lumi_label=lumi_label)
+    plot_vpsi_exclusion(vpsi_results)
 
     # 6. Correlation matrix heatmaps
     plot_correlation_matrix(global_reco['C'], global_reco['C_err'],
-                            suffix="", lumi_label=lumi_label)
+                            suffix="")
     plot_correlation_matrix(global_truth['C'], global_truth['C_err'],
-                            suffix="_truth_validation", lumi_label=lumi_label)
+                            suffix="_truth_validation")
 
     # 7. Acoplanarity with cosine fit
-    plot_acoplanarity(acoplanarity_reco, suffix="",
-                      lumi_label=lumi_label)
-    plot_acoplanarity(acoplanarity_truth, suffix="_truth_validation",
-                      lumi_label=lumi_label)
+    plot_acoplanarity(acoplanarity_reco, suffix="")
+    plot_acoplanarity(acoplanarity_truth, suffix="_truth_validation")
 
     # 8. Acoplanarity vs signal speed
-    plot_acoplanarity_vs_vsignal(acoplanarity_reco, v_arr, v_edges,
-                                 lumi_label=lumi_label)
+    plot_acoplanarity_vs_vsignal(acoplanarity_reco, v_arr, v_edges)
 
     # 9. Vertex comparison (with ratio diagnostic)
-    plot_vertex_comparison(reco_good, lumi_label=lumi_label)
+    plot_vertex_comparison(reco_good)
 
     # ------------------------------------------------------------------
     # Save numerical results to JSON
