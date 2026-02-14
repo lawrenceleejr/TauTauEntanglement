@@ -535,12 +535,18 @@ def main():
                         help="Maximum number of events to process")
     parser.add_argument("--smear", action="store_true",
                         help="Apply ILC/ILD-like detector smearing")
-    parser.add_argument("--replot", action="store_true",
-                        help="Skip analysis; reload cached data and regenerate plots only")
+    parser.add_argument("--replot", nargs='?', const=True, default=False,
+                        metavar="PKL_PATH",
+                        help="Skip analysis; regenerate plots only. "
+                             "Optionally specify path to plot_data.pkl "
+                             "(default: <output>/plot_data.pkl)")
     args = parser.parse_args()
 
-    if args.replot:
-        cache_path = os.path.join(OUTPUT_DIR, "plot_data.pkl")
+    if args.replot is not False:
+        if args.replot is True:
+            cache_path = os.path.join(OUTPUT_DIR, "plot_data.pkl")
+        else:
+            cache_path = args.replot
         if not os.path.isfile(cache_path):
             print(f"ERROR: No cached plot data found at {cache_path}")
             print("  Run the full analysis first, then use --replot.")
