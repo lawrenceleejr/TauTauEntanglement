@@ -11,6 +11,7 @@ from config import (
     PDGID_TAU_MINUS, PDGID_TAU_PLUS, PDGID_MU_MINUS, PDGID_MU_PLUS,
     PDGID_NU_TAU, PDGID_NU_TAU_BAR, PDGID_PI_PLUS, PDGID_PI_MINUS,
     PDGID_PI0, PDGID_HIGGS, PDGID_Z, C_LIGHT,
+    ALLOWED_DECAY_MODES,
 )
 
 
@@ -192,7 +193,8 @@ def _find_stable_particle(particles, pdgid):
     return None
 
 
-def parse_events(filepath, max_events=None, require_pi_pi=True):
+def parse_events(filepath, max_events=None, require_pi_pi=True,
+                  allowed_modes=None):
     """Parse a HepMC3 file and return a list of EventRecord objects.
 
     Parameters
@@ -202,16 +204,26 @@ def parse_events(filepath, max_events=None, require_pi_pi=True):
     max_events : int or None
         Maximum number of events to process (None = all)
     require_pi_pi : bool
-        If True, only keep events where both taus decay to pi+nu
+        Legacy flag. If True and *allowed_modes* is None, only keep events
+        where both taus decay to pi+nu.  Ignored when *allowed_modes* is set.
+    allowed_modes : list of str or None
+        Accepted tau decay-mode names (e.g. ["pi_nu", "rho_nu"]).  Both taus
+        must have a mode in this list for the event to be kept.  Defaults to
+        ALLOWED_DECAY_MODES from config.py.
 
     Returns
     -------
     list of EventRecord
     """
+    if allowed_modes is None:
+        allowed_modes = ALLOWED_DECAY_MODES
+    allowed_set = set(allowed_modes)
+
     events = []
     n_total = 0
     n_found_taus = 0
     n_pi_pi = 0
+    n_selected_mode = 0
     decay_mode_counts = {}
 
     with pyhepmc.open(filepath) as f:
@@ -255,7 +267,13 @@ def parse_events(filepath, max_events=None, require_pi_pi=True):
             if is_pi_pi:
                 n_pi_pi += 1
 
-            if require_pi_pi and not is_pi_pi:
+            # Check whether both taus have an allowed decay mode
+            passes_mode = (tau_m_info.decay_mode in allowed_set and
+                           tau_p_info.decay_mode in allowed_set)
+            if passes_mode:
+                n_selected_mode += 1
+
+            if not passes_mode:
                 continue
 
             rec = EventRecord(
@@ -271,6 +289,7 @@ def parse_events(filepath, max_events=None, require_pi_pi=True):
     print(f"Parsed {n_total} events")
     print(f"  Found both taus: {n_found_taus}")
     print(f"  pi x pi events: {n_pi_pi}")
+    print(f"  Allowed modes: {sorted(allowed_set)}")
     print(f"  Selected: {len(events)}")
     print(f"  Decay mode breakdown:")
     for mode, count in sorted(decay_mode_counts.items(), key=lambda x: -x[1]):

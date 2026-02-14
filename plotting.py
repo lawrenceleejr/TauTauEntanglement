@@ -2,7 +2,7 @@
 Plotting module for the tau-tau entanglement analysis.
 
 Style: Tufte-inspired art — maximise data-ink, remove chartjunk, direct labels,
-drop shadows on data marks, subtle hatched texture in fills, range-frame axes,
+drop shadows on data marks, light translucent fills, range-frame axes,
 letterpress-thin ruling lines.  White background for clean PDF embedding.
 
 Layout: sized for PRL two-column format.
@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 from matplotlib.ticker import AutoMinorLocator, MaxNLocator
 from scipy.optimize import curve_fit
+from scipy.special import erfc
 import os
 from config import OUTPUT_DIR
 
@@ -27,16 +28,16 @@ COL2 = 7.0            # double-column width
 GOLDEN = (1 + np.sqrt(5)) / 2  # ~1.618
 
 # ---------------------------------------------------------------------------
-# Palette — muted, ink-on-paper tones
+# Palette — jewel tones on white: striking, print-safe, colorblind-aware
 # ---------------------------------------------------------------------------
 _C = {
-    'data':     '#2b2b2b',   # warm near-black
-    'truth':    '#3e6b8a',   # dusted slate blue
-    'reco':     '#a0413a',   # brick red
-    'sm':       '#7a7a7a',   # warm grey
-    'bell':     '#b8942e',   # muted gold
-    'accent':   '#3b7a3e',   # forest green
-    'light':    '#b5b0a8',   # parchment grey
+    'data':     '#1a1a2e',   # midnight navy (near-black primary)
+    'truth':    '#0d7377',   # deep teal
+    'reco':     '#c23b48',   # ruby red
+    'sm':       '#7c8594',   # blue-grey (reference lines)
+    'bell':     '#c49030',   # burnished amber
+    'accent':   '#2a7f62',   # sea-green
+    'light':    '#aeb5c0',   # cool silver
     'paper':    '#ffffff',   # white — sits cleanly on PDF page
     'shadow':   '#c8c8c8',   # neutral light-grey shadow
 }
@@ -82,9 +83,9 @@ _TUFTE_RC = {
     'legend.labelspacing': 0.3,
     'legend.columnspacing': 1.0,
     # Figure
-    'figure.dpi': 300,
+    'figure.dpi': 600,
     'figure.facecolor': 'white',
-    'savefig.dpi': 300,
+    'savefig.dpi': 600,
     'savefig.bbox': 'tight',
     'savefig.pad_inches': 0.04,
     'savefig.facecolor': 'white',
@@ -176,39 +177,26 @@ def _shadow_markers(ax, x, y, color=_C['data'], marker='o', ms=3,
 
 
 # ===================================================================
-# Paper ground + background hatch texture
+# Paper ground
 # ===================================================================
 
 def _paper_bg(fig, ax_or_axes):
-    """White background with a barely-visible diagonal hatch that gives
-    the plot area a faint engraved-plate texture — visible on close
-    inspection but never competing with data ink."""
-    from matplotlib.patches import Rectangle
-
+    """Set figure and axes to clean white for seamless PDF embedding."""
     fig.patch.set_facecolor(_C['paper'])
     axes = np.atleast_1d(ax_or_axes).ravel()
     for ax in axes:
         ax.set_facecolor(_C['paper'])
-        # Full-extent hatched rectangle behind everything
-        bg = Rectangle((0, 0), 1, 1, transform=ax.transAxes,
-                        facecolor='none', edgecolor='#e0e0e0',
-                        hatch='....', linewidth=0, alpha=0.35,
-                        zorder=0)
-        ax.add_patch(bg)
 
 
 # ===================================================================
-# Textured / hatched fills
+# Histogram and bar helpers
 # ===================================================================
 
-def _step_hist(ax, edges, values, hatch=None, fill_alpha=0.0,
-               fill_color=None, **kwargs):
-    """Draw a step histogram with optional subtle diagonal-line fill.
+def _step_hist(ax, edges, values, fill_alpha=0.0, fill_color=None, **kwargs):
+    """Draw a step histogram with optional light translucent fill.
 
     Parameters
     ----------
-    hatch : str or None
-        Matplotlib hatch pattern, e.g. '////' for fine diagonals.
     fill_alpha : float
         Opacity of the filled region (0 = outline only).
     fill_color : str or None
@@ -221,16 +209,11 @@ def _step_hist(ax, edges, values, hatch=None, fill_alpha=0.0,
     ls = kwargs.get('linestyle', kwargs.get('ls', '-'))
     label = kwargs.get('label', None)
 
-    # filled region (hatched / translucent)
-    if fill_alpha > 0 or hatch:
+    # light solid fill
+    if fill_alpha > 0:
         fc = fill_color or color
         ax.fill(x, y, facecolor=fc, alpha=fill_alpha,
-                hatch=hatch, edgecolor=color, linewidth=0.0, zorder=1)
-        # hatching lines need their own edge colour
-        if hatch:
-            ax.fill(x, y, facecolor='none',
-                    hatch=hatch, edgecolor=color, linewidth=0.0,
-                    alpha=0.20, zorder=2)
+                edgecolor='none', linewidth=0.0, zorder=1)
 
     # outline
     ax.plot(x, y, color=color, linewidth=lw, linestyle=ls,
@@ -238,9 +221,9 @@ def _step_hist(ax, edges, values, hatch=None, fill_alpha=0.0,
             path_effects=_LINE_SHADOW if ls == '-' else [])
 
 
-def _textured_bar(ax, x, heights, width, color, hatch='....', alpha=0.65,
+def _textured_bar(ax, x, heights, width, color, alpha=0.55,
                   label=None, zorder=3):
-    """Bar chart with stipple-dot texture and a soft drop shadow."""
+    """Bar chart with light solid fill and a soft drop shadow."""
     # shadow bars (slightly offset)
     dx = width * 0.025
     dy_frac = -0.008
@@ -251,9 +234,6 @@ def _textured_bar(ax, x, heights, width, color, hatch='....', alpha=0.65,
     # real bars
     bars = ax.bar(x, heights, width, color=color, alpha=alpha,
                   edgecolor='none', label=label, zorder=zorder)
-    # overlay hatch
-    ax.bar(x, heights, width, facecolor='none', edgecolor=color,
-           hatch=hatch, linewidth=0, alpha=0.18, zorder=zorder + 1)
     return bars
 
 
@@ -295,6 +275,7 @@ def _label_shadow(ax, x_frac, y_frac, text, fontsize=8, color=_C['data'],
             path_effects=shadow_fx, **kw)
 
 
+
 # ---------------------------------------------------------------------------
 # 1. Spacetime interval distributions  (double-wide)
 # ---------------------------------------------------------------------------
@@ -304,7 +285,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     _ensure_output_dir()
 
     fig, axes = plt.subplots(2, 2, figsize=(COL2, COL2 / GOLDEN))
-    fig.subplots_adjust(hspace=0.35, wspace=0.32)
+    fig.subplots_adjust(hspace=0.42, wspace=0.35)
 
     # --- helpers ---
     def _hist_vals(data, lo, hi, nbins=50):
@@ -322,15 +303,15 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
 
     e, v = _hist_vals(sd_t, ds_lo, ds_hi)
     _step_hist(ax, e, v, color=_C['truth'], label='Truth',
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     e, v = _hist_vals(sd_r, ds_lo, ds_hi)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
     ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
     ax.set_xlabel(r'Signed $\sqrt{|\Delta s^2|}$ [mm]')
-    ax.set_ylabel('Events')
+    ax.set_ylabel('Events / Bin')
     ax.legend()
     _label_shadow(ax, 0.03, 0.93,
-                  r'spacelike $\leftarrow|\rightarrow$ timelike',
+                  r'Spacelike $\leftarrow|\rightarrow$ Timelike',
                   fontsize=5.5, color=_C['light'], ha='left')
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
@@ -342,11 +323,11 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
 
     e, v = _hist_vals(dr_t, 0, dr_max)
     _step_hist(ax, e, v, color=_C['truth'], label='Truth',
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     e, v = _hist_vals(dr_r, 0, dr_max)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
-    ax.set_xlabel(r'$\Delta r$ [mm]')
-    ax.set_ylabel('Events')
+    ax.set_xlabel(r'Spatial Separation $\Delta r$ [mm]')
+    ax.set_ylabel('Events / Bin')
     ax.legend()
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
@@ -359,12 +340,12 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
 
     e, v = _hist_vals(v_t, 0, v_max, nbins=60)
     _step_hist(ax, e, v, color=_C['truth'], label='Truth',
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     e, v = _hist_vals(v_r, 0, v_max, nbins=60)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
     ax.axvline(1.0, color=_C['accent'], linewidth=0.5, label='$v = c$')
-    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
-    ax.set_ylabel('Events')
+    ax.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
+    ax.set_ylabel('Events / Bin')
     ax.set_yscale('log')
     ax.legend()
 
@@ -380,21 +361,21 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     ymax = max(n_sl_t, n_tl_t, n_sl_r, n_tl_r)
     ax.set_ylim(0, ymax * 1.18)
     _textured_bar(ax, x - w / 2, [n_sl_t, n_tl_t], w, color=_C['truth'],
-                  hatch='....', label='Truth')
+                  label='Truth')
     _textured_bar(ax, x + w / 2, [n_sl_r, n_tl_r], w, color=_C['reco'],
-                  hatch='....', label='Reco')
+                  label='Reco')
     ax.set_xticks(x)
     ax.set_xticklabels(['Spacelike', 'Timelike'])
     ax.set_ylabel('Events')
     ax.legend()
     for i, (nt, nr) in enumerate(zip([n_sl_t, n_tl_t], [n_sl_r, n_tl_r])):
-        _label_shadow(ax, 0, 0, str(nt), fontsize=6, color=_C['truth'])
         ax.text(i - w / 2, nt + ymax * 0.02, str(nt), ha='center',
                 fontsize=6, color=_C['truth'])
         ax.text(i + w / 2, nr + ymax * 0.02, str(nr), ha='center',
                 fontsize=6, color=_C['reco'])
 
     _paper_bg(fig, axes)
+
     fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"spacetime_distributions{suffix}.png"))
     plt.close(fig)
@@ -421,9 +402,9 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
     ok    = ~np.isnan(m12)
     ok_c  = ~np.isnan(conc)
 
-    fig, axes = plt.subplots(3, 1, figsize=(COL1, COL1 * 1.45),
+    fig, axes = plt.subplots(3, 1, figsize=(COL1, COL1 * 1.55),
                               gridspec_kw={'height_ratios': [3, 3, 1]})
-    fig.subplots_adjust(hspace=0.08)
+    fig.subplots_adjust(hspace=0.12, left=0.18, right=0.95, bottom=0.10, top=0.97)
 
     # (a) m12
     ax = axes[0]
@@ -445,8 +426,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
                   color=_C['bell'])
     ax.set_ylabel(r'$m_{12}$')
     ax.tick_params(labelbottom=False)
-    if np.any(ok):
-        _range_frame(ax, x_data=bc[ok], y_data=m12[ok])
+    ax.set_xlim(bin_edges[0], bin_edges[-1])
 
     # (b) Concurrence
     ax = axes[1]
@@ -466,21 +446,22 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
                   color=_C['sm'])
     ax.set_ylabel(r'$\mathcal{C}$')
     ax.tick_params(labelbottom=False)
-    if np.any(ok_c):
-        _range_frame(ax, x_data=bc[ok_c], y_data=conc[ok_c])
+    ax.set_xlim(bin_edges[0], bin_edges[-1])
 
     # (c) Event count — textured bars
     ax = axes[2]
     ax.set_ylim(0, max(nev) * 1.2 if max(nev) > 0 else 1)
     _textured_bar(ax, bc, nev, width=np.diff(bin_edges), color=_C['light'],
-                  hatch='....', alpha=0.50, zorder=3)
+                  alpha=0.50, zorder=3)
     ax.set_ylabel('Events')
     ax.set_xlabel(xlabel)
     if lightlike_boundary:
         ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
+    ax.set_xlim(bin_edges[0], bin_edges[-1])
     ax.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
+
     fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"entanglement_vs_{suffix}.png"))
     plt.close(fig)
@@ -491,7 +472,17 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
 # 3. v_psi hypothesis overlay  (double-wide)
 # ---------------------------------------------------------------------------
 
-def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values):
+def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
+                      sigma_v_frac=0.0):
+    """Plot m12 vs signal speed with v_psi hypothesis curves.
+
+    Parameters
+    ----------
+    sigma_v_frac : float
+        Fractional resolution on v_signal (sigma_v / v).  When > 0 the
+        sharp step-function hypothesis curves are convolved with the
+        detector resolution, producing smooth error-function turn-offs.
+    """
     _apply_style()
     _ensure_output_dir()
 
@@ -507,12 +498,19 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values):
         yhi = max(3.5, np.nanmax(m12[ok] + m12e[ok]) + 0.5)
         ax.set_ylim(-0.3, yhi)
 
-    # v_psi step models — thin grey lines with direct end labels
+    # v_psi hypothesis models — thin grey lines with direct end labels
     v_fine = np.linspace(bin_edges_v[0], bin_edges_v[-1], 500)
     greys = np.linspace(0.45, 0.78, len(v_psi_values))
     for v_psi, g in zip(v_psi_values, greys):
         c = str(g)
-        m12_model = np.where(v_fine <= v_psi, 2.0, 0.0)
+        if sigma_v_frac > 0:
+            # Smeared turn-off: erfc gives a smooth sigmoid whose width
+            # scales with the detector resolution at each v_signal.
+            sigma_v = sigma_v_frac * v_fine.clip(1e-6)
+            m12_model = 2.0 * 0.5 * erfc(
+                (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
+        else:
+            m12_model = np.where(v_fine <= v_psi, 2.0, 0.0)
         ax.plot(v_fine, m12_model, color=c, linewidth=0.45, zorder=2)
         ax.text(v_psi, 2.12, rf'${v_psi:.0f}c$', fontsize=5, color=c,
                 ha='center', va='bottom')
@@ -527,13 +525,14 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values):
                      color=_C['data'], marker='o', ms=3.5, elinewidth=0.5,
                      label=r'Measured $m_{12}$')
 
-    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
-    ax.set_ylabel(r'$m_{12}$')
+    ax.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
+    ax.set_ylabel(r'Horodecki Parameter $m_{12}$')
     ax.legend(loc='upper right', fontsize=7)
     if np.any(ok):
         _range_frame(ax, x_data=bc[ok], y_data=m12[ok])
 
     _paper_bg(fig, ax)
+
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_overlay.png"))
     plt.close(fig)
@@ -556,7 +555,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
 
     fig, axes = plt.subplots(2, 1, figsize=(COL1, COL1 * 1.15),
                               gridspec_kw={'height_ratios': [3, 1]})
-    fig.subplots_adjust(hspace=0.08)
+    fig.subplots_adjust(hspace=0.12, left=0.18, right=0.95, bottom=0.12, top=0.97)
 
     ax = axes[0]
     all_sig = np.concatenate([sig0[ok], sig1[ok]])
@@ -571,7 +570,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
             linewidth=0.5, label=r'Reject $m_{12}\leq 1$',
             path_effects=_LINE_SHADOW, markeredgewidth=0)
     ax.axhline(1.96, color=_C['accent'], linewidth=0.35,
-               label=r'95\% CL')
+               label='95% CL')
     ax.axhline(3.0, color=_C['light'], linewidth=0.3, linestyle='--')
     ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-')
     # Sigma labels
@@ -582,7 +581,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax.annotate(r'$5\sigma$', xy=(v_psi[ok][-1], 5.0),
                 xytext=(4, 3), textcoords='offset points',
                 fontsize=5, color=_C['light'], va='bottom')
-    ax.set_ylabel(r'Rejection significance [$\sigma$]')
+    ax.set_ylabel(r'Rejection Significance [$\sigma$]')
     ax.set_xscale('log')
     ax.legend(loc='upper right')
     ax.tick_params(labelbottom=False)
@@ -591,12 +590,13 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax2 = axes[1]
     _shadow_markers(ax2, v_psi[ok], nev[ok], color=_C['light'],
                     marker='o', ms=2.5)
-    ax2.set_xlabel(r'$v_\psi / c$')
+    ax2.set_xlabel(r'Signal Speed $v_\psi / c$')
     ax2.set_ylabel('Events')
     ax2.set_xscale('log')
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
+
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vpsi_exclusion.png"))
     plt.close(fig)
@@ -627,23 +627,21 @@ def plot_correlation_matrix(C, C_err, suffix=""):
             txt = f'{C[i,j]:+.2f}\n$\\pm${C_err[i,j]:.2f}'
             clr = 'white' if abs(C[i, j]) > 0.6 * vlim else _C['data']
             ax.text(j, i, txt, ha='center', va='center', fontsize=6.5,
-                    color=clr,
-                    path_effects=[pe.withStroke(linewidth=1.2,
-                                                foreground='white',
-                                                alpha=0.5)])
+                    color=clr)
 
     ax.set_xticks(range(3))
     ax.set_xticklabels(labels)
     ax.set_yticks(range(3))
     ax.set_yticklabels(labels)
-    ax.set_xlabel(r'$j$ ($\tau^+$ decay)')
-    ax.set_ylabel(r'$i$ ($\tau^-$ decay)')
+    ax.set_xlabel(r'$j$ ($\tau^+$ Decay)')
+    ax.set_ylabel(r'$i$ ($\tau^-$ Decay)')
     for sp in ax.spines.values():
         sp.set_visible(True)
         sp.set_linewidth(0.3)
     ax.tick_params(top=True, right=True, direction='out', length=0)
 
     fig.patch.set_facecolor(_C['paper'])
+
     fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"correlation_matrix{suffix}.png"))
     plt.close(fig)
@@ -705,10 +703,11 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
                   color=_C['sm'], ha='left')
 
     ax.set_xlabel(r'Acoplanarity $\Delta\phi$ [rad]')
-    ax.set_ylabel('Events')
+    ax.set_ylabel('Events / Bin')
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
     _paper_bg(fig, ax)
+
     fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, f"acoplanarity{suffix}.png"))
     plt.close(fig)
@@ -719,7 +718,8 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
 # 7. Acoplanarity vs signal speed  (single-column, tall)
 # ---------------------------------------------------------------------------
 
-def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
+def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
+                                 v_psi_values=None, sigma_v_frac=0.0):
     _apply_style()
     _ensure_output_dir()
 
@@ -732,7 +732,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
         mask = (v_signal_arr >= v_edges[b]) & (v_signal_arr < v_edges[b + 1])
         n = np.sum(mask)
         n_events.append(n)
-        if n < 20:
+        if n < 10:
             B_vals.append(np.nan); B_errs.append(np.nan)
             continue
         dphi = acoplanarity_arr[mask]
@@ -755,15 +755,33 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
 
     fig, axes = plt.subplots(2, 1, figsize=(COL1, COL1 * 1.15),
                               gridspec_kw={'height_ratios': [3, 1]})
-    fig.subplots_adjust(hspace=0.08)
+    fig.subplots_adjust(hspace=0.12, left=0.18, right=0.95, bottom=0.12, top=0.97)
 
-    # (a) B coefficient
+    # (a) B coefficient — plot all bins that have a fit result
     ax = axes[0]
     vb = B_vals[ok]
     if len(vb) > 0:
         ylo = min(-1.0, np.nanmin(vb - B_errs[ok]) - 0.2)
         yhi = max(0.5, np.nanmax(vb + B_errs[ok]) + 0.2)
         ax.set_ylim(ylo, yhi)
+
+    # v_psi hypothesis models for B: entangled B=-0.5, separable B=0
+    if v_psi_values is not None and len(v_psi_values) > 0:
+        v_fine = np.linspace(v_edges[0], v_edges[-1], 500)
+        greys = np.linspace(0.45, 0.78, len(v_psi_values))
+        for v_psi, g in zip(v_psi_values, greys):
+            c = str(g)
+            if sigma_v_frac > 0:
+                sigma_v = sigma_v_frac * v_fine.clip(1e-6)
+                frac_ent = 0.5 * erfc(
+                    (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
+                B_model = -0.5 * frac_ent
+            else:
+                B_model = np.where(v_fine <= v_psi, -0.5, 0.0)
+            ax.plot(v_fine, B_model, color=c, linewidth=0.45, zorder=2)
+            ax.text(v_psi, -0.55, rf'${v_psi:.0f}c$', fontsize=5, color=c,
+                    ha='center', va='top')
+
     if np.any(ok):
         _shadow_errorbar(ax, bc_v[ok], B_vals[ok], yerr=B_errs[ok],
                          xerr=hw_v[ok], color=_C['data'], marker='o',
@@ -772,21 +790,23 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges):
     ax.axhline(0.0, color=_C['light'], linewidth=0.25)
     _label_shadow(ax, 0.97, 0.08, r'SM ($B=-0.5$)', fontsize=5.5,
                   color=_C['sm'])
-    ax.set_ylabel(r'Cosine coefficient $B$')
+    ax.set_ylabel(r'Cosine Coefficient $B$')
     ax.tick_params(labelbottom=False)
-    if np.any(ok):
-        _range_frame(ax, x_data=bc_v[ok], y_data=B_vals[ok])
+    # Shared x-limits with event count panel
+    ax.set_xlim(v_edges[0], v_edges[-1])
 
-    # (b) event count
+    # (b) event count — same bins as panel (a)
     ax2 = axes[1]
     ax2.set_ylim(0, max(n_events) * 1.2 if max(n_events) > 0 else 1)
     _textured_bar(ax2, bc_v, n_events, width=np.diff(v_edges),
-                  color=_C['light'], hatch='....', alpha=0.50)
-    ax2.set_xlabel(r'$v_{\mathrm{signal}} / c$')
+                  color=_C['light'], alpha=0.50)
+    ax2.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
     ax2.set_ylabel('Events')
+    ax2.set_xlim(v_edges[0], v_edges[-1])
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
 
     _paper_bg(fig, axes)
+
     fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "acoplanarity_vs_vsignal.png"))
     plt.close(fig)
@@ -814,24 +834,25 @@ def plot_vertex_comparison(reco_results):
     reco_L = np.array(reco_L_m + reco_L_p)
 
     fig, axes = plt.subplots(2, 2, figsize=(COL2, COL2 / GOLDEN))
-    fig.subplots_adjust(hspace=0.38, wspace=0.32)
+    fig.subplots_adjust(hspace=0.45, wspace=0.35)
 
     p99 = np.percentile(np.concatenate([truth_L, reco_L]), 99)
     lim = p99 * 1.2
 
-    # (a) Scatter with warm shadow tint
+    # (a) Scatter — symlog to reveal small-scale structure
     ax = axes[0, 0]
-    ax.scatter(truth_L, reco_L, s=0.6, alpha=0.25, color=_C['truth'],
+    ax.scatter(truth_L, reco_L, s=0.8, alpha=0.35, color=_C['data'],
                edgecolors='none', rasterized=True, zorder=3)
-    ax.plot([0, lim], [0, lim], color=_C['sm'], linewidth=0.35,
+    ax.plot([1e-4, lim], [1e-4, lim], color=_C['sm'], linewidth=0.35,
             linestyle='--')
-    ax.set_xlabel('Truth decay length [mm]')
-    ax.set_ylabel('Reco decay length [mm]')
+    ax.set_xlabel('Truth Decay Length [mm]')
+    ax.set_ylabel('Reco Decay Length [mm]')
+    ax.set_xscale('symlog', linthresh=0.01)
+    ax.set_yscale('symlog', linthresh=0.01)
     ax.set_xlim(0, lim)
     ax.set_ylim(0, lim)
-    ax.set_aspect('equal')
 
-    # (b) Residual with hatched fill
+    # (b) Residual distribution
     ax = axes[0, 1]
     residual = reco_L - truth_L
     res_range = max(abs(np.percentile(residual, 2)),
@@ -839,37 +860,39 @@ def plot_vertex_comparison(reco_results):
     c, e = np.histogram(np.clip(residual, -res_range, res_range),
                         bins=50, range=(-res_range, res_range))
     _step_hist(ax, e, c, color=_C['truth'],
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     ax.set_xlabel('Reco $-$ Truth [mm]')
-    ax.set_ylabel('Entries')
+    ax.set_ylabel('Entries / Bin')
     _label_shadow(ax, 0.97, 0.92,
                   f'mean {np.mean(residual):.3f}\nRMS {np.std(residual):.3f}',
                   fontsize=5.5, color=_C['data'])
 
-    # (c) Ratio distribution with hatched fill
+    # (c) Ratio distribution
     ax = axes[1, 0]
     safe = truth_L > 0.01
     ratio = reco_L[safe] / truth_L[safe]
     c, e = np.histogram(np.clip(ratio, 0, 5), bins=60, range=(0, 5))
     _step_hist(ax, e, c, color=_C['truth'],
-               hatch='////', fill_alpha=0.06, fill_color=_C['truth'])
+               fill_alpha=0.12, fill_color=_C['truth'])
     ax.axvline(1.0, color=_C['sm'], linewidth=0.35, linestyle='--')
     ax.set_xlabel('Reco / Truth')
-    ax.set_ylabel('Entries')
+    ax.set_ylabel('Entries / Bin')
     _label_shadow(ax, 0.97, 0.92, f'median {np.median(ratio):.3f}',
                   fontsize=5.5, color=_C['data'])
 
-    # (d) Ratio vs truth
+    # (d) Ratio vs truth — symlog to match panel (a)
     ax = axes[1, 1]
-    ax.scatter(truth_L[safe], ratio, s=0.6, alpha=0.25, color=_C['truth'],
+    ax.scatter(truth_L[safe], ratio, s=0.8, alpha=0.35, color=_C['data'],
                edgecolors='none', rasterized=True, zorder=3)
     ax.axhline(1.0, color=_C['sm'], linewidth=0.35, linestyle='--')
-    ax.set_xlabel('Truth decay length [mm]')
+    ax.set_xlabel('Truth Decay Length [mm]')
     ax.set_ylabel('Reco / Truth')
+    ax.set_xscale('symlog', linthresh=0.01)
     ax.set_ylim(0, 5)
     ax.set_xlim(0, lim)
 
     _paper_bg(fig, axes)
+
     fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.pdf"))
     fig.savefig(os.path.join(OUTPUT_DIR, "vertex_comparison.png"))
     plt.close(fig)
