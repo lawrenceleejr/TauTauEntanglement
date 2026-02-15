@@ -283,9 +283,9 @@ def _textured_bar(ax, x, heights, width, color, alpha=0.55,
     ax.bar(x, heights, width, color=_C['shadow'], alpha=0.20,
            edgecolor='none', zorder=zorder - 1,
            transform=ax.transData + offset)
-    # real bars
+    # real bars — with outline around the fill
     bars = ax.bar(x, heights, width, color=color, alpha=alpha,
-                  edgecolor='none', label=label, zorder=zorder)
+                  edgecolor=color, linewidth=0.6, label=label, zorder=zorder)
     return bars
 
 
@@ -570,27 +570,27 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
     # Shaded Bell-local band: m12 < 1 region
     ax.axhspan(-0.3, 1.0, facecolor=_C['bell'], alpha=0.05, zorder=0)
 
-    # v_psi hypothesis models — single color, labels at turn-off
+    # v_psi hypothesis models — teal→amber gradient with direct end labels
     v_fine = np.linspace(x_lo, x_hi, 500)
-    hypo_color = _C['sm']
-    for v_psi in v_psi_values:
+    hypo_colors = _hypothesis_colors(len(v_psi_values))
+    for v_psi, hc in zip(v_psi_values, hypo_colors):
         if sigma_v_frac > 0:
             sigma_v = sigma_v_frac * v_fine.clip(1e-6)
             m12_model = 2.0 * 0.5 * erfc(
                 (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
         else:
             m12_model = np.where(v_fine <= v_psi, 2.0, 0.0)
-        ax.plot(v_fine, m12_model, color=hypo_color,
-                linewidth=_S['hypo_lw'], zorder=1)
-        # Label in the turn-off region of the erf (at the 50% point)
-        ax.text(v_psi, 1.0, rf'${v_psi:g}c$',
-                fontsize=_S['hypo_label_fs'], color=hypo_color,
-                ha='center', va='top')
+        ax.plot(v_fine, m12_model, color=hc,
+                linewidth=_S['hypo_lw'], zorder=2)
+        # Label slightly above and to the right of the turn-off
+        ax.text(v_psi * 1.06, 1.15, rf'${v_psi:g}c$',
+                fontsize=_S['hypo_label_fs'], color=hc,
+                ha='left', va='bottom')
 
     ax.axhline(1.0, color=_C['bell'], linewidth=_S['ref_lw'],
                linestyle=_S['ref_ls_bell'], zorder=1)
-    _label_shadow(ax, 0.99, 0.32, 'Bell threshold',
-                  fontsize=_S['annot_fs'], color=_C['bell'], va='bottom')
+    _label_shadow(ax, 0.99, 0.27, 'Bell threshold',
+                  fontsize=_S['annot_fs'], color=_C['bell'], va='top')
     ax.axhline(2.0, color=_C['sm'], linewidth=0.3,
                linestyle=_S['ref_ls_sm'], zorder=1)
 
@@ -621,12 +621,8 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     nev   = np.array([r['n_events'] for r in vpsi_scan_results])
     ok    = ~np.isnan(sig0) & (nev >= 10)
 
-    fig, axes = plt.subplots(2, 1, figsize=(COL1, COL1 * 1.15),
-                              gridspec_kw={'height_ratios': [3, 1],
-                                           'hspace': 0.08})
-    fig.subplots_adjust(left=0.18, right=0.95, bottom=0.12, top=0.97)
+    fig, ax = plt.subplots(figsize=(COL1, COL1 * 0.75))
 
-    ax = axes[0]
     all_sig = np.concatenate([sig0[ok], sig1[ok]])
     ymax_sig = max(6, np.nanmax(all_sig) * 1.15) if len(all_sig) > 0 else 6
     ax.set_ylim(0, ymax_sig)
@@ -648,30 +644,20 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-',
                zorder=1)
 
-    # Sigma labels — positioned at right edge only (fixed duplicate bug)
+    # Sigma labels — positioned at right edge, close to their lines
     if np.any(ok):
         ax.annotate(r'$3\sigma$', xy=(v_psi[ok][-1], 3.0),
-                    xytext=(4, 3), textcoords='offset points',
-                    fontsize=5, color=_C['light'], va='bottom')
+                    xytext=(4, -1), textcoords='offset points',
+                    fontsize=5, color=_C['light'], va='top')
         ax.annotate(r'$5\sigma$', xy=(v_psi[ok][-1], 5.0),
-                    xytext=(4, 3), textcoords='offset points',
-                    fontsize=5, color=_C['light'], va='bottom')
+                    xytext=(4, -1), textcoords='offset points',
+                    fontsize=5, color=_C['light'], va='top')
+    ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Rejection Significance [$\sigma$]')
     ax.set_xscale('log')
     ax.legend(loc='upper right')
-    ax.tick_params(labelbottom=False)
 
-    # event count
-    ax2 = axes[1]
-    _shadow_markers(ax2, v_psi[ok], nev[ok], color=_C['light'],
-                    marker='o', ms=2.5)
-    ax2.set_xlabel(r'$v_\psi / c$')
-    ax2.set_ylabel('Events')
-    ax2.set_xscale('log')
-    ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
-
-    _paper_bg(fig, axes)
-    fig.align_ylabels(axes)
+    _paper_bg(fig, ax)
 
     _save(fig, "vpsi_exclusion")
 
@@ -846,10 +832,12 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
         ax.set_ylim(ylo, yhi)
 
     # v_psi hypothesis models for B: entangled B=-0.5, separable B=0
+    x_lo_v, x_hi_v = v_edges[0], v_edges[-1]
+    ax.set_xlim(x_lo_v, x_hi_v)
     if v_psi_values is not None and len(v_psi_values) > 0:
-        v_fine = np.linspace(v_edges[0], v_edges[-1], 500)
-        hypo_color = _C['sm']
-        for v_psi in v_psi_values:
+        v_fine = np.linspace(x_lo_v, x_hi_v, 500)
+        hypo_colors = _hypothesis_colors(len(v_psi_values))
+        for v_psi, hc in zip(v_psi_values, hypo_colors):
             if sigma_v_frac > 0:
                 sigma_v = sigma_v_frac * v_fine.clip(1e-6)
                 frac_ent = 0.5 * erfc(
@@ -857,12 +845,13 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
                 B_model = -0.5 * frac_ent
             else:
                 B_model = np.where(v_fine <= v_psi, -0.5, 0.0)
-            ax.plot(v_fine, B_model, color=hypo_color,
-                    linewidth=_S['hypo_lw'], zorder=1)
-            # Label in the turn-off region (at the 50% point)
-            ax.text(v_psi, -0.25, rf'${v_psi:g}c$',
-                    fontsize=_S['hypo_label_fs'], color=hypo_color,
-                    ha='center', va='top')
+            ax.plot(v_fine, B_model, color=hc,
+                    linewidth=_S['hypo_lw'], zorder=2)
+            # Label only if turn-off is within the visible x-range
+            if v_psi <= x_hi_v:
+                ax.text(v_psi * 1.06, -0.20, rf'${v_psi:g}c$',
+                        fontsize=_S['hypo_label_fs'], color=hc,
+                        ha='left', va='bottom', clip_on=True)
 
     if np.any(ok):
         _shadow_errorbar(ax, bc_v[ok], B_vals[ok], yerr=B_errs[ok],
@@ -875,7 +864,6 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
                   fontsize=_S['annot_fs'], color=_C['sm'])
     ax.set_ylabel(r'Cosine Coefficient $B$')
     ax.tick_params(labelbottom=False)
-    ax.set_xlim(v_edges[0], v_edges[-1])
 
     # event count
     ax2 = axes[1]
