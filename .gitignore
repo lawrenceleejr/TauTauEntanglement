@@ -4,3 +4,12 @@ __pycache__/
 plots/
 *.egg-info/
 .eggs/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.bbl
+paper/*.blg
+paper/*.synctex.gz
+paper/paperNotes.bib
