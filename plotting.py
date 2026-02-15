@@ -64,8 +64,6 @@ _S = {
     'data_ms': 3.5,              # primary data marker size
     'data_ms_large': 4.5,        # money-plot data marker size
     'data_elinewidth': 0.4,      # errorbar line width
-    'marker_edge_width': 0.3,    # white die-cut edge on markers
-    'marker_edge_color': 'white',
     # Reference lines
     'ref_lw': 0.35,              # reference/threshold line width
     'ref_ls_sm': '--',           # SM prediction line style
@@ -200,13 +198,12 @@ def _shadow_errorbar(ax, x, y, yerr=None, xerr=None, color=_C['data'],
                 capsize=0, alpha=_S['shadow_alpha'], zorder=zorder - 1,
                 markeredgewidth=0, transform=shadow_trans, **kw)
 
-    # --- real data layer with white die-cut edge ---
+    # --- real data layer ---
     container = ax.errorbar(x, y, yerr=yerr, xerr=xerr,
                             fmt=marker, color=color, markersize=ms,
                             ecolor=color, elinewidth=elinewidth,
                             capsize=0, zorder=zorder, label=label,
-                            markeredgewidth=_S['marker_edge_width'],
-                            markeredgecolor=_S['marker_edge_color'], **kw)
+                            markeredgewidth=0, **kw)
     return container
 
 
@@ -227,8 +224,7 @@ def _shadow_markers(ax, x, y, color=_C['data'], marker='o', ms=None,
             zorder=zorder - 1, markeredgewidth=0, transform=shadow_trans, **kw)
     ax.plot(x, y, marker=marker, linestyle='none', color=color,
             markersize=ms, zorder=zorder, label=label,
-            markeredgewidth=_S['marker_edge_width'],
-            markeredgecolor=_S['marker_edge_color'], **kw)
+            markeredgewidth=0, **kw)
 
 
 # ===================================================================
@@ -408,8 +404,9 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
                fill_alpha=_S['fill_alpha'], fill_color=_C['truth'])
     e, v = _hist_vals(v_r, 0, v_max, nbins=60)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
-    ax.axvline(1.0, color=_C['accent'], linewidth=0.5, label='$v = c$')
-    ax.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
+    ax.axvline(1.0, color=_C['accent'], linewidth=0.5, label='$v = c$',
+              zorder=0)
+    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
     ax.set_ylabel('Events / Bin')
     ax.set_yscale('log')
     ax.legend()
@@ -471,10 +468,7 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
 
     # m12
     ax = axes[0]
-    if len(m12[ok]) > 0:
-        ylo = max(0, np.min(m12[ok] - m12e[ok]) - 0.5)
-        yhi = max(3.0, np.max(m12[ok] + m12e[ok]) + 0.5)
-        ax.set_ylim(ylo, yhi)
+    ax.set_ylim(0, 3.5)
     ax.axhline(2.0, color=_C['sm'], linewidth=_S['ref_lw'],
                linestyle=_S['ref_ls_sm'], zorder=1)
     ax.axhline(1.0, color=_C['bell'], linewidth=_S['ref_lw'],
@@ -566,28 +560,28 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
 
     fig, ax = plt.subplots(figsize=(COL2, COL2 / GOLDEN / 1.3))
 
-    if np.any(ok):
-        yhi = max(3.5, np.nanmax(m12[ok] + m12e[ok]) + 0.5)
-        ax.set_ylim(-0.3, yhi)
+    ax.set_ylim(-0.3, 3.5)
 
     # Shaded Bell-local band: m12 < 1 region
     xlims = (bin_edges_v[0], bin_edges_v[-1])
     ax.axhspan(-0.3, 1.0, facecolor=_C['bell'], alpha=0.05, zorder=0)
 
-    # v_psi hypothesis models — teal→amber gradient with direct end labels
+    # v_psi hypothesis models — single color, labels at turn-off
     v_fine = np.linspace(xlims[0], xlims[1], 500)
-    hypo_colors = _hypothesis_colors(len(v_psi_values))
-    for v_psi, hc in zip(v_psi_values, hypo_colors):
+    hypo_color = _C['sm']
+    for v_psi in v_psi_values:
         if sigma_v_frac > 0:
             sigma_v = sigma_v_frac * v_fine.clip(1e-6)
             m12_model = 2.0 * 0.5 * erfc(
                 (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
         else:
             m12_model = np.where(v_fine <= v_psi, 2.0, 0.0)
-        ax.plot(v_fine, m12_model, color=hc, linewidth=_S['hypo_lw'], zorder=2)
-        ax.text(v_psi, 2.12, rf'${v_psi:.0f}c$',
-                fontsize=_S['hypo_label_fs'], color=hc,
-                ha='center', va='bottom')
+        ax.plot(v_fine, m12_model, color=hypo_color,
+                linewidth=_S['hypo_lw'], zorder=1)
+        # Label in the turn-off region of the erf (at the 50% point)
+        ax.text(v_psi, 1.0, rf'$v_\psi\!=\!{v_psi:g}c$',
+                fontsize=_S['hypo_label_fs'], color=hypo_color,
+                ha='center', va='top')
 
     ax.axhline(1.0, color=_C['bell'], linewidth=_S['ref_lw'],
                linestyle=_S['ref_ls_bell'], zorder=1)
@@ -601,11 +595,9 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
                      color=_C['data'], marker='o', ms=_S['data_ms_large'],
                      elinewidth=0.5, label=r'Measured $m_{12}$')
 
-    ax.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
-    ax.set_ylabel(r'Horodecki Parameter $m_{12}$')
+    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
+    ax.set_ylabel(r'$m_{12}$')
     ax.legend(loc='upper right', fontsize=7)
-    if np.any(ok):
-        _range_frame(ax, x_data=bc[ok], y_data=m12[ok])
 
     _paper_bg(fig, ax)
 
@@ -638,21 +630,19 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     # Subtle exclusion shading above 95% CL
     ax.axhspan(1.96, ymax_sig, facecolor=_C['accent'], alpha=0.04, zorder=0)
 
-    # Lines with shadow path effects and white marker edges
+    # Data lines
     ax.plot(v_psi[ok], sig0[ok], 'o-', color=_C['truth'], markersize=2.5,
             linewidth=0.5, label=r'Reject $m_{12}=0$',
-            path_effects=_LINE_SHADOW,
-            markeredgewidth=_S['marker_edge_width'],
-            markeredgecolor=_S['marker_edge_color'])
+            path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
     ax.plot(v_psi[ok], sig1[ok], 's-', color=_C['reco'], markersize=2.5,
             linewidth=0.5, label=r'Reject $m_{12}\leq 1$',
-            path_effects=_LINE_SHADOW,
-            markeredgewidth=_S['marker_edge_width'],
-            markeredgecolor=_S['marker_edge_color'])
+            path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
     ax.axhline(1.96, color=_C['accent'], linewidth=_S['ref_lw'],
-               label='95% CL')
-    ax.axhline(3.0, color=_C['light'], linewidth=0.3, linestyle='--')
-    ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-')
+               label='95% CL', zorder=1)
+    ax.axhline(3.0, color=_C['light'], linewidth=0.3, linestyle='--',
+               zorder=1)
+    ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-',
+               zorder=1)
 
     # Sigma labels — positioned at right edge only (fixed duplicate bug)
     if np.any(ok):
@@ -671,7 +661,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax2 = axes[1]
     _shadow_markers(ax2, v_psi[ok], nev[ok], color=_C['light'],
                     marker='o', ms=2.5)
-    ax2.set_xlabel(r'Signal Speed $v_\psi / c$')
+    ax2.set_xlabel(r'$v_\psi / c$')
     ax2.set_ylabel('Events')
     ax2.set_xscale('log')
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
@@ -772,7 +762,7 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
 
         phi_fine = np.linspace(-np.pi, np.pi, 200)
         ax.plot(phi_fine, _cosine_model(phi_fine, *popt), color=_C['reco'],
-                linewidth=0.55, zorder=3, path_effects=_LINE_SHADOW)
+                linewidth=0.55, zorder=2, path_effects=_LINE_SHADOW)
         _label_shadow(ax, 0.03, 0.95,
                       rf'$B = {B_fit:.3f} \pm {B_err:.3f}$',
                       fontsize=6.5, color=_C['reco'], ha='left')
@@ -783,7 +773,7 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
     phi_fine = np.linspace(-np.pi, np.pi, 200)
     norm = len(delta_phi_arr) * bw / (2 * np.pi)
     ax.plot(phi_fine, norm * (1 - 0.5 * np.cos(phi_fine)),
-            color=_C['sm'], linewidth=0.4, linestyle='--', zorder=2)
+            color=_C['sm'], linewidth=0.4, linestyle='--', zorder=1)
     _label_shadow(ax, 0.03, 0.85, r'SM ($B=-0.5$)',
                   fontsize=_S['annot_fs'], color=_C['sm'], ha='left')
 
@@ -854,8 +844,8 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
     # v_psi hypothesis models for B: entangled B=-0.5, separable B=0
     if v_psi_values is not None and len(v_psi_values) > 0:
         v_fine = np.linspace(v_edges[0], v_edges[-1], 500)
-        hypo_colors = _hypothesis_colors(len(v_psi_values))
-        for v_psi, hc in zip(v_psi_values, hypo_colors):
+        hypo_color = _C['sm']
+        for v_psi in v_psi_values:
             if sigma_v_frac > 0:
                 sigma_v = sigma_v_frac * v_fine.clip(1e-6)
                 frac_ent = 0.5 * erfc(
@@ -863,10 +853,11 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
                 B_model = -0.5 * frac_ent
             else:
                 B_model = np.where(v_fine <= v_psi, -0.5, 0.0)
-            ax.plot(v_fine, B_model, color=hc, linewidth=_S['hypo_lw'],
-                    zorder=2)
-            ax.text(v_psi, -0.55, rf'${v_psi:.0f}c$',
-                    fontsize=_S['hypo_label_fs'], color=hc,
+            ax.plot(v_fine, B_model, color=hypo_color,
+                    linewidth=_S['hypo_lw'], zorder=1)
+            # Label in the turn-off region (at the 50% point)
+            ax.text(v_psi, -0.25, rf'$v_\psi\!=\!{v_psi:g}c$',
+                    fontsize=_S['hypo_label_fs'], color=hypo_color,
                     ha='center', va='top')
 
     if np.any(ok):
@@ -874,8 +865,8 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
                          xerr=hw_v[ok], color=_C['data'], marker='o',
                          ms=2.5)
     ax.axhline(-0.5, color=_C['sm'], linewidth=_S['ref_lw'],
-               linestyle=_S['ref_ls_sm'])
-    ax.axhline(0.0, color=_C['light'], linewidth=0.25)
+               linestyle=_S['ref_ls_sm'], zorder=1)
+    ax.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
     _label_shadow(ax, 0.97, 0.08, r'SM ($B=-0.5$)',
                   fontsize=_S['annot_fs'], color=_C['sm'])
     ax.set_ylabel(r'Cosine Coefficient $B$')
@@ -887,7 +878,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
     ax2.set_ylim(0, max(n_events) * 1.2 if max(n_events) > 0 else 1)
     _textured_bar(ax2, bc_v, n_events, width=np.diff(v_edges),
                   color=_C['light'], alpha=0.50)
-    ax2.set_xlabel(r'Signal Speed $v_{\mathrm{signal}} / c$')
+    ax2.set_xlabel(r'$v_{\mathrm{signal}} / c$')
     ax2.set_ylabel('Events')
     ax2.set_xlim(v_edges[0], v_edges[-1])
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
@@ -923,18 +914,12 @@ def plot_vertex_comparison(reco_results):
     p99 = np.percentile(np.concatenate([truth_L, reco_L]), 99)
     lim = p99 * 1.2
 
-    # Build a sequential colormap from the palette for hexbin
-    _hex_cmap = mcolors.LinearSegmentedColormap.from_list(
-        'navy_seq', ['#f0f0f5', _C['data']], N=256)
-
-    # (a) Hexbin — replaces scatter for a cleaner look
+    # (a) Scatter: reco vs truth decay length
     ax = axes[0, 0]
-    # Use log1p to handle the wide dynamic range
-    ax.hexbin(truth_L, reco_L, gridsize=40, cmap=_hex_cmap,
-              mincnt=1, linewidths=0.1, edgecolors='white',
-              xscale='symlog', yscale='symlog', rasterized=True, zorder=3)
+    ax.scatter(truth_L, reco_L, s=1.5, color=_C['data'], alpha=0.25,
+               edgecolors='none', rasterized=True, zorder=3)
     ax.plot([1e-4, lim], [1e-4, lim], color=_C['sm'], linewidth=_S['ref_lw'],
-            linestyle='--')
+            linestyle='--', zorder=1)
     ax.set_xlabel('Truth Decay Length [mm]')
     ax.set_ylabel('Reco Decay Length [mm]')
     ax.set_xscale('symlog', linthresh=0.01)
@@ -964,18 +949,19 @@ def plot_vertex_comparison(reco_results):
     c, e = np.histogram(np.clip(ratio, 0, 5), bins=60, range=(0, 5))
     _step_hist(ax, e, c, color=_C['truth'],
                fill_alpha=_S['fill_alpha'], fill_color=_C['truth'])
-    ax.axvline(1.0, color=_C['sm'], linewidth=_S['ref_lw'], linestyle='--')
+    ax.axvline(1.0, color=_C['sm'], linewidth=_S['ref_lw'], linestyle='--',
+              zorder=1)
     ax.set_xlabel('Reco / Truth')
     ax.set_ylabel('Entries / Bin')
     _label_shadow(ax, 0.97, 0.92, f'median {np.median(ratio):.3f}',
                   fontsize=_S['annot_fs'], color=_C['data'])
 
-    # (d) Hexbin ratio vs truth
+    # (d) Scatter: ratio vs truth decay length
     ax = axes[1, 1]
-    ax.hexbin(truth_L[safe], ratio, gridsize=40, cmap=_hex_cmap,
-              mincnt=1, linewidths=0.1, edgecolors='white',
-              xscale='symlog', rasterized=True, zorder=3)
-    ax.axhline(1.0, color=_C['sm'], linewidth=_S['ref_lw'], linestyle='--')
+    ax.scatter(truth_L[safe], ratio, s=1.5, color=_C['data'], alpha=0.25,
+               edgecolors='none', rasterized=True, zorder=3)
+    ax.axhline(1.0, color=_C['sm'], linewidth=_S['ref_lw'], linestyle='--',
+               zorder=1)
     ax.set_xlabel('Truth Decay Length [mm]')
     ax.set_ylabel('Reco / Truth')
     ax.set_xscale('symlog', linthresh=0.01)
