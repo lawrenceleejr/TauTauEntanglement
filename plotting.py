@@ -406,7 +406,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
     ax.axvline(1.0, color=_C['accent'], linewidth=0.5, label='$v = c$',
               zorder=0)
-    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
+    ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel('Events / Bin')
     ax.set_yscale('log')
     ax.legend()
@@ -562,12 +562,16 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
 
     ax.set_ylim(-0.3, 3.5)
 
+    # x-range: extend to cover all hypothesis curves with some padding
+    x_lo = bin_edges_v[0]
+    x_hi = max(bin_edges_v[-1], max(v_psi_values) * 1.15) if len(v_psi_values) > 0 else bin_edges_v[-1]
+    ax.set_xlim(x_lo, x_hi)
+
     # Shaded Bell-local band: m12 < 1 region
-    xlims = (bin_edges_v[0], bin_edges_v[-1])
     ax.axhspan(-0.3, 1.0, facecolor=_C['bell'], alpha=0.05, zorder=0)
 
     # v_psi hypothesis models — single color, labels at turn-off
-    v_fine = np.linspace(xlims[0], xlims[1], 500)
+    v_fine = np.linspace(x_lo, x_hi, 500)
     hypo_color = _C['sm']
     for v_psi in v_psi_values:
         if sigma_v_frac > 0:
@@ -579,7 +583,7 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
         ax.plot(v_fine, m12_model, color=hypo_color,
                 linewidth=_S['hypo_lw'], zorder=1)
         # Label in the turn-off region of the erf (at the 50% point)
-        ax.text(v_psi, 1.0, rf'$v_\psi\!=\!{v_psi:g}c$',
+        ax.text(v_psi, 1.0, rf'${v_psi:g}c$',
                 fontsize=_S['hypo_label_fs'], color=hypo_color,
                 ha='center', va='top')
 
@@ -595,7 +599,7 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
                      color=_C['data'], marker='o', ms=_S['data_ms_large'],
                      elinewidth=0.5, label=r'Measured $m_{12}$')
 
-    ax.set_xlabel(r'$v_{\mathrm{signal}} / c$')
+    ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'$m_{12}$')
     ax.legend(loc='upper right', fontsize=7)
 
@@ -856,7 +860,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
             ax.plot(v_fine, B_model, color=hypo_color,
                     linewidth=_S['hypo_lw'], zorder=1)
             # Label in the turn-off region (at the 50% point)
-            ax.text(v_psi, -0.25, rf'$v_\psi\!=\!{v_psi:g}c$',
+            ax.text(v_psi, -0.25, rf'${v_psi:g}c$',
                     fontsize=_S['hypo_label_fs'], color=hypo_color,
                     ha='center', va='top')
 
@@ -878,7 +882,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
     ax2.set_ylim(0, max(n_events) * 1.2 if max(n_events) > 0 else 1)
     _textured_bar(ax2, bc_v, n_events, width=np.diff(v_edges),
                   color=_C['light'], alpha=0.50)
-    ax2.set_xlabel(r'$v_{\mathrm{signal}} / c$')
+    ax2.set_xlabel(r'$v_\psi / c$')
     ax2.set_ylabel('Events')
     ax2.set_xlim(v_edges[0], v_edges[-1])
     ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))

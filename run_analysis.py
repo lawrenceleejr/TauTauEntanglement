@@ -431,13 +431,11 @@ def _run_plots(pd):
     # 3. Entanglement vs signal speed
     plot_entanglement_vs_spacetime(
         pd['binned_v'], v_edges,
-        xlabel=r"$v_{\rm signal} / c$",
+        xlabel=r"$v_\psi / c$",
         suffix="signal_speed")
 
     # 4. v_psi overlay plot (the money plot)
-    v_psi_overlay = [v for v in V_PSI_SCAN if v <= v_edges[-1] * 1.5]
-    if len(v_psi_overlay) > 6:
-        v_psi_overlay = v_psi_overlay[:6]
+    v_psi_overlay = [1, 3, 5, 10, 30]
     plot_vpsi_overlay(pd['binned_v'], v_edges, v_psi_overlay,
                       sigma_v_frac=sigma_v_frac)
 
