@@ -283,9 +283,17 @@ def _textured_bar(ax, x, heights, width, color, alpha=0.55,
     ax.bar(x, heights, width, color=_C['shadow'], alpha=0.20,
            edgecolor='none', zorder=zorder - 1,
            transform=ax.transData + offset)
-    # real bars — with outline around the fill
+    # real bars
     bars = ax.bar(x, heights, width, color=color, alpha=alpha,
-                  edgecolor=color, linewidth=0.6, label=label, zorder=zorder)
+                  edgecolor='none', label=label, zorder=zorder)
+    # step outline around the perimeter (no internal bin dividers)
+    x = np.asarray(x)
+    heights = np.asarray(heights)
+    w = np.broadcast_to(np.asarray(width), x.shape)
+    edges = np.concatenate([x - w / 2, [x[-1] + w[-1] / 2]])
+    sx = np.repeat(edges, 2)
+    sy = np.concatenate([[0], np.repeat(heights, 2), [0]])
+    ax.plot(sx, sy, color=color, linewidth=0.6, zorder=zorder + 1)
     return bars
 
 
