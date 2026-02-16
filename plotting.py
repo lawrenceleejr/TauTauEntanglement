@@ -487,9 +487,9 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
                      color=_C['data'], marker='o', ms=_S['data_ms'])
     _label_shadow(ax, 0.97, 0.92, r'$m_{12}$',
                   color=_C['data'], fontweight='bold')
-    _label_shadow(ax, 0.97, 0.78, r'SM ($m_{12}=2$)',
+    _label_shadow(ax, 0.97, 0.55, r'SM ($m_{12}=2$)',
                   fontsize=_S['annot_fs'], color=_C['sm'])
-    _label_shadow(ax, 0.97, 0.15, 'Bell threshold',
+    _label_shadow(ax, 0.97, 0.26, 'Bell threshold',
                   fontsize=_S['annot_fs'], color=_C['bell'])
     ax.set_ylabel(r'$m_{12}$')
     ax.tick_params(labelbottom=False)
@@ -597,7 +597,7 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
 
     ax.axhline(1.0, color=_C['bell'], linewidth=_S['ref_lw'],
                linestyle=_S['ref_ls_bell'], zorder=1)
-    _label_shadow(ax, 0.99, 0.27, 'Bell threshold',
+    _label_shadow(ax, 0.99, 0.32, 'Bell threshold',
                   fontsize=_S['annot_fs'], color=_C['bell'], va='top')
     ax.axhline(2.0, color=_C['sm'], linewidth=0.3,
                linestyle=_S['ref_ls_sm'], zorder=1)
