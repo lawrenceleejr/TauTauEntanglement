@@ -30,6 +30,7 @@ __all__ = [
     'plot_correlation_matrix',
     'plot_acoplanarity',
     'plot_acoplanarity_vs_vsignal',
+    'plot_acoplanarity_2d',
     'plot_vertex_comparison',
     'print_summary',
 ]
@@ -590,8 +591,8 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
             m12_model = np.where(v_fine <= v_psi, 2.0, 0.0)
         ax.plot(v_fine, m12_model, color=hc,
                 linewidth=_S['hypo_lw'], zorder=2)
-        # Label slightly above and to the right of the turn-off
-        ax.text(v_psi * 1.06, 1.15, rf'${v_psi:g}c$',
+        # Label at the midpoint of the transition, offset right
+        ax.text(v_psi * 1.08, 1.05, rf'${v_psi:g}c$',
                 fontsize=_S['hypo_label_fs'], color=hc,
                 ha='left', va='bottom')
 
@@ -638,11 +639,24 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     # Subtle exclusion shading above 95% CL
     ax.axhspan(1.96, ymax_sig, facecolor=_C['accent'], alpha=0.04, zorder=0)
 
+    # Extend curves to zero beyond the last measured point to show
+    # that we can't make any statement at very high speeds.
+    v_plot0, s_plot0 = v_psi[ok], sig0[ok]
+    v_plot1, s_plot1 = v_psi[ok], sig1[ok]
+    if np.any(ok):
+        # Find the first v_psi beyond the data with too few events
+        all_beyond = v_psi[~ok & (v_psi > v_psi[ok][-1])]
+        v_zero = all_beyond[0] if len(all_beyond) > 0 else v_psi[ok][-1] * 2
+        v_plot0 = np.append(v_plot0, v_zero)
+        s_plot0 = np.append(s_plot0, 0.0)
+        v_plot1 = np.append(v_plot1, v_zero)
+        s_plot1 = np.append(s_plot1, 0.0)
+
     # Data lines
-    ax.plot(v_psi[ok], sig0[ok], 'o-', color=_C['truth'], markersize=2.5,
+    ax.plot(v_plot0, s_plot0, 'o-', color=_C['truth'], markersize=2.5,
             linewidth=0.5, label=r'Reject $m_{12}=0$',
             path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
-    ax.plot(v_psi[ok], sig1[ok], 's-', color=_C['reco'], markersize=2.5,
+    ax.plot(v_plot1, s_plot1, 's-', color=_C['reco'], markersize=2.5,
             linewidth=0.5, label=r'Reject $m_{12}\leq 1$',
             path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
     ax.axhline(1.96, color=_C['accent'], linewidth=_S['ref_lw'],
@@ -850,15 +864,11 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
                 B_model = np.where(v_fine <= v_psi, -0.5, 0.0)
             ax.plot(v_fine, B_model, color=hc,
                     linewidth=_S['hypo_lw'], zorder=2)
-            # Label at top of plot, clear of the smeared curves
+            # Label at the midpoint of the transition, offset right
             if v_psi <= x_hi_v:
-                # Nudge labels near the left edge so they aren't clipped
-                x_frac = (v_psi - x_lo_v) / (x_hi_v - x_lo_v)
-                ha = 'left' if x_frac < 0.05 else 'center'
-                ax.text(v_psi, 0.95, rf'${v_psi:g}c$',
+                ax.text(v_psi * 1.08, -0.18, rf'${v_psi:g}c$',
                         fontsize=_S['hypo_label_fs'], color=hc,
-                        ha=ha, va='top',
-                        transform=ax.get_xaxis_transform())
+                        ha='left', va='top', clip_on=True)
 
     if np.any(ok):
         _shadow_errorbar(ax, bc_v[ok], B_vals[ok], yerr=B_errs[ok],
@@ -878,7 +888,43 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
 
 
 # ---------------------------------------------------------------------------
-# 8. Vertex comparison  (double-wide)
+# 8b. Acoplanarity vs v_psi 2D histogram  (single-column)
+# ---------------------------------------------------------------------------
+
+def plot_acoplanarity_2d(acoplanarity_arr, v_signal_arr):
+    """2D histogram of acoplanarity (Delta phi) vs v_psi/c."""
+    _apply_style()
+
+    fig, ax = plt.subplots(figsize=(COL1, COL1 / GOLDEN))
+
+    v_clip = np.clip(v_signal_arr, 0, np.percentile(v_signal_arr, 98) * 1.1)
+    n_vbins = min(20, max(5, len(v_signal_arr) // 8))
+    n_phibins = min(20, max(5, len(acoplanarity_arr) // 8))
+
+    h, xedges, yedges = np.histogram2d(
+        v_clip, acoplanarity_arr,
+        bins=[n_vbins, n_phibins],
+        range=[[0, v_clip.max()], [-np.pi, np.pi]])
+
+    cmap = _jewel_colormap()
+    im = ax.pcolormesh(xedges, yedges, h.T, cmap=cmap, rasterized=True)
+    cbar = fig.colorbar(im, ax=ax, shrink=0.82, aspect=15, pad=0.04)
+    cbar.ax.tick_params(labelsize=6)
+    cbar.set_label('Events', fontsize=7)
+    cbar.outline.set_linewidth(0.3)
+
+    ax.set_xlabel(r'$v_\psi / c$')
+    ax.set_ylabel(r'Acoplanarity $\Delta\phi$')
+    ax.set_yticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
+    ax.set_yticklabels([r'$-\pi$', r'$-\pi/2$', '$0$', r'$\pi/2$', r'$\pi$'])
+
+    _paper_bg(fig, ax)
+
+    _save(fig, "acoplanarity_2d")
+
+
+# ---------------------------------------------------------------------------
+# 9. Vertex comparison  (double-wide)
 # ---------------------------------------------------------------------------
 
 def plot_vertex_comparison(reco_results):

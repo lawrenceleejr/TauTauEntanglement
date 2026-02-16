@@ -433,6 +433,7 @@ def _run_plots(pd):
         plot_correlation_matrix,
         plot_acoplanarity,
         plot_acoplanarity_vs_vsignal,
+        plot_acoplanarity_2d,
         plot_vertex_comparison,
         print_summary,
     )
@@ -481,6 +482,9 @@ def _run_plots(pd):
     plot_acoplanarity_vs_vsignal(pd['acoplanarity_reco_vtx'], pd['v_arr'], v_edges,
                                  v_psi_values=v_psi_overlay,
                                  sigma_v_frac=sigma_v_frac)
+
+    # 8b. Acoplanarity 2D histogram
+    plot_acoplanarity_2d(pd['acoplanarity_reco_vtx'], pd['v_arr'])
 
     # 9. Vertex comparison (with ratio diagnostic)
     plot_vertex_comparison(pd['reco_good'])
