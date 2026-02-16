@@ -24,6 +24,7 @@ Reference: arXiv:1507.01700 (Jeans), arXiv:1804.01241 (Jeans & Wilson)
 import numpy as np
 from config import M_TAU, M_PI, M_HIGGS, CTAU_TAU, C_LIGHT, SQRT_S, P_BEAM_TOTAL
 from parse_hepmc import EventRecord
+from smearing import sigma_d0
 
 
 # ---------------------------------------------------------------------------
@@ -461,6 +462,17 @@ def reconstruct_event(event: EventRecord):
             'gamma': gamma,
             'beta_gamma': beta_gamma,
         }
+
+        # Impact parameter significance for quality cuts
+        p_pi = tau_info.charged_pion_p4
+        pi_hat = p3hat(p_pi)
+        dv_truth = tau_info.decay_vertex[1:4]
+        _, d_mag, _ = compute_impact_parameter(pv_xyz, dv_truth, pi_hat)
+        p_pi_mag = p3mag(p_pi)
+        theta_pi = np.arccos(np.clip(p_pi[3] / p_pi_mag, -1, 1))
+        sig_d = sigma_d0(p_pi_mag, theta_pi)
+        result[label]['d_mag'] = d_mag
+        result[label]['ip_significance'] = d_mag / sig_d if sig_d > 0 else 0.0
 
         # Truth values for comparison
         truth_decay_xyz = tau_info.decay_vertex[1:4]

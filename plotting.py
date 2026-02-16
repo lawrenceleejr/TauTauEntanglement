@@ -826,13 +826,8 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
     n_events = np.array(n_events)
     ok = ~np.isnan(B_vals)
 
-    fig, axes = plt.subplots(2, 1, figsize=(COL1, COL1 * 1.15),
-                              gridspec_kw={'height_ratios': [3, 1],
-                                           'hspace': 0.08})
-    fig.subplots_adjust(left=0.18, right=0.95, bottom=0.12, top=0.97)
+    fig, ax = plt.subplots(figsize=(COL1, COL1 / GOLDEN))
 
-    # B coefficient
-    ax = axes[0]
     vb = B_vals[ok]
     if len(vb) > 0:
         ylo = min(-1.0, np.nanmin(vb - B_errs[ok]) - 0.2)
@@ -855,11 +850,15 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
                 B_model = np.where(v_fine <= v_psi, -0.5, 0.0)
             ax.plot(v_fine, B_model, color=hc,
                     linewidth=_S['hypo_lw'], zorder=2)
-            # Label only if turn-off is within the visible x-range
+            # Label at top of plot, clear of the smeared curves
             if v_psi <= x_hi_v:
-                ax.text(v_psi * 1.06, -0.20, rf'${v_psi:g}c$',
+                # Nudge labels near the left edge so they aren't clipped
+                x_frac = (v_psi - x_lo_v) / (x_hi_v - x_lo_v)
+                ha = 'left' if x_frac < 0.05 else 'center'
+                ax.text(v_psi, 0.95, rf'${v_psi:g}c$',
                         fontsize=_S['hypo_label_fs'], color=hc,
-                        ha='left', va='bottom', clip_on=True)
+                        ha=ha, va='top',
+                        transform=ax.get_xaxis_transform())
 
     if np.any(ok):
         _shadow_errorbar(ax, bc_v[ok], B_vals[ok], yerr=B_errs[ok],
@@ -870,21 +869,10 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
     ax.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
     _label_shadow(ax, 0.97, 0.08, r'SM ($B=-0.5$)',
                   fontsize=_S['annot_fs'], color=_C['sm'])
+    ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Cosine Coefficient $B$')
-    ax.tick_params(labelbottom=False)
 
-    # event count
-    ax2 = axes[1]
-    ax2.set_ylim(0, max(n_events) * 1.2 if max(n_events) > 0 else 1)
-    _textured_bar(ax2, bc_v, n_events, width=np.diff(v_edges),
-                  color=_C['light'], alpha=0.50)
-    ax2.set_xlabel(r'$v_\psi / c$')
-    ax2.set_ylabel('Events')
-    ax2.set_xlim(v_edges[0], v_edges[-1])
-    ax2.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
-
-    _paper_bg(fig, axes)
-    fig.align_ylabels(axes)
+    _paper_bg(fig, ax)
 
     _save(fig, "acoplanarity_vs_vsignal")
 
