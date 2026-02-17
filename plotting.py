@@ -26,6 +26,7 @@ __all__ = [
     'plot_spacetime_distributions',
     'plot_entanglement_vs_spacetime',
     'plot_vpsi_overlay',
+    'plot_vpsi_combined',
     'plot_vpsi_exclusion',
     'plot_correlation_matrix',
     'plot_acoplanarity',
@@ -645,6 +646,154 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
     _paper_bg(fig, ax)
 
     _save(fig, "vpsi_overlay")
+
+
+# ---------------------------------------------------------------------------
+# 3b. Combined B + m12 vs v_psi  (single-column, two panels)
+# ---------------------------------------------------------------------------
+
+def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
+                       acoplanarity_arr, v_signal_arr, v_edges,
+                       v_psi_values, sigma_v_frac=0.0):
+    """Two-panel figure: B coefficient (top) and m12 (bottom) vs v_psi/c.
+
+    Single-column width with a shared x-axis.
+    """
+    _apply_style()
+
+    # --- Compute B(v) from acoplanarity data ---
+    n_bins_v = len(v_edges) - 1
+    bc_v = 0.5 * (v_edges[:-1] + v_edges[1:])
+    hw_v = np.diff(v_edges) / 2
+    B_vals, B_errs = [], []
+    for b in range(n_bins_v):
+        mask = (v_signal_arr >= v_edges[b]) & (v_signal_arr < v_edges[b + 1])
+        n = np.sum(mask)
+        if n < 10:
+            B_vals.append(np.nan); B_errs.append(np.nan)
+            continue
+        dphi = acoplanarity_arr[mask]
+        c, e = np.histogram(dphi, bins=15, range=(-np.pi, np.pi))
+        cbc = 0.5 * (e[:-1] + e[1:])
+        cerr = np.sqrt(np.maximum(c, 1))
+        try:
+            popt, pcov = curve_fit(_cosine_model, cbc, c,
+                                   p0=[np.mean(c), -0.5],
+                                   sigma=cerr, absolute_sigma=True)
+            B_vals.append(popt[1])
+            B_errs.append(np.sqrt(pcov[1, 1]))
+        except RuntimeError:
+            B_vals.append(np.nan); B_errs.append(np.nan)
+    B_vals = np.array(B_vals)
+    B_errs = np.array(B_errs)
+    ok_B = ~np.isnan(B_vals)
+
+    # --- m12 data ---
+    bc_m = 0.5 * (bin_edges_v[:-1] + bin_edges_v[1:])
+    hw_m = np.diff(bin_edges_v) / 2
+    m12  = np.array([r['m12'] for r in binned_results_vs_v])
+    m12e = np.array([r['m12_err'] for r in binned_results_vs_v])
+    ok_m = ~np.isnan(m12)
+
+    # --- Shared x-range ---
+    x_lo = min(bin_edges_v[0], v_edges[0])
+    x_hi = max(bin_edges_v[-1], v_edges[-1])
+    if len(v_psi_values) > 0:
+        x_hi = max(x_hi, max(v_psi_values) * 1.15)
+
+    # --- Figure: two rows, shared x ---
+    fig, (ax_B, ax_m) = plt.subplots(
+        2, 1, figsize=(COL1, COL1 * 1.4),
+        gridspec_kw={'height_ratios': [1, 1], 'hspace': 0.06},
+        sharex=True)
+
+    # ---- Hypothesis curves (shared colours, drawn on both panels) ----
+    v_fine = np.linspace(x_lo, x_hi, 500)
+    hypo_colors = _hypothesis_colors(len(v_psi_values))
+
+    for v_psi, hc in zip(v_psi_values, hypo_colors):
+        if sigma_v_frac > 0:
+            sigma_v = sigma_v_frac * v_fine.clip(1e-6)
+            frac = 0.5 * erfc(
+                (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
+        else:
+            frac = np.where(v_fine <= v_psi, 1.0, 0.0)
+
+        # B panel
+        ax_B.plot(v_fine, -0.5 * frac, color=hc,
+                  linewidth=_S['hypo_lw'], zorder=2)
+        if v_psi <= x_hi:
+            ax_B.text(v_psi * 1.08, -0.18, rf'${v_psi:g}c$',
+                      fontsize=_S['hypo_label_fs'], color=hc,
+                      ha='left', va='top', clip_on=True)
+
+        # m12 panel
+        ax_m.plot(v_fine, 2.0 * frac, color=hc,
+                  linewidth=_S['hypo_lw'], zorder=2)
+
+    # ---- Top panel: B coefficient ----
+    vb = B_vals[ok_B]
+    if len(vb) > 0:
+        ylo_B = min(-1.0, np.nanmin(vb - B_errs[ok_B]) - 0.2)
+        yhi_B = max(0.5, np.nanmax(vb + B_errs[ok_B]) + 0.2)
+    else:
+        ylo_B, yhi_B = -1.0, 0.5
+    ax_B.set_ylim(ylo_B, yhi_B)
+    ax_B.set_xlim(x_lo, x_hi)
+
+    if np.any(ok_B):
+        _shadow_errorbar(ax_B, bc_v[ok_B], B_vals[ok_B], yerr=B_errs[ok_B],
+                         xerr=hw_v[ok_B], color=_C['data'], marker='o',
+                         ms=_S['data_ms'])
+    ax_B.axhline(-0.5, color=_C['sm'], linewidth=_S['ref_lw'],
+                 linestyle=_S['ref_ls_sm'], zorder=1)
+    ax_B.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
+    ax_B.annotate(r'SM ($B=-0.5$)', xy=(x_hi, -0.5),
+                  xytext=(-3, 2), textcoords='offset points',
+                  fontsize=_S['annot_fs'], color=_C['sm'],
+                  ha='right', va='bottom')
+    ax_B.set_ylabel(r'Cosine Coefficient $B$')
+
+    # ---- Bottom panel: m12 ----
+    ylim_top = 3.5
+    if np.any(ok_m):
+        need = np.max(m12[ok_m] - m12e[ok_m]) + 0.5
+        ylim_top = min(max(ylim_top, need), 10.0)
+    ax_m.set_ylim(-0.3, ylim_top)
+
+    ax_m.axhspan(-0.3, 1.0, facecolor=_C['bell'], alpha=0.05, zorder=0)
+    ax_m.axhline(1.0, color=_C['bell'], linewidth=_S['ref_lw'],
+                 linestyle=_S['ref_ls_bell'], zorder=1)
+    ax_m.annotate('Bell threshold', xy=(x_hi, 1.0),
+                  xytext=(-3, 2), textcoords='offset points',
+                  fontsize=_S['annot_fs'], color=_C['bell'],
+                  ha='right', va='bottom')
+    ax_m.axhline(2.0, color=_C['sm'], linewidth=0.3,
+                 linestyle=_S['ref_ls_sm'], zorder=1)
+    ax_m.annotate(r'SM ($m_{12}=2$)', xy=(x_hi, 2.0),
+                  xytext=(-3, 2), textcoords='offset points',
+                  fontsize=_S['annot_fs'], color=_C['sm'],
+                  ha='right', va='bottom')
+
+    _shadow_errorbar(ax_m, bc_m[ok_m], m12[ok_m], yerr=m12e[ok_m],
+                     xerr=hw_m[ok_m], color=_C['data'], marker='o',
+                     ms=_S['data_ms_large'], elinewidth=0.5)
+    if np.any(ok_m):
+        above = m12[ok_m] > ylim_top
+        if np.any(above):
+            ax_m.plot(bc_m[ok_m][above],
+                      np.full(np.sum(above), ylim_top - 0.15),
+                      marker='^', linestyle='none', color=_C['data'],
+                      markersize=_S['data_ms_large'], markeredgewidth=0,
+                      zorder=6, clip_on=False)
+
+    ax_m.set_xlabel(r'$v_\psi / c$')
+    ax_m.set_ylabel(r'$m_{12}$')
+
+    _paper_bg(fig, [ax_B, ax_m])
+    fig.align_ylabels([ax_B, ax_m])
+
+    _save(fig, "vpsi_combined")
 
 
 # ---------------------------------------------------------------------------

@@ -429,6 +429,7 @@ def _run_plots(pd):
         plot_spacetime_distributions,
         plot_entanglement_vs_spacetime,
         plot_vpsi_overlay,
+        plot_vpsi_combined,
         plot_vpsi_exclusion,
         plot_correlation_matrix,
         plot_acoplanarity,
@@ -464,6 +465,11 @@ def _run_plots(pd):
     v_psi_overlay = [1, 5, 10, 30]
     plot_vpsi_overlay(pd['binned_v'], v_edges, v_psi_overlay,
                       sigma_v_frac=sigma_v_frac)
+
+    # 4b. Combined B + m12 vs v_psi (single-column, two panels)
+    plot_vpsi_combined(pd['binned_v'], v_edges,
+                       pd['acoplanarity_reco_vtx'], pd['v_arr'], v_edges,
+                       v_psi_overlay, sigma_v_frac=sigma_v_frac)
 
     # 5. v_psi exclusion curve (with 95% CL line)
     plot_vpsi_exclusion(pd['vpsi_results'])
