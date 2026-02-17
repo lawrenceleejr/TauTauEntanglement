@@ -461,7 +461,7 @@ def _run_plots(pd):
         suffix="signal_speed")
 
     # 4. v_psi overlay plot (the money plot)
-    v_psi_overlay = [1, 3, 5, 10, 30]
+    v_psi_overlay = [1, 5, 10, 30]
     plot_vpsi_overlay(pd['binned_v'], v_edges, v_psi_overlay,
                       sigma_v_frac=sigma_v_frac)
 

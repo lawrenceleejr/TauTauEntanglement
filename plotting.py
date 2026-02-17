@@ -638,9 +638,6 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
                     marker='^', linestyle='none', color=_C['data'],
                     markersize=_S['data_ms_large'], markeredgewidth=0,
                     zorder=6, clip_on=False)
-        # Direct label near data
-        _label_shadow(ax, 0.15, 0.97, r'Measured $m_{12}$',
-                      color=_C['data'], ha='left', va='top')
 
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'$m_{12}$')
@@ -698,20 +695,26 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-',
                zorder=1)
 
-    # Direct line labels instead of legend
+    # Direct line labels — place at midpoint of each curve to avoid overlap
     if np.any(ok):
-        # Label each data line at its leftmost point
+        n_ok = int(np.sum(ok))
+        mid = max(0, n_ok // 2 - 1)  # midpoint index
         ax.annotate(r'Reject $m_{12}=0$',
-                    xy=(v_plot0[0], s_plot0[0]),
-                    xytext=(5, 5), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['truth'], va='bottom')
+                    xy=(v_plot0[mid], s_plot0[mid]),
+                    xytext=(0, 6), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['truth'],
+                    ha='center', va='bottom')
         ax.annotate(r'Reject $m_{12}\leq 1$',
-                    xy=(v_plot1[0], s_plot1[0]),
-                    xytext=(5, -5), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['reco'], va='top')
-    # Reference line labels at right edge
-    _label_shadow(ax, 0.99, 0.345, '95% CL',
-                  fontsize=_S['annot_fs'], color=_C['accent'])
+                    xy=(v_plot1[mid], s_plot1[mid]),
+                    xytext=(0, -6), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['reco'],
+                    ha='center', va='top')
+    # 95% CL label — place below the line to stay clear of data labels
+    ax.annotate('95% CL', xy=(0.99, 1.96),
+                xycoords=('axes fraction', 'data'),
+                xytext=(0, -4), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['accent'],
+                ha='right', va='top')
     if np.any(ok):
         ax.annotate(r'$3\sigma$', xy=(v_psi[ok][-1], 3.0),
                     xytext=(4, -1), textcoords='offset points',
@@ -942,8 +945,10 @@ def plot_acoplanarity_2d(acoplanarity_arr, v_signal_arr):
     fig, ax = plt.subplots(figsize=(COL1, COL1 / GOLDEN))
 
     v_clip = np.clip(v_signal_arr, 0, np.percentile(v_signal_arr, 98) * 1.1)
-    n_vbins = min(20, max(5, len(v_signal_arr) // 8))
-    n_phibins = min(20, max(5, len(acoplanarity_arr) // 8))
+
+    # Use few wide v_psi bins so every column has decent statistics.
+    n_vbins = max(3, min(6, len(v_signal_arr) // 15))
+    n_phibins = 6
 
     h, xedges, yedges = np.histogram2d(
         v_clip, acoplanarity_arr,
@@ -951,13 +956,9 @@ def plot_acoplanarity_2d(acoplanarity_arr, v_signal_arr):
         range=[[0, v_clip.max()], [-np.pi, np.pi]])
 
     # Normalise each v_psi column so all slices have equal visual weight.
-    # This reveals the acoplanarity shape even where statistics are low.
-    # Mask columns with fewer than 3 events to suppress Poisson noise.
     col_sums = h.sum(axis=1, keepdims=True)
-    sparse = (col_sums < 3).ravel()
     col_sums[col_sums == 0] = 1  # avoid division by zero
     h_norm = h / col_sums
-    h_norm[sparse, :] = np.nan  # mask sparse columns
 
     cmap = _jewel_colormap()
     im = ax.pcolormesh(xedges, yedges, h_norm.T, cmap=cmap, rasterized=True)
