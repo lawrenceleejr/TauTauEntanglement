@@ -723,7 +723,9 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
         ax_B.plot(v_fine, -0.5 * frac, color=hc,
                   linewidth=_S['hypo_lw'], zorder=2)
         if v_psi <= x_hi:
-            ax_B.text(v_psi * 1.08, -0.18, rf'${v_psi:g}c$',
+            # Nudge the rightmost label a bit more to avoid clipping
+            nudge = 1.15 if v_psi == max(v_psi_values) else 1.08
+            ax_B.text(v_psi * nudge, -0.18, rf'${v_psi:g}c$',
                       fontsize=_S['hypo_label_fs'], color=hc,
                       ha='left', va='top', clip_on=True)
 
@@ -735,16 +737,15 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
     vb = B_vals[ok_B]
     if len(vb) > 0:
         ylo_B = min(-1.0, np.nanmin(vb - B_errs[ok_B]) - 0.2)
-        yhi_B = max(0.5, np.nanmax(vb + B_errs[ok_B]) + 0.2)
     else:
-        ylo_B, yhi_B = -1.0, 0.5
-    ax_B.set_ylim(ylo_B, yhi_B)
+        ylo_B = -1.0
+    ax_B.set_ylim(ylo_B, 0.2)
     ax_B.set_xlim(x_lo, x_hi)
 
     if np.any(ok_B):
         _shadow_errorbar(ax_B, bc_v[ok_B], B_vals[ok_B], yerr=B_errs[ok_B],
                          xerr=hw_v[ok_B], color=_C['data'], marker='o',
-                         ms=_S['data_ms'])
+                         ms=_S['data_ms_large'])
     ax_B.axhline(-0.5, color=_C['sm'], linewidth=_S['ref_lw'],
                  linestyle=_S['ref_ls_sm'], zorder=1)
     ax_B.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
@@ -755,7 +756,7 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
     ax_B.set_ylabel(r'Cosine Coefficient $B$')
 
     # ---- Bottom panel: m12 ----
-    ylim_top = 3.5
+    ylim_top = 4.0
     if np.any(ok_m):
         need = np.max(m12[ok_m] - m12e[ok_m]) + 0.5
         ylim_top = min(max(ylim_top, need), 10.0)
@@ -789,6 +790,14 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
 
     ax_m.set_xlabel(r'$v_\psi / c$')
     ax_m.set_ylabel(r'$m_{12}$')
+
+    # ILD resolution label — upper-right of top panel
+    ax_B.text(0.97, 0.93, 'ILD resolutions',
+              transform=ax_B.transAxes, fontsize=_S['annot_fs'],
+              color=_C['sm'], ha='right', va='top', style='italic',
+              path_effects=[pe.withStroke(linewidth=1.5, foreground='white',
+                                          alpha=0.9),
+                            pe.Normal()])
 
     _paper_bg(fig, [ax_B, ax_m])
     fig.align_ylabels([ax_B, ax_m])
