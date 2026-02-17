@@ -74,11 +74,11 @@ _S = {
     'shadow_alpha': 0.30,        # drop-shadow alpha
     'shadow_offset_pt': 0.5,     # shadow offset in points
     # Annotations
-    'annot_fs': 5.5,             # small annotation font size
-    'label_fs': 8,               # in-plot label font size
+    'annot_fs': 7,               # small annotation font size
+    'label_fs': 9,               # in-plot label font size
     # Hypothesis curves
     'hypo_lw': 0.45,             # v_psi hypothesis line width
-    'hypo_label_fs': 5,          # v_psi label font size
+    'hypo_label_fs': 7,          # v_psi label font size
 }
 
 # ---------------------------------------------------------------------------
@@ -88,14 +88,14 @@ _TUFTE_RC = {
     # Font — STIX harmonises math and body text in a CM-like style
     'font.family': 'serif',
     'font.serif': ['CMU Serif', 'STIXGeneral', 'Liberation Serif', 'DejaVu Serif'],
-    'font.size': 8,
+    'font.size': 9,
     'mathtext.fontset': 'stix',
     # Axes
     'axes.linewidth': 0.35,
     'axes.spines.top': False,
     'axes.spines.right': False,
-    'axes.labelsize': 8,
-    'axes.titlesize': 9,
+    'axes.labelsize': 9,
+    'axes.titlesize': 10,
     'axes.titlepad': 4,
     'axes.facecolor': 'white',
     'axes.edgecolor': '#555555',
@@ -105,17 +105,17 @@ _TUFTE_RC = {
     'xtick.major.width': 0.3,
     'xtick.minor.width': 0.2,
     'xtick.direction': 'in',
-    'xtick.labelsize': 7,
+    'xtick.labelsize': 8,
     'xtick.color': '#555555',
     'ytick.major.size': 3,
     'ytick.minor.size': 1.5,
     'ytick.major.width': 0.3,
     'ytick.minor.width': 0.2,
     'ytick.direction': 'in',
-    'ytick.labelsize': 7,
+    'ytick.labelsize': 8,
     'ytick.color': '#555555',
     # Legend
-    'legend.fontsize': 6.5,
+    'legend.fontsize': 8,
     'legend.frameon': False,
     'legend.handlelength': 1.5,
     'legend.handletextpad': 0.4,
@@ -372,14 +372,15 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     ds_lo, ds_hi = min(ds_lo, -1), max(ds_hi, 1)
 
     e, v = _hist_vals(sd_t, ds_lo, ds_hi)
-    _step_hist(ax, e, v, color=_C['truth'], label='Truth',
+    _step_hist(ax, e, v, color=_C['truth'],
                fill_alpha=_S['fill_alpha'], fill_color=_C['truth'])
     e, v = _hist_vals(sd_r, ds_lo, ds_hi)
-    _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
+    _step_hist(ax, e, v, color=_C['reco'], linestyle='--')
     ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
     ax.set_xlabel(r'Signed $\sqrt{|\Delta s^2|}$ [mm]')
     ax.set_ylabel('Events / Bin')
-    ax.legend()
+    _label_shadow(ax, 0.97, 0.92, 'Truth', color=_C['truth'])
+    _label_shadow(ax, 0.97, 0.80, 'Reco', color=_C['reco'])
     _label_shadow(ax, 0.03, 0.93,
                   r'Spacelike $\leftarrow|\rightarrow$ Timelike',
                   fontsize=_S['annot_fs'], color=_C['light'], ha='left')
@@ -392,13 +393,14 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     dr_max = np.percentile(np.concatenate([dr_t, dr_r]), 99) * 1.1
 
     e, v = _hist_vals(dr_t, 0, dr_max)
-    _step_hist(ax, e, v, color=_C['truth'], label='Truth',
+    _step_hist(ax, e, v, color=_C['truth'],
                fill_alpha=_S['fill_alpha'], fill_color=_C['truth'])
     e, v = _hist_vals(dr_r, 0, dr_max)
-    _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
+    _step_hist(ax, e, v, color=_C['reco'], linestyle='--')
     ax.set_xlabel(r'Spatial Separation $\Delta r$ [mm]')
     ax.set_ylabel('Events / Bin')
-    ax.legend()
+    _label_shadow(ax, 0.97, 0.92, 'Truth', color=_C['truth'])
+    _label_shadow(ax, 0.97, 0.80, 'Reco', color=_C['reco'])
     ax.xaxis.set_minor_locator(AutoMinorLocator())
 
     # (c) v_signal
@@ -409,16 +411,19 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
         np.clip(v_t, 0, 1e6), np.clip(v_r, 0, 1e6)]), 99), 10) * 1.1
 
     e, v = _hist_vals(v_t, 0, v_max, nbins=60)
-    _step_hist(ax, e, v, color=_C['truth'], label='Truth',
+    _step_hist(ax, e, v, color=_C['truth'],
                fill_alpha=_S['fill_alpha'], fill_color=_C['truth'])
     e, v = _hist_vals(v_r, 0, v_max, nbins=60)
-    _step_hist(ax, e, v, color=_C['reco'], linestyle='--', label='Reco')
-    ax.axvline(1.0, color=_C['accent'], linewidth=0.5, label='$v = c$',
-              zorder=0)
+    _step_hist(ax, e, v, color=_C['reco'], linestyle='--')
+    ax.axvline(1.0, color=_C['accent'], linewidth=0.5, zorder=0)
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel('Events / Bin')
     ax.set_yscale('log')
-    ax.legend()
+    _label_shadow(ax, 0.97, 0.92, 'Truth', color=_C['truth'])
+    _label_shadow(ax, 0.97, 0.80, 'Reco', color=_C['reco'])
+    ax.annotate('$v = c$', xy=(1.0, 0.75), xycoords=('data', 'axes fraction'),
+                fontsize=_S['annot_fs'], color=_C['accent'],
+                ha='right', xytext=(-3, 0), textcoords='offset points')
 
     # (d) spacelike / timelike counts
     ax = axes[1, 1]
@@ -431,19 +436,21 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     w = 0.28
     ymax = max(n_sl_t, n_tl_t, n_sl_r, n_tl_r)
     ax.set_ylim(0, ymax * 1.18)
-    _textured_bar(ax, x - w / 2, [n_sl_t, n_tl_t], w, color=_C['truth'],
-                  label='Truth')
-    _textured_bar(ax, x + w / 2, [n_sl_r, n_tl_r], w, color=_C['reco'],
-                  label='Reco')
+    _textured_bar(ax, x - w / 2, [n_sl_t, n_tl_t], w, color=_C['truth'])
+    _textured_bar(ax, x + w / 2, [n_sl_r, n_tl_r], w, color=_C['reco'])
     ax.set_xticks(x)
     ax.set_xticklabels(['Spacelike', 'Timelike'])
     ax.set_ylabel('Events')
-    ax.legend()
     for i, (nt, nr) in enumerate(zip([n_sl_t, n_tl_t], [n_sl_r, n_tl_r])):
         ax.text(i - w / 2, nt + ymax * 0.02, str(nt), ha='center',
-                fontsize=6, color=_C['truth'])
+                fontsize=_S['annot_fs'], color=_C['truth'])
         ax.text(i + w / 2, nr + ymax * 0.02, str(nr), ha='center',
-                fontsize=6, color=_C['reco'])
+                fontsize=_S['annot_fs'], color=_C['reco'])
+    # Direct labels instead of legend
+    ax.text(0 - w / 2, ymax * 0.85, 'Truth', ha='center',
+            fontsize=_S['annot_fs'], color=_C['truth'])
+    ax.text(0 + w / 2, ymax * 0.85, 'Reco', ha='center',
+            fontsize=_S['annot_fs'], color=_C['reco'])
 
     _paper_bg(fig, axes)
     fig.align_ylabels()
@@ -569,7 +576,14 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
 
     fig, ax = plt.subplots(figsize=(COL2, COL2 / GOLDEN / 1.3))
 
-    ax.set_ylim(-0.3, 3.5)
+    # Dynamic y-range: extend to show data error bars while keeping
+    # hypothesis curves readable.  Cap at 10 so curves aren't squished.
+    ylim_top = 3.5
+    if np.any(ok):
+        # Show at least the lower 1-sigma bound of every point
+        need = np.max(m12[ok] - m12e[ok]) + 0.5
+        ylim_top = min(max(ylim_top, need), 10.0)
+    ax.set_ylim(-0.3, ylim_top)
 
     # x-range: extend to cover all hypothesis curves with some padding
     x_lo = bin_edges_v[0]
@@ -598,19 +612,38 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
 
     ax.axhline(1.0, color=_C['bell'], linewidth=_S['ref_lw'],
                linestyle=_S['ref_ls_bell'], zorder=1)
-    _label_shadow(ax, 0.99, 0.32, 'Bell threshold',
-                  fontsize=_S['annot_fs'], color=_C['bell'], va='top')
+    ax.annotate('Bell threshold', xy=(x_hi, 1.0),
+                xytext=(-3, 2), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['bell'],
+                ha='right', va='bottom')
     ax.axhline(2.0, color=_C['sm'], linewidth=0.3,
                linestyle=_S['ref_ls_sm'], zorder=1)
+    ax.annotate(r'SM ($m_{12}=2$)', xy=(x_hi, 2.0),
+                xytext=(-3, 2), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['sm'],
+                ha='right', va='bottom')
 
     # Data points — prominent markers on the money plot
     _shadow_errorbar(ax, bc[ok], m12[ok], yerr=m12e[ok], xerr=hw[ok],
                      color=_C['data'], marker='o', ms=_S['data_ms_large'],
-                     elinewidth=0.5, label=r'Measured $m_{12}$')
+                     elinewidth=0.5)
+
+    # For points above the chart, add small upward-pointing triangles
+    # at the top edge to indicate "continues above".
+    if np.any(ok):
+        above = m12[ok] > ylim_top
+        if np.any(above):
+            ax.plot(bc[ok][above],
+                    np.full(np.sum(above), ylim_top - 0.15),
+                    marker='^', linestyle='none', color=_C['data'],
+                    markersize=_S['data_ms_large'], markeredgewidth=0,
+                    zorder=6, clip_on=False)
+        # Direct label near data
+        _label_shadow(ax, 0.15, 0.97, r'Measured $m_{12}$',
+                      color=_C['data'], ha='left', va='top')
 
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'$m_{12}$')
-    ax.legend(loc='upper right', fontsize=7)
 
     _paper_bg(fig, ax)
 
@@ -654,30 +687,41 @@ def plot_vpsi_exclusion(vpsi_scan_results):
 
     # Data lines
     ax.plot(v_plot0, s_plot0, 'o-', color=_C['truth'], markersize=2.5,
-            linewidth=0.5, label=r'Reject $m_{12}=0$',
+            linewidth=0.5,
             path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
     ax.plot(v_plot1, s_plot1, 's-', color=_C['reco'], markersize=2.5,
-            linewidth=0.5, label=r'Reject $m_{12}\leq 1$',
+            linewidth=0.5,
             path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
-    ax.axhline(1.96, color=_C['accent'], linewidth=_S['ref_lw'],
-               label='95% CL', zorder=1)
+    ax.axhline(1.96, color=_C['accent'], linewidth=_S['ref_lw'], zorder=1)
     ax.axhline(3.0, color=_C['light'], linewidth=0.3, linestyle='--',
                zorder=1)
     ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-',
                zorder=1)
 
-    # Sigma labels — positioned at right edge, close to their lines
+    # Direct line labels instead of legend
+    if np.any(ok):
+        # Label each data line at its leftmost point
+        ax.annotate(r'Reject $m_{12}=0$',
+                    xy=(v_plot0[0], s_plot0[0]),
+                    xytext=(5, 5), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['truth'], va='bottom')
+        ax.annotate(r'Reject $m_{12}\leq 1$',
+                    xy=(v_plot1[0], s_plot1[0]),
+                    xytext=(5, -5), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['reco'], va='top')
+    # Reference line labels at right edge
+    _label_shadow(ax, 0.99, 0.345, '95% CL',
+                  fontsize=_S['annot_fs'], color=_C['accent'])
     if np.any(ok):
         ax.annotate(r'$3\sigma$', xy=(v_psi[ok][-1], 3.0),
                     xytext=(4, -1), textcoords='offset points',
-                    fontsize=5, color=_C['light'], va='top')
+                    fontsize=_S['annot_fs'], color=_C['light'], va='top')
         ax.annotate(r'$5\sigma$', xy=(v_psi[ok][-1], 5.0),
                     xytext=(4, -1), textcoords='offset points',
-                    fontsize=5, color=_C['light'], va='top')
+                    fontsize=_S['annot_fs'], color=_C['light'], va='top')
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Rejection Significance [$\sigma$]')
     ax.set_xscale('log')
-    ax.legend(loc='upper right')
 
     _paper_bg(fig, ax)
 
@@ -705,15 +749,15 @@ def plot_correlation_matrix(C, C_err, suffix=""):
         ax.axvline(i - 0.5, color='white', linewidth=1.2, zorder=2)
 
     cbar = fig.colorbar(im, ax=ax, shrink=0.82, aspect=15, pad=0.04)
-    cbar.ax.tick_params(labelsize=6)
-    cbar.set_label(r'$C_{ij}$', fontsize=7)
+    cbar.ax.tick_params(labelsize=_S['annot_fs'])
+    cbar.set_label(r'$C_{ij}$', fontsize=_S['annot_fs'])
     cbar.outline.set_linewidth(0.3)
 
     for i in range(3):
         for j in range(3):
             txt = f'{C[i,j]:+.2f}\n$\\pm${C_err[i,j]:.2f}'
             clr = 'white' if abs(C[i, j]) > 0.5 * vlim else _C['data']
-            ax.text(j, i, txt, ha='center', va='center', fontsize=7,
+            ax.text(j, i, txt, ha='center', va='center', fontsize=8,
                     color=clr,
                     path_effects=[pe.withStroke(linewidth=1.0,
                                                foreground='white',
@@ -777,7 +821,7 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
                 linewidth=0.55, zorder=2, path_effects=_LINE_SHADOW)
         _label_shadow(ax, 0.03, 0.95,
                       rf'$B = {B_fit:.3f} \pm {B_err:.3f}$',
-                      fontsize=6.5, color=_C['reco'], ha='left')
+                      fontsize=_S['annot_fs'], color=_C['reco'], ha='left')
     except RuntimeError:
         pass
 
@@ -892,7 +936,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
 # ---------------------------------------------------------------------------
 
 def plot_acoplanarity_2d(acoplanarity_arr, v_signal_arr):
-    """2D histogram of acoplanarity (Delta phi) vs v_psi/c."""
+    """2D histogram of acoplanarity vs v_psi/c, column-normalised."""
     _apply_style()
 
     fig, ax = plt.subplots(figsize=(COL1, COL1 / GOLDEN))
@@ -906,11 +950,20 @@ def plot_acoplanarity_2d(acoplanarity_arr, v_signal_arr):
         bins=[n_vbins, n_phibins],
         range=[[0, v_clip.max()], [-np.pi, np.pi]])
 
+    # Normalise each v_psi column so all slices have equal visual weight.
+    # This reveals the acoplanarity shape even where statistics are low.
+    # Mask columns with fewer than 3 events to suppress Poisson noise.
+    col_sums = h.sum(axis=1, keepdims=True)
+    sparse = (col_sums < 3).ravel()
+    col_sums[col_sums == 0] = 1  # avoid division by zero
+    h_norm = h / col_sums
+    h_norm[sparse, :] = np.nan  # mask sparse columns
+
     cmap = _jewel_colormap()
-    im = ax.pcolormesh(xedges, yedges, h.T, cmap=cmap, rasterized=True)
+    im = ax.pcolormesh(xedges, yedges, h_norm.T, cmap=cmap, rasterized=True)
     cbar = fig.colorbar(im, ax=ax, shrink=0.82, aspect=15, pad=0.04)
-    cbar.ax.tick_params(labelsize=6)
-    cbar.set_label('Events', fontsize=7)
+    cbar.ax.tick_params(labelsize=_S['annot_fs'])
+    cbar.set_label('Fraction per slice', fontsize=_S['annot_fs'])
     cbar.outline.set_linewidth(0.3)
 
     ax.set_xlabel(r'$v_\psi / c$')
