@@ -24,6 +24,7 @@ Reference: arXiv:1507.01700 (Jeans), arXiv:1804.01241 (Jeans & Wilson)
 import numpy as np
 from config import M_TAU, M_PI, M_HIGGS, CTAU_TAU, C_LIGHT, SQRT_S, P_BEAM_TOTAL
 from parse_hepmc import EventRecord
+from smearing import sigma_d0
 
 
 # ---------------------------------------------------------------------------
@@ -191,6 +192,115 @@ def _solve_tau_momentum(p_pi, tau_direction):
     return solutions
 
 
+# Pre-compute the alpha scan grid once at module load
+_ALPHA_VALUES = np.concatenate([
+    np.logspace(-5, -2, 200),    # 1e-5 to 0.01: dense at small angles
+    np.linspace(0.01, 0.5, 100), # 0.01 to 0.5: linear at larger angles
+])
+_COS_ALPHA = np.cos(_ALPHA_VALUES)
+_SIN_ALPHA = np.sin(_ALPHA_VALUES)
+_A_CONST = M_TAU**2 + M_PI**2
+
+
+def _solve_alpha_scan_vectorised(p_pi, pi_hat, d_hat, d_mag):
+    """Vectorised alpha scan: solve the mass constraint for all alpha at once.
+
+    Instead of looping over 300 alpha values in Python, this computes all
+    tau directions, quadratic coefficients, and solutions in numpy arrays.
+
+    Returns list of dicts (same format as the scalar version).
+    """
+    k = p_pi[1:4]
+    E_k = p_pi[0]
+    A = _A_CONST
+
+    # tau_dirs: (N_alpha, 3) — tau direction for each alpha
+    # tau_dir = cos(alpha) * pi_hat + sin(alpha) * d_hat  (already unit)
+    tau_dirs = _COS_ALPHA[:, None] * pi_hat[None, :] + _SIN_ALPHA[:, None] * d_hat[None, :]
+    # Normalise rows (should be ~1 already since pi_hat . d_hat ~ 0)
+    norms = np.linalg.norm(tau_dirs, axis=1, keepdims=True)
+    tau_dirs /= norms
+
+    # B(alpha) = tau_dir . k   — shape (N_alpha,)
+    B = tau_dirs @ k
+
+    # Quadratic coefficients — shape (N_alpha,)
+    aa = 4.0 * (E_k**2 - B**2)
+    bb = -4.0 * A * B
+    cc = 4.0 * E_k**2 * M_TAU**2 - A**2
+
+    disc = bb**2 - 4.0 * aa * cc
+
+    # Mask: valid if |aa| > 0 and disc >= 0
+    valid = (np.abs(aa) > 1e-30) & (disc >= 0)
+
+    results = []
+    if not np.any(valid):
+        return results
+
+    # Work only on valid alphas
+    idx_valid = np.where(valid)[0]
+    aa_v = aa[idx_valid]
+    bb_v = bb[idx_valid]
+    disc_v = disc[idx_valid]
+    B_v = B[idx_valid]
+    sqrt_disc_v = np.sqrt(disc_v)
+
+    # Solve for both roots: t_plus and t_minus
+    t_plus = (-bb_v + sqrt_disc_v) / (2.0 * aa_v)
+    t_minus = (-bb_v - sqrt_disc_v) / (2.0 * aa_v)
+
+    # Process both roots
+    for t_arr, sign_label in [(t_plus, '+'), (t_minus, '-')]:
+        # Physical constraints: t > 0, A + 2tB > 0, E_nu > 0
+        ok = (t_arr > 0) & (A + 2.0 * t_arr * B_v > 0)
+        if not np.any(ok):
+            continue
+
+        idx_ok = idx_valid[ok]
+        t_ok = t_arr[ok]
+        E_tau = np.sqrt(t_ok**2 + M_TAU**2)
+
+        # Build p_tau 4-vectors: (N_ok, 4)
+        dirs_ok = tau_dirs[idx_ok]  # (N_ok, 3)
+        p_tau_3 = t_ok[:, None] * dirs_ok  # (N_ok, 3)
+
+        # p_nu energy check
+        E_nu = E_tau - E_k
+        p_nu_3 = p_tau_3 - k[None, :]
+        nu_ok = E_nu > -0.01
+
+        alpha_ok = _ALPHA_VALUES[idx_ok]
+        sin_alpha_ok = _SIN_ALPHA[idx_ok]
+        L_ok = d_mag / sin_alpha_ok
+
+        # Filter by nu energy and positive L
+        mask = nu_ok & (L_ok > 0)
+        for j in np.where(mask)[0]:
+            i_alpha = idx_ok[j]
+            t_val = t_ok[j]
+            E_val = E_tau[j]
+            tau_dir_j = dirs_ok[j]
+            L_j = L_ok[j]
+            p_tau_j = np.array([E_val, p_tau_3[j, 0], p_tau_3[j, 1], p_tau_3[j, 2]])
+            p_nu_j = p_tau_j - p_pi
+
+            beta_j = t_val / E_val
+            results.append({
+                'p_tau': p_tau_j,
+                'p_nu': p_nu_j,
+                'tau_dir': tau_dir_j,
+                'alpha': alpha_ok[j],
+                'decay_length_m': L_j,
+                'decay_vertex_xyz': None,   # deferred — computed only for best solution
+                'decay_vertex_t': None,
+                'tau_momentum_mag': t_val,
+                '_beta': beta_j,
+            })
+
+    return results
+
+
 def reconstruct_single_tau(p_pi, pv_xyz, decay_vtx_xyz_truth):
     """Reconstruct a single tau -> pi nu using the Jeans impact parameter method.
 
@@ -252,49 +362,8 @@ def reconstruct_single_tau(p_pi, pv_xyz, decay_vtx_xyz_truth):
     # (geometric: the perpendicular distance from PV to the pion line
     #  equals L * sin(alpha), which is |d|)
 
-    # Step 3: Scan alpha and solve mass constraint
-    # alpha must be positive (tau direction tilted towards d, i.e., towards PV side)
-    # and small (pion is nearly collinear with tau at these energies).
-    # Typical opening angle ~ m_tau^2 / (2 * E_tau * E_pi) ~ 0.0005-0.003 rad,
-    # so we use LOG-spaced scan to densely cover the small-angle regime.
-    results = []
-    alpha_values = np.concatenate([
-        np.logspace(-5, -2, 200),    # 1e-5 to 0.01: dense at small angles
-        np.linspace(0.01, 0.5, 100), # 0.01 to 0.5: linear at larger angles
-    ])
-
-    for alpha in alpha_values:
-        tau_dir = np.cos(alpha) * pi_hat + np.sin(alpha) * d_hat
-        tau_dir = tau_dir / np.linalg.norm(tau_dir)  # normalise (should be ~1 already)
-
-        solutions = _solve_tau_momentum(p_pi, tau_dir)
-
-        for (t, p_tau, p_nu) in solutions:
-            # Decay length from geometry
-            L = d_mag / np.sin(alpha)  # metres
-
-            if L < 0:
-                continue
-
-            # Decay vertex position
-            decay_vtx = pv_xyz + L * tau_dir
-
-            # Decay time: t_lab = L / (beta * c) = L * E / (|p| * c)
-            beta = t / p_tau[0]
-            decay_time = L / (beta * C_LIGHT)  # seconds
-
-            results.append({
-                'p_tau': p_tau,
-                'p_nu': p_nu,
-                'tau_dir': tau_dir,
-                'alpha': alpha,
-                'decay_length_m': L,
-                'decay_vertex_xyz': decay_vtx,
-                'decay_vertex_t': decay_time,
-                'tau_momentum_mag': t,
-            })
-
-    return results
+    # Step 3: Vectorised alpha scan — solve mass constraint for all alpha at once
+    return _solve_alpha_scan_vectorised(p_pi, pi_hat, d_hat, d_mag)
 
 
 def reconstruct_event(event: EventRecord):
@@ -337,23 +406,32 @@ def reconstruct_event(event: EventRecord):
     if not sols_minus or not sols_plus:
         return None
 
-    # Select the best combination using the missing momentum constraint
-    best_chi2 = 1e30
-    best_combo = None
+    # Select the best combination using the missing momentum constraint.
+    # Vectorised: build (N_minus, 4) and (N_plus, 4) p_nu arrays, then
+    # broadcast to (N_minus, N_plus, 4) and find the minimum chi2.
+    n_m = len(sols_minus)
+    n_p = len(sols_plus)
 
-    for sm in sols_minus:
-        for sp in sols_plus:
-            p_nu_total = sm['p_nu'] + sp['p_nu']
-            dp = p_nu_total - p_miss
-            chi2 = dp[0]**2 + dp[1]**2 + dp[2]**2 + dp[3]**2
-            if chi2 < best_chi2:
-                best_chi2 = chi2
-                best_combo = (sm, sp)
+    pnu_m = np.array([s['p_nu'] for s in sols_minus])   # (n_m, 4)
+    pnu_p = np.array([s['p_nu'] for s in sols_plus])     # (n_p, 4)
 
-    if best_combo is None:
-        return None
+    # dp[i, j, :] = pnu_m[i] + pnu_p[j] - p_miss
+    dp = pnu_m[:, None, :] + pnu_p[None, :, :] - p_miss[None, None, :]
+    chi2_grid = np.sum(dp**2, axis=2)                     # (n_m, n_p)
 
-    sol_minus, sol_plus = best_combo
+    flat_idx = np.argmin(chi2_grid)
+    best_i, best_j = divmod(flat_idx, n_p)
+    best_chi2 = chi2_grid[best_i, best_j]
+
+    sol_minus = sols_minus[best_i]
+    sol_plus = sols_plus[best_j]
+
+    # Materialise deferred vertex/time for the two winning solutions
+    for sol in (sol_minus, sol_plus):
+        if sol['decay_vertex_xyz'] is None:
+            L = sol['decay_length_m']
+            sol['decay_vertex_xyz'] = pv_xyz + L * sol['tau_dir']
+            sol['decay_vertex_t'] = L / (sol['_beta'] * C_LIGHT)
 
     result = {
         'p_H': p_H,
@@ -384,6 +462,17 @@ def reconstruct_event(event: EventRecord):
             'gamma': gamma,
             'beta_gamma': beta_gamma,
         }
+
+        # Impact parameter significance for quality cuts
+        p_pi = tau_info.charged_pion_p4
+        pi_hat = p3hat(p_pi)
+        dv_truth = tau_info.decay_vertex[1:4]
+        _, d_mag, _ = compute_impact_parameter(pv_xyz, dv_truth, pi_hat)
+        p_pi_mag = p3mag(p_pi)
+        theta_pi = np.arccos(np.clip(p_pi[3] / p_pi_mag, -1, 1))
+        sig_d = sigma_d0(p_pi_mag, theta_pi)
+        result[label]['d_mag'] = d_mag
+        result[label]['ip_significance'] = d_mag / sig_d if sig_d > 0 else 0.0
 
         # Truth values for comparison
         truth_decay_xyz = tau_info.decay_vertex[1:4]

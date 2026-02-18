@@ -149,25 +149,43 @@ def process_events(filepath, max_events=None, smear=False):
     N = len(events_good)
     print(f"  Proceeding with {N} events.")
 
+    # Quality cut: require minimum IP significance on both taus to suppress
+    # Jeans-method outliers where the opening angle is poorly constrained.
+    MIN_IP_SIG = 3.0
+    ip_pass = []
+    for r in reco_good:
+        sig_m = r['tau_minus'].get('ip_significance', 999)
+        sig_p = r['tau_plus'].get('ip_significance', 999)
+        ip_pass.append(min(sig_m, sig_p) >= MIN_IP_SIG)
+    n_ip_cut = sum(1 for p in ip_pass if not p)
+    if n_ip_cut > 0:
+        print(f"  IP significance cut (>{MIN_IP_SIG}): removed {n_ip_cut}/{N} events")
+
     # ------------------------------------------------------------------
     # Phase 3: Compute spacetime intervals
     # ------------------------------------------------------------------
     print("\n[Phase 3] Computing spacetime intervals...")
 
     # PRIMARY: Jeans-reconstructed vertices (the experimental observable)
-    reco_intervals = [compute_reco_intervals(r) for r in reco_good]
+    # Apply IP significance cut for vertex-dependent quantities
+    reco_good_vtx = [r for r, p in zip(reco_good, ip_pass) if p]
+    events_good_vtx = [e for e, p in zip(events_good, ip_pass) if p]
+    reco_intervals = [compute_reco_intervals(r) for r in reco_good_vtx]
     v_signal_reco = np.array([iv['v_signal_c'] for iv in reco_intervals])
+    N_vtx = len(reco_good_vtx)
     n_spacelike_reco = sum(1 for iv in reco_intervals if iv['is_spacelike'])
-    n_timelike_reco = N - n_spacelike_reco
-    print(f"  Reco:  {n_spacelike_reco} spacelike, {n_timelike_reco} timelike")
-    print(f"  Reco  v_signal/c: median={np.median(v_signal_reco):.1f}, "
-          f"mean={np.mean(np.clip(v_signal_reco, 0, 1e6)):.1f}")
+    n_timelike_reco = N_vtx - n_spacelike_reco
+    print(f"  Reco:  {n_spacelike_reco} spacelike, {n_timelike_reco} timelike "
+          f"({N_vtx} events after IP cut)")
+    if N_vtx > 0:
+        print(f"  Reco  v_signal/c: median={np.median(v_signal_reco):.1f}, "
+              f"mean={np.mean(np.clip(v_signal_reco, 0, 1e6)):.1f}")
 
-    # VALIDATION ONLY: truth vertices
-    truth_intervals = [compute_truth_intervals(evt) for evt in events_good]
+    # VALIDATION ONLY: truth vertices (same IP-cut subset for matched comparison)
+    truth_intervals = [compute_truth_intervals(evt) for evt in events_good_vtx]
     v_signal_truth = np.array([iv['v_signal_c'] for iv in truth_intervals])
     n_spacelike_truth = sum(1 for iv in truth_intervals if iv['is_spacelike'])
-    n_timelike_truth = N - n_spacelike_truth
+    n_timelike_truth = N_vtx - n_spacelike_truth
     print(f"  Truth: {n_spacelike_truth} spacelike, {n_timelike_truth} timelike "
           "(validation)")
 
@@ -267,6 +285,12 @@ def process_events(filepath, max_events=None, smear=False):
     signed_ds_reco = np.array([iv['signed_ds_mm'] for iv in reco_intervals])
     v_arr = v_signal_reco
 
+    # Spin arrays filtered to the same IP-cut event set for binned analysis
+    ip_pass_arr = np.array(ip_pass)
+    cos_theta_plus_reco_vtx = cos_theta_plus_reco[ip_pass_arr]
+    cos_theta_minus_reco_vtx = cos_theta_minus_reco[ip_pass_arr]
+    acoplanarity_reco_vtx = acoplanarity_reco[ip_pass_arr]
+
     # --- Binned m12 vs signed ds (with lightlike boundary) ---
     ds_edges = _build_lightlike_binning(signed_ds_reco,
                                          n_spacelike_bins=N_BINS_SPACETIME - 1)
@@ -274,7 +298,7 @@ def process_events(filepath, max_events=None, smear=False):
     print(f"  Spacetime binning: {n_ds_bins} bins, "
           f"lightlike boundary at ds=0")
 
-    binned_ds = _bin_entanglement(cos_theta_plus_reco, cos_theta_minus_reco,
+    binned_ds = _bin_entanglement(cos_theta_plus_reco_vtx, cos_theta_minus_reco_vtx,
                                    signed_ds_reco, ds_edges, N_BOOTSTRAP)
 
     # --- Binned m12 vs v_signal ---
@@ -287,7 +311,7 @@ def process_events(filepath, max_events=None, smear=False):
     else:
         v_edges = np.logspace(0, 3, N_BINS_SIGNAL_SPEED + 1)
 
-    binned_v = _bin_entanglement(cos_theta_plus_reco, cos_theta_minus_reco,
+    binned_v = _bin_entanglement(cos_theta_plus_reco_vtx, cos_theta_minus_reco_vtx,
                                   v_arr, v_edges, N_BOOTSTRAP)
 
     # ------------------------------------------------------------------
@@ -295,7 +319,7 @@ def process_events(filepath, max_events=None, smear=False):
     # ------------------------------------------------------------------
     print("\n[Phase 7] Scanning v_psi hypotheses...")
     vpsi_results = scan_vpsi(
-        cos_theta_plus_reco, cos_theta_minus_reco, v_arr,
+        cos_theta_plus_reco_vtx, cos_theta_minus_reco_vtx, v_arr,
         V_PSI_SCAN, n_bootstrap=N_BOOTSTRAP)
 
     for r in vpsi_results:
@@ -371,10 +395,11 @@ def process_events(filepath, max_events=None, smear=False):
         vpsi_results=vpsi_results,
         global_reco=global_reco, global_truth=global_truth,
         acoplanarity_reco=acoplanarity_reco,
+        acoplanarity_reco_vtx=acoplanarity_reco_vtx,
         acoplanarity_truth=acoplanarity_truth,
         v_arr=v_arr,
         sigma_v_frac=sigma_v_frac,
-        reco_good=reco_good,
+        reco_good=reco_good_vtx,
         loc_sigma=loc_sigma, ent_sigma=ent_sigma,
         n_spacelike_reco=n_spacelike_reco,
         n_timelike_reco=n_timelike_reco,
@@ -404,10 +429,12 @@ def _run_plots(pd):
         plot_spacetime_distributions,
         plot_entanglement_vs_spacetime,
         plot_vpsi_overlay,
+        plot_vpsi_combined,
         plot_vpsi_exclusion,
         plot_correlation_matrix,
         plot_acoplanarity,
         plot_acoplanarity_vs_vsignal,
+        plot_acoplanarity_2d,
         plot_vertex_comparison,
         print_summary,
     )
@@ -431,15 +458,18 @@ def _run_plots(pd):
     # 3. Entanglement vs signal speed
     plot_entanglement_vs_spacetime(
         pd['binned_v'], v_edges,
-        xlabel=r"$v_{\rm signal} / c$",
+        xlabel=r"$v_\psi / c$",
         suffix="signal_speed")
 
     # 4. v_psi overlay plot (the money plot)
-    v_psi_overlay = [v for v in V_PSI_SCAN if v <= v_edges[-1] * 1.5]
-    if len(v_psi_overlay) > 6:
-        v_psi_overlay = v_psi_overlay[:6]
+    v_psi_overlay = [1, 5, 10, 30]
     plot_vpsi_overlay(pd['binned_v'], v_edges, v_psi_overlay,
                       sigma_v_frac=sigma_v_frac)
+
+    # 4b. Combined B + m12 vs v_psi (single-column, two panels)
+    plot_vpsi_combined(pd['binned_v'], v_edges,
+                       pd['acoplanarity_reco_vtx'], pd['v_arr'], v_edges,
+                       v_psi_overlay, sigma_v_frac=sigma_v_frac)
 
     # 5. v_psi exclusion curve (with 95% CL line)
     plot_vpsi_exclusion(pd['vpsi_results'])
@@ -455,9 +485,12 @@ def _run_plots(pd):
     plot_acoplanarity(pd['acoplanarity_truth'], suffix="_truth_validation")
 
     # 8. Acoplanarity vs signal speed
-    plot_acoplanarity_vs_vsignal(pd['acoplanarity_reco'], pd['v_arr'], v_edges,
+    plot_acoplanarity_vs_vsignal(pd['acoplanarity_reco_vtx'], pd['v_arr'], v_edges,
                                  v_psi_values=v_psi_overlay,
                                  sigma_v_frac=sigma_v_frac)
+
+    # 8b. Acoplanarity 2D histogram
+    plot_acoplanarity_2d(pd['acoplanarity_reco_vtx'], pd['v_arr'])
 
     # 9. Vertex comparison (with ratio diagnostic)
     plot_vertex_comparison(pd['reco_good'])

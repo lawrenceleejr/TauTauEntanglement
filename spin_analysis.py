@@ -209,16 +209,18 @@ def extract_correlation_matrix(cos_theta_plus_arr, cos_theta_minus_arr):
     if N == 0:
         return np.zeros((3, 3)), np.zeros(3), np.zeros(3)
 
-    # C_ij = 9 * <cos_theta_i^+ * cos_theta_j^->
-    # Using outer products and averaging
+    # C_ij = -9 * <cos_theta_i^+ * cos_theta_j^->
+    # The sign accounts for the tau+ analysing power alpha_+ = -1
+    # (pion emitted opposite to spin for tau+), so
+    # alpha_+ * alpha_- = (-1)(+1) = -1.
     C = np.zeros((3, 3))
     for i in range(3):
         for j in range(3):
-            C[i, j] = 9.0 * np.mean(cos_theta_plus_arr[:, i] *
-                                      cos_theta_minus_arr[:, j])
+            C[i, j] = -9.0 * np.mean(cos_theta_plus_arr[:, i] *
+                                       cos_theta_minus_arr[:, j])
 
     # Single-tau polarisations
-    B_plus = 3.0 * np.mean(cos_theta_plus_arr, axis=0)
+    B_plus = -3.0 * np.mean(cos_theta_plus_arr, axis=0)
     B_minus = -3.0 * np.mean(cos_theta_minus_arr, axis=0)
 
     return C, B_plus, B_minus
