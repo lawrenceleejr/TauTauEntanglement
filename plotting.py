@@ -725,6 +725,7 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
         if v_psi <= x_hi:
             # Nudge the rightmost label a bit more to avoid clipping
             nudge = 1.15 if v_psi == max(v_psi_values) else 1.08
+            label = rf'$v_\psi={v_psi:g}c$' if v_psi == max(v_psi_values) else rf'${v_psi:g}c$'
             ax_B.text(v_psi * nudge, -0.18, rf'${v_psi:g}c$',
                       fontsize=_S['hypo_label_fs'], color=hc,
                       ha='left', va='top', clip_on=True)
@@ -788,7 +789,7 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
                       markersize=_S['data_ms_large'], markeredgewidth=0,
                       zorder=6, clip_on=False)
 
-    ax_m.set_xlabel(r'$v_\psi / c$')
+    ax_m.set_xlabel(r'$v_{min} / c$')
     ax_m.set_ylabel(r'$m_{12}$')
 
     # ILD resolution label — upper-right of top panel
