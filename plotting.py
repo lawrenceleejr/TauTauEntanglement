@@ -823,6 +823,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     all_sig = np.concatenate([sig0[ok], sig1[ok]])
     ymax_sig = max(6, np.nanmax(all_sig) * 1.15) if len(all_sig) > 0 else 6
     ax.set_ylim(0, ymax_sig)
+    ax.set_xlim(0.8e0, 2e3)
 
     # Subtle exclusion shading above 95% CL
     ax.axhspan(1.96, ymax_sig, facecolor=_C['accent'], alpha=0.04, zorder=0)
@@ -859,12 +860,12 @@ def plot_vpsi_exclusion(vpsi_scan_results):
         mid = max(0, n_ok // 2 - 1)  # midpoint index
         ax.annotate(r'Reject $m_{12}=0$',
                     xy=(v_plot0[mid], s_plot0[mid]),
-                    xytext=(0, 6), textcoords='offset points',
+                    xytext=(3, 6), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['truth'],
                     ha='center', va='bottom')
         ax.annotate(r'Reject $m_{12}\leq 1$',
                     xy=(v_plot1[mid], s_plot1[mid]),
-                    xytext=(0, -6), textcoords='offset points',
+                    xytext=(-3, -6), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['reco'],
                     ha='center', va='top')
     # 95% CL label — place below the line to stay clear of data labels
@@ -875,10 +876,10 @@ def plot_vpsi_exclusion(vpsi_scan_results):
                 ha='right', va='top')
     if np.any(ok):
         ax.annotate(r'$3\sigma$', xy=(v_psi[ok][-1], 3.0),
-                    xytext=(4, -1), textcoords='offset points',
+                    xytext=(5, -1), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['light'], va='top')
         ax.annotate(r'$5\sigma$', xy=(v_psi[ok][-1], 5.0),
-                    xytext=(4, -1), textcoords='offset points',
+                    xytext=(5, -1), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['light'], va='top')
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Rejection Significance [$\sigma$]')
