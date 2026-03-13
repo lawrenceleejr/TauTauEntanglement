@@ -19,6 +19,7 @@ from matplotlib.ticker import AutoMinorLocator, MaxNLocator, MultipleLocator
 from matplotlib.transforms import ScaledTranslation
 from scipy.optimize import curve_fit
 from scipy.special import erfc
+from scipy.stats import chi2 as chi2_dist, norm as norm_dist
 import os
 from config import OUTPUT_DIR
 
@@ -28,6 +29,7 @@ __all__ = [
     'plot_vpsi_overlay',
     'plot_vpsi_combined',
     'plot_vpsi_exclusion',
+    'plot_vpsi_exclusion_template',
     'plot_correlation_matrix',
     'plot_acoplanarity',
     'plot_acoplanarity_vs_vsignal',
@@ -887,6 +889,131 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     _paper_bg(fig, ax)
 
     _save(fig, "vpsi_exclusion")
+
+
+# ---------------------------------------------------------------------------
+# 4b. v_psi exclusion curve — template-fit version  (single-column, tall)
+# ---------------------------------------------------------------------------
+
+def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
+                                  sigma_v_frac=0.0):
+    """Exclusion significance via erfc template-fit consistency check.
+
+    For each v_psi hypothesis the erfc step-function template is evaluated
+    at every valid m12 bin centre.  A chi2 is computed by comparing the
+    template to SM-centred pseudo-data (m12 = 2.0 everywhere, error bars
+    taken from the MC bootstrap uncertainties).  Only bins where the
+    template departs meaningfully from the SM prediction contribute to the
+    chi2, so the significance naturally falls to zero at large v_psi where
+    no data bins lie in the discriminating region.
+
+    Two curves are shown:
+      sig_vs_0 : chi2 of (SM pseudo-data at 2.0) vs template  → reject m12=0
+      sig_vs_1 : chi2 of (Bell pseudo-data at 1.0) vs template, restricted
+                 to bins where the template predicts below the Bell threshold
+                 → reject m12 ≤ 1
+
+    Both chi2 values are converted to Gaussian Z-scores via the chi2 CDF.
+    """
+    from config import V_PSI_SCAN
+    _apply_style()
+
+    bc   = 0.5 * (bin_edges_v[:-1] + bin_edges_v[1:])
+    m12e = np.array([r['m12_err'] for r in binned_results_vs_v])
+    valid = ~np.isnan(m12e) & (m12e > 0)
+    bc_v  = bc[valid]
+    err_v = m12e[valid]
+
+    def _chi2_to_z(chi2_val, ndf):
+        if ndf <= 0 or chi2_val <= 0:
+            return 0.0
+        pval = float(chi2_dist.sf(chi2_val, df=ndf))
+        pval = max(pval, 1e-15)
+        return max(float(norm_dist.isf(pval)), 0.0)
+
+    sigs_0, sigs_1 = [], []
+    for v_psi in V_PSI_SCAN:
+        if sigma_v_frac > 0:
+            sv   = sigma_v_frac * bc_v.clip(1e-6)
+            tpl  = 2.0 * 0.5 * erfc((bc_v - v_psi) / (np.sqrt(2) * sv))
+        else:
+            tpl  = np.where(bc_v <= v_psi, 2.0, 0.0)
+
+        # sig_vs_0: bins where template has departed from SM (m12=2) by > 0.05
+        d0 = tpl < 1.95
+        if d0.any():
+            r0 = (2.0 - tpl[d0]) / err_v[d0]
+            sigs_0.append(_chi2_to_z(float(np.sum(r0 ** 2)), int(d0.sum())))
+        else:
+            sigs_0.append(0.0)
+
+        # sig_vs_1: bins where template drops below Bell threshold
+        d1 = tpl < 0.95
+        if d1.any():
+            r1 = (1.0 - tpl[d1]) / err_v[d1]
+            sigs_1.append(_chi2_to_z(float(np.sum(r1 ** 2)), int(d1.sum())))
+        else:
+            sigs_1.append(0.0)
+
+    v_psi_arr = np.array(V_PSI_SCAN, dtype=float)
+    sig0 = np.array(sigs_0)
+    sig1 = np.array(sigs_1)
+
+    fig, ax = plt.subplots(figsize=(COL1, COL1 * 0.75))
+
+    all_sig = np.concatenate([sig0, sig1])
+    ymax_sig = max(6.0, float(np.nanmax(all_sig)) * 1.15) if all_sig.size else 6.0
+    ax.set_ylim(0, ymax_sig)
+
+    ax.axhspan(1.96, ymax_sig, facecolor=_C['accent'], alpha=0.04, zorder=0)
+
+    ax.plot(v_psi_arr, sig0, 'o-', color=_C['truth'], markersize=2.5,
+            linewidth=0.5, path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
+    ax.plot(v_psi_arr, sig1, 's-', color=_C['reco'], markersize=2.5,
+            linewidth=0.5, path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
+
+    ax.axhline(1.96, color=_C['accent'], linewidth=_S['ref_lw'], zorder=1)
+    ax.axhline(3.0,  color=_C['light'],  linewidth=0.3, linestyle='--', zorder=1)
+    ax.axhline(5.0,  color=_C['light'],  linewidth=0.3, linestyle='-',  zorder=1)
+
+    # Direct line labels at midpoint of non-trivial region
+    ok0 = sig0 > 0
+    ok1 = sig1 > 0
+    if ok0.any():
+        mid0 = len(v_psi_arr[ok0]) // 2
+        ax.annotate(r'Reject $m_{12}=0$',
+                    xy=(v_psi_arr[ok0][mid0], sig0[ok0][mid0]),
+                    xytext=(0, 6), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['truth'],
+                    ha='center', va='bottom')
+    if ok1.any():
+        mid1 = len(v_psi_arr[ok1]) // 2
+        ax.annotate(r'Reject $m_{12}\leq 1$',
+                    xy=(v_psi_arr[ok1][mid1], sig1[ok1][mid1]),
+                    xytext=(0, -6), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['reco'],
+                    ha='center', va='top')
+
+    ax.annotate('95% CL', xy=(0.99, 1.96),
+                xycoords=('axes fraction', 'data'),
+                xytext=(0, -4), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['accent'],
+                ha='right', va='top')
+
+    last_v = float(v_psi_arr[-1])
+    ax.annotate(r'$3\sigma$', xy=(last_v, 3.0),
+                xytext=(4, -1), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['light'], va='top')
+    ax.annotate(r'$5\sigma$', xy=(last_v, 5.0),
+                xytext=(4, -1), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['light'], va='top')
+
+    ax.set_xlabel(r'$v_\psi / c$')
+    ax.set_ylabel(r'Template-Fit Rejection Significance [$\sigma$]')
+    ax.set_xscale('log')
+
+    _paper_bg(fig, ax)
+    _save(fig, "vpsi_exclusion_template")
 
 
 # ---------------------------------------------------------------------------

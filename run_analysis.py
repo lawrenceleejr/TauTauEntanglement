@@ -431,6 +431,7 @@ def _run_plots(pd):
         plot_vpsi_overlay,
         plot_vpsi_combined,
         plot_vpsi_exclusion,
+        plot_vpsi_exclusion_template,
         plot_correlation_matrix,
         plot_acoplanarity,
         plot_acoplanarity_vs_vsignal,
@@ -473,6 +474,10 @@ def _run_plots(pd):
 
     # 5. v_psi exclusion curve (with 95% CL line)
     plot_vpsi_exclusion(pd['vpsi_results'])
+
+    # 5b. Template-fit exclusion curve (chi2 consistency check)
+    plot_vpsi_exclusion_template(pd['binned_v'], v_edges,
+                                  sigma_v_frac=sigma_v_frac)
 
     # 6. Correlation matrix heatmaps
     plot_correlation_matrix(pd['global_reco']['C'], pd['global_reco']['C_err'],
