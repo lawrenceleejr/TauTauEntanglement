@@ -334,7 +334,10 @@ def vpsi_rejection_significance(cos_theta_plus, cos_theta_minus,
     correlations (C_ij = 0, m12 = 0) because the signal cannot connect
     the two tau decays.
 
-    We select events with v_signal > v_psi and test whether m12 > 0.
+    We select events with v_signal > v_psi, take the statistical uncertainty
+    from bootstrap, and assume the central value agrees with the SM prediction
+    (m12 = 2.0).  This gives a projected sensitivity: how significantly can
+    we reject the v_psi hypothesis if the SM is correct?
 
     Parameters
     ----------
@@ -352,8 +355,8 @@ def vpsi_rejection_significance(cos_theta_plus, cos_theta_minus,
         'n_events'      : number of events with v_signal > v_psi
         'm12'           : measured m12 for those events
         'm12_err'       : bootstrap uncertainty
-        'sigma_vs_0'    : significance of rejecting m12 = 0
-        'sigma_vs_1'    : significance of rejecting m12 <= 1
+        'sigma_vs_0'    : significance of rejecting m12 = 0, assuming SM central value (m12=2)
+        'sigma_vs_1'    : significance of rejecting m12 <= 1, assuming SM central value (m12=2)
     """
     mask = v_signal_arr > v_psi
     n_sel = np.sum(mask)
@@ -377,10 +380,12 @@ def vpsi_rejection_significance(cos_theta_plus, cos_theta_minus,
     m12 = result['m12']
     m12_err = result['m12_err']
 
-    # Significance of rejecting m12 = 0 (no correlation at all)
-    sigma_vs_0 = m12 / m12_err if m12_err > 0 else (np.inf if m12 > 0 else 0.0)
-    # Significance of rejecting m12 <= 1 (locality)
-    sigma_vs_1 = (m12 - 1.0) / m12_err if m12_err > 0 else (np.inf if m12 > 1 else 0.0)
+    # Use SM central value (m12 = 2.0) with the measured uncertainty to give
+    # projected sensitivity: how significantly can we reject each hypothesis
+    # if the SM is correct?
+    M12_SM = 2.0
+    sigma_vs_0 = M12_SM / m12_err if m12_err > 0 else np.inf
+    sigma_vs_1 = (M12_SM - 1.0) / m12_err if m12_err > 0 else np.inf
 
     return {
         'n_events': n_sel,
