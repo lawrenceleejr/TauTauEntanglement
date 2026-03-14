@@ -1047,10 +1047,10 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     xlab0, ylab0 = _descend_pos(v_psi_arr, sig0, frac=0.55)
     if xlab0 is not None:
         ax.annotate(r'Reject $m_{12}=0$',
-                    xy=(xlab0, ylab0), xytext=(10, 22), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['truth'], ha='left', va='bottom')
-    ax.text(0.03, 0.08, r'Reject $m_{12}\leq 1$',
-            transform=ax.transAxes, fontsize=_S['annot_fs'],
+                    xy=(xlab0, ylab0), xytext=(10, 32), textcoords='offset points',
+                    fontsize=_S['annot_fs'] + 1, color=_C['truth'], ha='left', va='bottom')
+    ax.text(0.03, 0.04, r'Reject $m_{12}\leq 1$',
+            transform=ax.transAxes, fontsize=_S['annot_fs'] + 1,
             color=_C['reco'], ha='left', va='bottom')
 
     # Rotated luminosity labels — lift off the line with a y offset
@@ -1079,13 +1079,21 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
                 fontsize=_S['annot_fs'], color=_C['accent'],
                 ha='right', va='top')
 
-    last_v = float(v_psi_arr[-1])
-    ax.annotate(r'$3\sigma$', xy=(last_v, 3.0),
-                xytext=(4, -1), textcoords='offset points',
-                fontsize=_S['annot_fs'], color=_C['light'], va='top')
-    ax.annotate(r'$5\sigma$', xy=(last_v, 5.0),
-                xytext=(4, -1), textcoords='offset points',
-                fontsize=_S['annot_fs'], color=_C['light'], va='top')
+    ax.annotate(r'$3\sigma$', xy=(0.93, 3.0),
+                xycoords=('axes fraction', 'data'),
+                xytext=(0, -2), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['light'], va='top', ha='right')
+    ax.annotate(r'$5\sigma$', xy=(0.93, 5.0),
+                xycoords=('axes fraction', 'data'),
+                xytext=(0, -2), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['light'], va='top', ha='right')
+
+    # Process label — upper right
+    ax.text(0.97, 0.97,
+            r'$e^+e^- \to Z(\mu^+\mu^-)H(\tau^+\tau^-)$',
+            transform=ax.transAxes,
+            fontsize=_S['annot_fs'], color=_C['light'],
+            ha='right', va='top')
 
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Rejection Significance [$\sigma$]')
