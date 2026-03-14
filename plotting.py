@@ -893,6 +893,22 @@ def plot_vpsi_exclusion(vpsi_scan_results):
 
     _save(fig, "vpsi_exclusion")
 
+    # Print v_psi values where each curve crosses the 95% CL (1.96 sigma)
+    _exclusion_level = 1.96
+    for label, v_arr, s_arr in [
+        ('m12=0', v_psi[ok], sig0[ok]),
+        ('m12<=1', v_psi[ok], sig1[ok]),
+    ]:
+        cross = np.where(np.diff(np.sign(s_arr - _exclusion_level)) < 0)[0]
+        if len(cross) > 0:
+            i = cross[0]
+            v_cross = np.interp(_exclusion_level,
+                                [s_arr[i+1], s_arr[i]],
+                                [v_arr[i+1], v_arr[i]])
+            print(f"[vpsi_exclusion] Reject {label} crosses 95% CL at v_psi/c = {v_cross:.4g}")
+        else:
+            print(f"[vpsi_exclusion] Reject {label}: no 95% CL crossing found in scanned range")
+
 
 # ---------------------------------------------------------------------------
 # 4b. v_psi exclusion curve — template-fit version  (single-column, tall)
@@ -1100,6 +1116,25 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
 
     _paper_bg(fig, ax)
     _save(fig, "vpsi_exclusion_template")
+
+    # Print v_psi values where each curve crosses the 95% CL (1.96 sigma)
+    _exclusion_level = 1.96
+    for label, v_arr, s_arr in [
+        ('m12=0 (nominal lumi)', v_psi_arr, sig0),
+        ('m12<=1 (nominal lumi)', v_psi_arr, sig1),
+        ('m12=0 (2x lumi)', v_psi_arr, sig0_2x),
+        ('m12<=1 (2x lumi)', v_psi_arr, sig1_2x),
+    ]:
+        s_arr = np.asarray(s_arr)
+        cross = np.where(np.diff(np.sign(s_arr - _exclusion_level)) < 0)[0]
+        if len(cross) > 0:
+            i = cross[0]
+            v_cross = np.interp(_exclusion_level,
+                                [s_arr[i+1], s_arr[i]],
+                                [v_arr[i+1], v_arr[i]])
+            print(f"[vpsi_exclusion_template] Reject {label} crosses 95% CL at v_psi/c = {v_cross:.4g}")
+        else:
+            print(f"[vpsi_exclusion_template] Reject {label}: no 95% CL crossing found in scanned range")
 
 
 # ---------------------------------------------------------------------------
