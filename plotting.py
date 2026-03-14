@@ -901,17 +901,18 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
 
     For each v_psi hypothesis the erfc step-function template (centred on
     the SM prediction m12=2.0 at low v, falling to 0 above v_psi) is
-    evaluated at every valid m12 bin centre.  A chi2 is computed by
-    comparing the template to the measured m12 data points with their MC
-    bootstrap uncertainties.  Only bins where the template departs
-    meaningfully from the SM prediction contribute to the chi2, so the
-    significance naturally falls to zero at large v_psi where no data bins
-    lie in the discriminating region.
+    evaluated at every valid m12 bin centre.  A chi2 is computed between
+    the template and SM-centred pseudo-data (m12=2.0 at every bin, errors
+    taken from the MC bootstrap uncertainties).  Only bins where the
+    template departs meaningfully from the SM prediction contribute to the
+    chi2, so the significance naturally falls to zero at large v_psi where
+    no data bins lie in the discriminating region.  This gives a projected
+    sensitivity: what exclusion would be expected if the SM is correct.
 
     Two curves are shown:
-      sig_vs_0 : chi2 of measured data vs SM-centred template  → reject m12=0
-      sig_vs_1 : chi2 of measured data vs template in bins where the
-                 template drops below the Bell threshold  → reject m12 ≤ 1
+      sig_vs_0 : chi2 of (SM pseudo-data at 2.0) vs template  → reject m12=0
+      sig_vs_1 : chi2 of (Bell pseudo-data at 1.0) vs template, in bins
+                 where the template drops below the Bell threshold  → reject m12 ≤ 1
 
     Both chi2 values are converted to Gaussian Z-scores via the chi2 CDF.
     """
@@ -919,12 +920,10 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     _apply_style()
 
     bc    = 0.5 * (bin_edges_v[:-1] + bin_edges_v[1:])
-    m12v  = np.array([r['m12']     for r in binned_results_vs_v])
     m12e  = np.array([r['m12_err'] for r in binned_results_vs_v])
-    valid = ~np.isnan(m12v) & ~np.isnan(m12e) & (m12e > 0)
+    valid = ~np.isnan(m12e) & (m12e > 0)
     bc_v   = bc[valid]
     err_v  = m12e[valid]
-    m12_v  = m12v[valid]       # measured m12 per bin (used as the data)
 
     def _chi2_to_z(chi2_val, ndf):
         if ndf <= 0 or chi2_val <= 0:
@@ -941,11 +940,11 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         else:
             tpl  = np.where(bc_v <= v_psi, 2.0, 0.0)
 
-        # sig_vs_0: bins where template departs from SM (m12=2) by > 0.05
-        # Use the measured m12 as the data; erf template is centred on SM=2.
+        # sig_vs_0: bins where template departs from SM (m12=2) by > 0.05.
+        # Pseudo-data is centred on the SM prediction (m12=2.0) with MC errors.
         d0 = tpl < 1.95
         if d0.any():
-            r0 = (m12_v[d0] - tpl[d0]) / err_v[d0]
+            r0 = (2.0 - tpl[d0]) / err_v[d0]
             sigs_0.append(_chi2_to_z(float(np.sum(r0 ** 2)), int(d0.sum())))
         else:
             sigs_0.append(0.0)
@@ -953,7 +952,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         # sig_vs_1: bins where template drops below Bell threshold (m12=1)
         d1 = tpl < 0.95
         if d1.any():
-            r1 = (m12_v[d1] - tpl[d1]) / err_v[d1]
+            r1 = (1.0 - tpl[d1]) / err_v[d1]
             sigs_1.append(_chi2_to_z(float(np.sum(r1 ** 2)), int(d1.sum())))
         else:
             sigs_1.append(0.0)
