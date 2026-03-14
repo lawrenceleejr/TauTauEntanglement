@@ -980,6 +980,27 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
 
     ax.axhspan(1.96, ymax_sig, facecolor=_C['accent'], alpha=0.04, zorder=0)
 
+    # Waterfall gradient fill downward under solid lines
+    def _waterfall_fill(ax, x, y, color, n=20, alpha_top=0.18):
+        y = np.asarray(y, dtype=float)
+        ymax = float(y.max())
+        if ymax <= 0:
+            return
+        dy = ymax / n
+        rgb = mcolors.to_rgb(color)
+        tmpy = y.copy()
+        for i in range(n):
+            a = alpha_top * ((n - i) / float(n))
+            next_y = np.maximum(tmpy - dy, 0.0)
+            ax.fill_between(x, tmpy, next_y,
+                            color=rgb, alpha=a, linewidth=0, zorder=3)
+            tmpy = next_y
+            if np.all(tmpy <= 0):
+                break
+
+    _waterfall_fill(ax, v_psi_arr, sig0, _C['truth'])
+    _waterfall_fill(ax, v_psi_arr, sig1, _C['reco'])
+
     # Nominal lumi — solid lines (smooth curves, no markers needed)
     ax.plot(v_psi_arr, sig0, '-', color=_C['truth'],
             linewidth=0.8, path_effects=_LINE_SHADOW, zorder=5)
