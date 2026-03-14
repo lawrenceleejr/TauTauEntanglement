@@ -1026,7 +1026,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     xlab0, ylab0 = _descend_pos(v_psi_arr, sig0, frac=0.55)
     if xlab0 is not None:
         ax.annotate(r'Reject $m_{12}=0$',
-                    xy=(xlab0, ylab0), xytext=(10, 6), textcoords='offset points',
+                    xy=(xlab0, ylab0), xytext=(10, 22), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['truth'], ha='left', va='bottom')
     ax.text(0.03, 0.08, r'Reject $m_{12}\leq 1$',
             transform=ax.transAxes, fontsize=_S['annot_fs'],
