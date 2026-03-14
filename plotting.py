@@ -9,6 +9,7 @@ Layout: sized for PRL two-column format.
   - Single column: 3.375 in wide
   - Double column: 7.0 in wide
 """
+
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -727,7 +728,8 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
         if v_psi <= x_hi:
             # Nudge the rightmost label a bit more to avoid clipping
             nudge = 1.15 if v_psi == max(v_psi_values) else 1.08
-            ax_B.text(v_psi * nudge, -0.18, rf'${v_psi:g}c$',
+            label = rf'$v_\psi={v_psi:g}c$' if v_psi == max(v_psi_values) else rf'${v_psi:g}c$'
+            ax_B.text(v_psi * nudge, -0.18, label,
                       fontsize=_S['hypo_label_fs'], color=hc,
                       ha='left', va='top', clip_on=True)
 
@@ -790,7 +792,7 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
                       markersize=_S['data_ms_large'], markeredgewidth=0,
                       zorder=6, clip_on=False)
 
-    ax_m.set_xlabel(r'$v_\psi / c$')
+    ax_m.set_xlabel(r'$v_{min} / c$')
     ax_m.set_ylabel(r'$m_{12}$')
 
     # ILD resolution label — upper-right of top panel
@@ -825,6 +827,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     all_sig = np.concatenate([sig0[ok], sig1[ok]])
     ymax_sig = max(6, np.nanmax(all_sig) * 1.15) if len(all_sig) > 0 else 6
     ax.set_ylim(0, ymax_sig)
+    ax.set_xlim(0.8e0, 1e3)
 
     # Subtle exclusion shading above 95% CL
     ax.axhspan(1.96, ymax_sig, facecolor=_C['accent'], alpha=0.04, zorder=0)
@@ -861,12 +864,12 @@ def plot_vpsi_exclusion(vpsi_scan_results):
         mid = max(0, n_ok // 2 - 1)  # midpoint index
         ax.annotate(r'Reject $m_{12}=0$',
                     xy=(v_plot0[mid], s_plot0[mid]),
-                    xytext=(0, 6), textcoords='offset points',
+                    xytext=(15, 6), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['truth'],
                     ha='center', va='bottom')
         ax.annotate(r'Reject $m_{12}\leq 1$',
                     xy=(v_plot1[mid], s_plot1[mid]),
-                    xytext=(0, -6), textcoords='offset points',
+                    xytext=(-13, -10), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['reco'],
                     ha='center', va='top')
     # 95% CL label — place below the line to stay clear of data labels
@@ -877,10 +880,10 @@ def plot_vpsi_exclusion(vpsi_scan_results):
                 ha='right', va='top')
     if np.any(ok):
         ax.annotate(r'$3\sigma$', xy=(v_psi[ok][-1], 3.0),
-                    xytext=(4, -1), textcoords='offset points',
+                    xytext=(5, -1), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['light'], va='top')
         ax.annotate(r'$5\sigma$', xy=(v_psi[ok][-1], 5.0),
-                    xytext=(4, -1), textcoords='offset points',
+                    xytext=(5, -1), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['light'], va='top')
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Rejection Significance [$\sigma$]')
@@ -1001,14 +1004,14 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         mid0 = len(v_psi_arr[ok0]) // 2
         ax.annotate(r'Reject $m_{12}=0$',
                     xy=(v_psi_arr[ok0][mid0], sig0[ok0][mid0]),
-                    xytext=(0, 6), textcoords='offset points',
+                    xytext=(15, 6), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['truth'],
                     ha='center', va='bottom')
     if ok1.any():
         mid1 = len(v_psi_arr[ok1]) // 2
         ax.annotate(r'Reject $m_{12}\leq 1$',
                     xy=(v_psi_arr[ok1][mid1], sig1[ok1][mid1]),
-                    xytext=(0, -6), textcoords='offset points',
+                    xytext=(0, -18), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['reco'],
                     ha='center', va='top')
 
@@ -1037,7 +1040,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
                 fontsize=_S['annot_fs'], color=_C['light'], va='top')
 
     ax.set_xlabel(r'$v_\psi / c$')
-    ax.set_ylabel(r'Template-Fit Rejection Significance [$\sigma$]')
+    ax.set_ylabel(r'Rejection Significance [$\sigma$]')
     ax.set_xscale('log')
 
     _paper_bg(fig, ax)

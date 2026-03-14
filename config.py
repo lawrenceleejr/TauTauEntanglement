@@ -66,8 +66,7 @@ N_BINS_SIGNAL_SPEED = 8
 N_BOOTSTRAP = 1000
 
 # v_psi hypotheses to scan [in units of c]
-V_PSI_SCAN = np.array([1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 50.0, 100.0,
-                        200.0, 500.0, 1000.0])
+V_PSI_SCAN = np.array([1.0, 1.5, 2.0, 3.0, 5.0, 10.0, 20.0, 50.0, 100.0])
 
 # Output directory for plots
 OUTPUT_DIR = "plots"
