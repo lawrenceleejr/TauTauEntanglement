@@ -1047,7 +1047,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     xlab0, ylab0 = _descend_pos(v_psi_arr, sig0, frac=0.55)
     if xlab0 is not None:
         ax.annotate(r'Reject $m_{12}=0$',
-                    xy=(xlab0, ylab0), xytext=(10, 32), textcoords='offset points',
+                    xy=(xlab0, ylab0), xytext=(18, 24), textcoords='offset points',
                     fontsize=_S['annot_fs'] + 1, color=_C['truth'], ha='left', va='bottom')
     ax.text(0.03, 0.04, r'Reject $m_{12}\leq 1$',
             transform=ax.transAxes, fontsize=_S['annot_fs'] + 1,
@@ -1092,7 +1092,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     ax.text(0.95, 0.95,
             r'$e^+e^- \to Z(\mu\mu)H(\tau\tau)$' + '\nNonlocality Measurement',
             transform=ax.transAxes,
-            fontsize=_S['annot_fs'], color='black',
+            fontsize=_S['annot_fs'] + 1, color='black',
             ha='right', va='top', linespacing=1.0)
 
     ax.set_xlabel(r'$v_\psi / c$')
