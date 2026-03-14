@@ -912,21 +912,21 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     no data bins lie in the discriminating region.  This gives a projected
     sensitivity: what exclusion would be expected if the SM is correct.
 
-    Two curves are shown:
+    Two pairs of curves (solid = nominal lumi, dotted = 2× lumi):
       sig_vs_0 : chi2 of (SM pseudo-data at 2.0) vs template  → reject m12=0
       sig_vs_1 : chi2 of (Bell pseudo-data at 1.0) vs template, in bins
                  where the template drops below the Bell threshold  → reject m12 ≤ 1
 
     Both chi2 values are converted to Gaussian Z-scores via the chi2 CDF.
     """
-    from config import V_PSI_SCAN
     _apply_style()
 
     bc    = 0.5 * (bin_edges_v[:-1] + bin_edges_v[1:])
     m12e  = np.array([r['m12_err'] for r in binned_results_vs_v])
     valid = ~np.isnan(m12e) & (m12e > 0)
-    bc_v   = bc[valid]
-    err_v  = m12e[valid]
+    bc_v     = bc[valid]
+    err_v    = m12e[valid]
+    err_v_2x = err_v / np.sqrt(2.0)     # 2× lumi → errors shrink as 1/√2
 
     def _chi2_to_z(chi2_val, ndf):
         if ndf <= 0 or chi2_val <= 0:
@@ -935,19 +935,17 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         pval = max(pval, 1e-15)
         return max(float(norm_dist.isf(pval)), 0.0)
 
-    sigs_0, sigs_1 = [], []
-    sigs_0_2x, sigs_1_2x = [], []          # same but with sqrt(2) smaller errors
-    err_v_2x = err_v / np.sqrt(2.0)        # 2× luminosity → errors shrink as 1/√2
+    # Fine local scan for smooth curves (60 log-spaced points, 1c → 1000c)
+    v_psi_arr = np.logspace(0, 3, 60)
 
-    for v_psi in V_PSI_SCAN:
+    sigs_0, sigs_1, sigs_0_2x, sigs_1_2x = [], [], [], []
+    for v_psi in v_psi_arr:
         if sigma_v_frac > 0:
-            sv   = sigma_v_frac * bc_v.clip(1e-6)
-            tpl  = 2.0 * 0.5 * erfc((bc_v - v_psi) / (np.sqrt(2) * sv))
+            sv  = sigma_v_frac * bc_v.clip(1e-6)
+            tpl = 2.0 * 0.5 * erfc((bc_v - v_psi) / (np.sqrt(2) * sv))
         else:
-            tpl  = np.where(bc_v <= v_psi, 2.0, 0.0)
+            tpl = np.where(bc_v <= v_psi, 2.0, 0.0)
 
-        # sig_vs_0: bins where template departs from SM (m12=2) by > 0.05.
-        # Pseudo-data is centred on the SM prediction (m12=2.0) with MC errors.
         d0 = tpl < 1.95
         if d0.any():
             r0    = (2.0 - tpl[d0]) / err_v[d0]
@@ -957,7 +955,6 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         else:
             sigs_0.append(0.0);    sigs_0_2x.append(0.0)
 
-        # sig_vs_1: bins where template drops below Bell threshold (m12=1)
         d1 = tpl < 0.95
         if d1.any():
             r1    = (1.0 - tpl[d1]) / err_v[d1]
@@ -967,7 +964,6 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         else:
             sigs_1.append(0.0);    sigs_1_2x.append(0.0)
 
-    v_psi_arr = np.array(V_PSI_SCAN, dtype=float)
     sig0    = np.array(sigs_0)
     sig1    = np.array(sigs_1)
     sig0_2x = np.array(sigs_0_2x)
@@ -977,53 +973,79 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
 
     all_sig = np.concatenate([sig0, sig1, sig0_2x, sig1_2x])
     ymax_sig = max(6.0, float(np.nanmax(all_sig)) * 1.15) if all_sig.size else 6.0
+
+    # Set scale and limits early so transData is valid for angle computation
+    ax.set_xscale('log')
+    ax.set_xlim(v_psi_arr[0], v_psi_arr[-1])
     ax.set_ylim(0, ymax_sig)
 
     ax.axhspan(1.96, ymax_sig, facecolor=_C['accent'], alpha=0.04, zorder=0)
 
-    # Nominal luminosity — solid lines with markers
-    ax.plot(v_psi_arr, sig0, 'o-', color=_C['truth'], markersize=2.5,
-            linewidth=0.5, path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
-    ax.plot(v_psi_arr, sig1, 's-', color=_C['reco'], markersize=2.5,
-            linewidth=0.5, path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
+    # Nominal lumi — solid lines (smooth curves, no markers needed)
+    ax.plot(v_psi_arr, sig0, '-', color=_C['truth'],
+            linewidth=0.8, path_effects=_LINE_SHADOW, zorder=5)
+    ax.plot(v_psi_arr, sig1, '-', color=_C['reco'],
+            linewidth=0.8, path_effects=_LINE_SHADOW, zorder=5)
 
-    # 2× luminosity — dotted lines, same colours, no markers
-    ax.plot(v_psi_arr, sig0_2x, ':', color=_C['truth'],
-            linewidth=0.8, zorder=4)
-    ax.plot(v_psi_arr, sig1_2x, ':', color=_C['reco'],
-            linewidth=0.8, zorder=4)
+    # 2× lumi — dotted lines, same colours
+    ax.plot(v_psi_arr, sig0_2x, ':', color=_C['truth'], linewidth=1.0, zorder=4)
+    ax.plot(v_psi_arr, sig1_2x, ':', color=_C['reco'],  linewidth=1.0, zorder=4)
 
     ax.axhline(1.96, color=_C['accent'], linewidth=_S['ref_lw'], zorder=1)
     ax.axhline(3.0,  color=_C['light'],  linewidth=0.3, linestyle='--', zorder=1)
     ax.axhline(5.0,  color=_C['light'],  linewidth=0.3, linestyle='-',  zorder=1)
 
-    # Direct line labels at midpoint of non-trivial region
-    ok0 = sig0 > 0
-    ok1 = sig1 > 0
-    if ok0.any():
-        mid0 = len(v_psi_arr[ok0]) // 2
-        ax.annotate(r'Reject $m_{12}=0$',
-                    xy=(v_psi_arr[ok0][mid0], sig0[ok0][mid0]),
-                    xytext=(15, 6), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['truth'],
-                    ha='center', va='bottom')
-    if ok1.any():
-        mid1 = len(v_psi_arr[ok1]) // 2
-        ax.annotate(r'Reject $m_{12}\leq 1$',
-                    xy=(v_psi_arr[ok1][mid1], sig1[ok1][mid1]),
-                    xytext=(0, -18), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['reco'],
-                    ha='center', va='top')
+    # Curve-type labels: m12=0 upper-right (next to teal), m12≤1 lower-left
+    ax.text(0.97, 0.97, r'Reject $m_{12}=0$',
+            transform=ax.transAxes, fontsize=_S['annot_fs'],
+            color=_C['truth'], ha='right', va='top')
+    ax.text(0.03, 0.08, r'Reject $m_{12}\leq 1$',
+            transform=ax.transAxes, fontsize=_S['annot_fs'],
+            color=_C['reco'], ha='left', va='bottom')
 
-    # 2× lumi label — annotate the teal dotted curve near its right end
-    ok0_2x = sig0_2x > 0
-    if ok0_2x.any():
-        last2x = v_psi_arr[ok0_2x][-1]
-        ax.annotate(r'$2\times$ lumi',
-                    xy=(last2x, sig0_2x[ok0_2x][-1]),
-                    xytext=(-3, 4), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['truth'],
-                    ha='right', va='bottom')
+    # ------------------------------------------------------------------
+    # Rotated luminosity labels following the teal curves
+    # ------------------------------------------------------------------
+    def _descend_pos(v_arr, sig_arr, frac=0.45):
+        """(x, y) where sig ≈ frac*max on the descending slope."""
+        smax = sig_arr.max()
+        if smax <= 0:
+            return None, None
+        target = smax * frac
+        idx = int(np.argmax(sig_arr <= target))
+        if idx == 0:
+            return float(v_arr[0]), float(sig_arr[0])
+        v0, v1 = float(v_arr[idx - 1]), float(v_arr[idx])
+        s0, s1 = float(sig_arr[idx - 1]), float(sig_arr[idx])
+        t = (target - s0) / (s1 - s0) if (s1 != s0) else 0.0
+        return float(v0 * (v1 / v0) ** t), float(target)   # geometric x-interp
+
+    def _curve_angle(v_arr, sig_arr, x_pos):
+        """Rotation angle (deg) matching the curve slope at x_pos."""
+        i = int(np.clip(np.searchsorted(v_arr, x_pos), 1, len(v_arr) - 1))
+        p0 = ax.transData.transform((v_arr[i - 1], sig_arr[i - 1]))
+        p1 = ax.transData.transform((v_arr[i],     sig_arr[i]))
+        return float(np.degrees(np.arctan2(p1[1] - p0[1], p1[0] - p0[0])))
+
+    _stroke = [pe.withStroke(linewidth=1.5, foreground='white', alpha=0.8),
+               pe.Normal()]
+
+    xp_s, yp_s = _descend_pos(v_psi_arr, sig0,    frac=0.45)
+    xp_d, yp_d = _descend_pos(v_psi_arr, sig0_2x, frac=0.45)
+
+    if xp_s is not None:
+        ang_s = _curve_angle(v_psi_arr, sig0, xp_s)
+        ax.text(xp_s, yp_s, r'$\mathcal{L}=0.75\ \mathrm{ab}^{-1}$',
+                rotation=ang_s, rotation_mode='anchor',
+                fontsize=_S['annot_fs'], color=_C['truth'],
+                ha='center', va='bottom', path_effects=_stroke)
+
+    if xp_d is not None:
+        ang_d = _curve_angle(v_psi_arr, sig0_2x, xp_d)
+        ax.text(xp_d, yp_d, r'$\mathcal{L}=1.5\ \mathrm{ab}^{-1}$',
+                rotation=ang_d, rotation_mode='anchor',
+                fontsize=_S['annot_fs'], color=_C['truth'],
+                ha='center', va='bottom', path_effects=_stroke)
 
     ax.annotate('95% CL', xy=(0.99, 1.96),
                 xycoords=('axes fraction', 'data'),
@@ -1040,8 +1062,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
                 fontsize=_S['annot_fs'], color=_C['light'], va='top')
 
     ax.set_xlabel(r'$v_\psi / c$')
-    ax.set_ylabel(r'Rejection Significance [$\sigma$]')
-    ax.set_xscale('log')
+    ax.set_ylabel(r'Template-Fit Rejection Significance [$\sigma$]')
 
     _paper_bg(fig, ax)
     _save(fig, "vpsi_exclusion_template")
