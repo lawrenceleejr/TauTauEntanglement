@@ -22,7 +22,7 @@ from scipy.optimize import curve_fit
 from scipy.special import erfc
 from scipy.stats import chi2 as chi2_dist, norm as norm_dist
 import os
-from config import OUTPUT_DIR
+from config import OUTPUT_DIR, V_PSI_SCAN
 
 __all__ = [
     'plot_spacetime_distributions',
@@ -935,8 +935,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         pval = max(pval, 1e-15)
         return max(float(norm_dist.isf(pval)), 0.0)
 
-    # Fine local scan for smooth curves (60 log-spaced points, 1c → 1000c)
-    v_psi_arr = np.logspace(0, 3, 60)
+    v_psi_arr = V_PSI_SCAN.astype(float)
 
     sigs_0, sigs_1, sigs_0_2x, sigs_1_2x = [], [], [], []
     for v_psi in v_psi_arr:
@@ -995,10 +994,14 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     ax.axhline(3.0,  color=_C['light'],  linewidth=0.3, linestyle='--', zorder=1)
     ax.axhline(5.0,  color=_C['light'],  linewidth=0.3, linestyle='-',  zorder=1)
 
-    # Curve-type labels: m12=0 upper-right (next to teal), m12≤1 lower-left
-    ax.text(0.97, 0.97, r'Reject $m_{12}=0$',
-            transform=ax.transAxes, fontsize=_S['annot_fs'],
-            color=_C['truth'], ha='right', va='top')
+    # Curve-type labels: place next to the curves
+    # m12=0 label: find where teal is at ~80% of max (still high, early descent)
+    _i0 = int(np.argmax(sig0 <= 0.80 * sig0.max())) if sig0.max() > 0 else 0
+    _xlab0 = float(v_psi_arr[max(_i0, 0)])
+    _ylab0 = float(sig0[max(_i0, 0)])
+    ax.annotate(r'Reject $m_{12}=0$',
+                xy=(_xlab0, _ylab0), xytext=(8, 4), textcoords='offset points',
+                fontsize=_S['annot_fs'], color=_C['truth'], ha='left', va='bottom')
     ax.text(0.03, 0.08, r'Reject $m_{12}\leq 1$',
             transform=ax.transAxes, fontsize=_S['annot_fs'],
             color=_C['reco'], ha='left', va='bottom')
@@ -1062,7 +1065,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
                 fontsize=_S['annot_fs'], color=_C['light'], va='top')
 
     ax.set_xlabel(r'$v_\psi / c$')
-    ax.set_ylabel(r'Template-Fit Rejection Significance [$\sigma$]')
+    ax.set_ylabel(r'Rejection Significance [$\sigma$]')
 
     _paper_bg(fig, ax)
     _save(fig, "vpsi_exclusion_template")
