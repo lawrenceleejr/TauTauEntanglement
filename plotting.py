@@ -933,6 +933,9 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         return max(float(norm_dist.isf(pval)), 0.0)
 
     sigs_0, sigs_1 = [], []
+    sigs_0_2x, sigs_1_2x = [], []          # same but with sqrt(2) smaller errors
+    err_v_2x = err_v / np.sqrt(2.0)        # 2× luminosity → errors shrink as 1/√2
+
     for v_psi in V_PSI_SCAN:
         if sigma_v_frac > 0:
             sv   = sigma_v_frac * bc_v.clip(1e-6)
@@ -944,35 +947,48 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         # Pseudo-data is centred on the SM prediction (m12=2.0) with MC errors.
         d0 = tpl < 1.95
         if d0.any():
-            r0 = (2.0 - tpl[d0]) / err_v[d0]
-            sigs_0.append(_chi2_to_z(float(np.sum(r0 ** 2)), int(d0.sum())))
+            r0    = (2.0 - tpl[d0]) / err_v[d0]
+            r0_2x = (2.0 - tpl[d0]) / err_v_2x[d0]
+            sigs_0.append(   _chi2_to_z(float(np.sum(r0    ** 2)), int(d0.sum())))
+            sigs_0_2x.append(_chi2_to_z(float(np.sum(r0_2x ** 2)), int(d0.sum())))
         else:
-            sigs_0.append(0.0)
+            sigs_0.append(0.0);    sigs_0_2x.append(0.0)
 
         # sig_vs_1: bins where template drops below Bell threshold (m12=1)
         d1 = tpl < 0.95
         if d1.any():
-            r1 = (1.0 - tpl[d1]) / err_v[d1]
-            sigs_1.append(_chi2_to_z(float(np.sum(r1 ** 2)), int(d1.sum())))
+            r1    = (1.0 - tpl[d1]) / err_v[d1]
+            r1_2x = (1.0 - tpl[d1]) / err_v_2x[d1]
+            sigs_1.append(   _chi2_to_z(float(np.sum(r1    ** 2)), int(d1.sum())))
+            sigs_1_2x.append(_chi2_to_z(float(np.sum(r1_2x ** 2)), int(d1.sum())))
         else:
-            sigs_1.append(0.0)
+            sigs_1.append(0.0);    sigs_1_2x.append(0.0)
 
     v_psi_arr = np.array(V_PSI_SCAN, dtype=float)
-    sig0 = np.array(sigs_0)
-    sig1 = np.array(sigs_1)
+    sig0    = np.array(sigs_0)
+    sig1    = np.array(sigs_1)
+    sig0_2x = np.array(sigs_0_2x)
+    sig1_2x = np.array(sigs_1_2x)
 
     fig, ax = plt.subplots(figsize=(COL1, COL1 * 0.75))
 
-    all_sig = np.concatenate([sig0, sig1])
+    all_sig = np.concatenate([sig0, sig1, sig0_2x, sig1_2x])
     ymax_sig = max(6.0, float(np.nanmax(all_sig)) * 1.15) if all_sig.size else 6.0
     ax.set_ylim(0, ymax_sig)
 
     ax.axhspan(1.96, ymax_sig, facecolor=_C['accent'], alpha=0.04, zorder=0)
 
+    # Nominal luminosity — solid lines with markers
     ax.plot(v_psi_arr, sig0, 'o-', color=_C['truth'], markersize=2.5,
             linewidth=0.5, path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
     ax.plot(v_psi_arr, sig1, 's-', color=_C['reco'], markersize=2.5,
             linewidth=0.5, path_effects=_LINE_SHADOW, markeredgewidth=0, zorder=5)
+
+    # 2× luminosity — dotted lines, same colours, no markers
+    ax.plot(v_psi_arr, sig0_2x, ':', color=_C['truth'],
+            linewidth=0.8, zorder=4)
+    ax.plot(v_psi_arr, sig1_2x, ':', color=_C['reco'],
+            linewidth=0.8, zorder=4)
 
     ax.axhline(1.96, color=_C['accent'], linewidth=_S['ref_lw'], zorder=1)
     ax.axhline(3.0,  color=_C['light'],  linewidth=0.3, linestyle='--', zorder=1)
@@ -995,6 +1011,16 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
                     xytext=(0, -6), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['reco'],
                     ha='center', va='top')
+
+    # 2× lumi label — annotate the teal dotted curve near its right end
+    ok0_2x = sig0_2x > 0
+    if ok0_2x.any():
+        last2x = v_psi_arr[ok0_2x][-1]
+        ax.annotate(r'$2\times$ lumi',
+                    xy=(last2x, sig0_2x[ok0_2x][-1]),
+                    xytext=(-3, 4), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['truth'],
+                    ha='right', va='bottom')
 
     ax.annotate('95% CL', xy=(0.99, 1.96),
                 xycoords=('axes fraction', 'data'),
