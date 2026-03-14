@@ -990,7 +990,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         rgb = mcolors.to_rgb(color)
         tmpy = y.copy()
         for i in range(n):
-            a = alpha_top * ((n - i) / float(n))
+            a = alpha_top * ((n - i) / float(n)) ** 2
             next_y = np.maximum(tmpy - dy, 0.0)
             ax.fill_between(x, tmpy, next_y,
                             color=rgb, alpha=a, linewidth=0, zorder=3)
