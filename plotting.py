@@ -994,20 +994,8 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     ax.axhline(3.0,  color=_C['light'],  linewidth=0.3, linestyle='--', zorder=1)
     ax.axhline(5.0,  color=_C['light'],  linewidth=0.3, linestyle='-',  zorder=1)
 
-    # Curve-type labels: place next to the curves
-    # m12=0 label: find where teal is at ~80% of max (still high, early descent)
-    _i0 = int(np.argmax(sig0 <= 0.80 * sig0.max())) if sig0.max() > 0 else 0
-    _xlab0 = float(v_psi_arr[max(_i0, 0)])
-    _ylab0 = float(sig0[max(_i0, 0)])
-    ax.annotate(r'Reject $m_{12}=0$',
-                xy=(_xlab0, _ylab0), xytext=(8, 4), textcoords='offset points',
-                fontsize=_S['annot_fs'], color=_C['truth'], ha='left', va='bottom')
-    ax.text(0.03, 0.08, r'Reject $m_{12}\leq 1$',
-            transform=ax.transAxes, fontsize=_S['annot_fs'],
-            color=_C['reco'], ha='left', va='bottom')
-
     # ------------------------------------------------------------------
-    # Rotated luminosity labels following the teal curves
+    # Helpers for rotated labels along descending curves
     # ------------------------------------------------------------------
     def _descend_pos(v_arr, sig_arr, frac=0.45):
         """(x, y) where sig ≈ frac*max on the descending slope."""
@@ -1021,7 +1009,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
         v0, v1 = float(v_arr[idx - 1]), float(v_arr[idx])
         s0, s1 = float(sig_arr[idx - 1]), float(sig_arr[idx])
         t = (target - s0) / (s1 - s0) if (s1 != s0) else 0.0
-        return float(v0 * (v1 / v0) ** t), float(target)   # geometric x-interp
+        return float(v0 * (v1 / v0) ** t), float(target)
 
     def _curve_angle(v_arr, sig_arr, x_pos):
         """Rotation angle (deg) matching the curve slope at x_pos."""
@@ -1033,19 +1021,33 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
     _stroke = [pe.withStroke(linewidth=1.5, foreground='white', alpha=0.8),
                pe.Normal()]
 
+    # Curve-type labels
+    # m12=0: anchor at ~55% of max (well into descent → further right)
+    xlab0, ylab0 = _descend_pos(v_psi_arr, sig0, frac=0.55)
+    if xlab0 is not None:
+        ax.annotate(r'Reject $m_{12}=0$',
+                    xy=(xlab0, ylab0), xytext=(10, 6), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['truth'], ha='left', va='bottom')
+    ax.text(0.03, 0.08, r'Reject $m_{12}\leq 1$',
+            transform=ax.transAxes, fontsize=_S['annot_fs'],
+            color=_C['reco'], ha='left', va='bottom')
+
+    # Rotated luminosity labels — lift off the line with a y offset
     xp_s, yp_s = _descend_pos(v_psi_arr, sig0,    frac=0.45)
     xp_d, yp_d = _descend_pos(v_psi_arr, sig0_2x, frac=0.45)
 
+    _lumi_offset = 0.5   # sigma units above the curve anchor
+
     if xp_s is not None:
         ang_s = _curve_angle(v_psi_arr, sig0, xp_s)
-        ax.text(xp_s, yp_s, r'$\mathcal{L}=0.75\ \mathrm{ab}^{-1}$',
+        ax.text(xp_s, yp_s + _lumi_offset, r'$\mathcal{L}=0.75\ \mathrm{ab}^{-1}$',
                 rotation=ang_s, rotation_mode='anchor',
                 fontsize=_S['annot_fs'], color=_C['truth'],
                 ha='center', va='bottom', path_effects=_stroke)
 
     if xp_d is not None:
         ang_d = _curve_angle(v_psi_arr, sig0_2x, xp_d)
-        ax.text(xp_d, yp_d, r'$\mathcal{L}=1.5\ \mathrm{ab}^{-1}$',
+        ax.text(xp_d, yp_d + _lumi_offset, r'$\mathcal{L}=1.5\ \mathrm{ab}^{-1}$',
                 rotation=ang_d, rotation_mode='anchor',
                 fontsize=_S['annot_fs'], color=_C['truth'],
                 ha='center', va='bottom', path_effects=_stroke)
