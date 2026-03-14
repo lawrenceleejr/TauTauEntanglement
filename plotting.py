@@ -1093,7 +1093,7 @@ def plot_vpsi_exclusion_template(binned_results_vs_v, bin_edges_v,
             r'$e^+e^- \to Z(\mu\mu)H(\tau\tau)$' + '\nNonlocality Measurement',
             transform=ax.transAxes,
             fontsize=_S['annot_fs'], color='black',
-            ha='right', va='top', linespacing=1.5)
+            ha='right', va='top', linespacing=1.0)
 
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Rejection Significance [$\sigma$]')
