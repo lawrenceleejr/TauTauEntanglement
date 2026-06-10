@@ -103,3 +103,43 @@ class TestCorrelationMatrix:
         cos_m = np.empty((0, 3))
         C, B_plus, B_minus = extract_correlation_matrix(cos_p, cos_m)
         np.testing.assert_allclose(C, np.zeros((3, 3)))
+
+
+class TestPolarimeter:
+    """Tests for the hadronic polarimeter vector."""
+
+    def test_pi_nu_reduces_to_pion_direction(self):
+        """For tau -> pi nu with consistent kinematics, h = q_hat."""
+        from spin_analysis import polarimeter_direction
+        from config import M_TAU, M_PI
+        rng = np.random.default_rng(3)
+        for _ in range(50):
+            # Two-body decay in the tau rest frame
+            d = rng.normal(size=3); d /= np.linalg.norm(d)
+            p_pi_mag = (M_TAU**2 - M_PI**2) / (2 * M_TAU)
+            E_pi = np.sqrt(p_pi_mag**2 + M_PI**2)
+            q = np.array([E_pi, *(p_pi_mag * d)])
+            N = np.array([p_pi_mag, *(-p_pi_mag * d)])
+            h = polarimeter_direction(q, N)
+            np.testing.assert_allclose(h, d, atol=1e-10)
+
+    def test_rho_polarimeter_is_lightlike(self):
+        """H = 2(q.N)q - q^2 N satisfies H.H = 0 for massless N,
+        so |H_vec| = H^0 (unit analysing power)."""
+        rng = np.random.default_rng(4)
+        for _ in range(100):
+            # Random massive q and lightlike N
+            q3 = rng.normal(size=3)
+            q2_target = rng.uniform(0.1, 1.0)  # q^2 (rho-like, GeV^2)
+            E_q = np.sqrt(q2_target + q3 @ q3)
+            q = np.array([E_q, *q3])
+            n3 = rng.normal(size=3)
+            N = np.array([np.linalg.norm(n3), *n3])
+            qN = q[0]*N[0] - q[1:] @ N[1:]
+            q2 = q[0]**2 - q[1:] @ q[1:]
+            H = 2*qN*q - q2*N
+            H2 = H[0]**2 - H[1:] @ H[1:]
+            scale = max(abs(H[0]), 1e-12)**2
+            assert abs(H2) / scale < 1e-9
+            # |H_vec| = H^0
+            assert abs(np.linalg.norm(H[1:]) - H[0]) / max(H[0], 1e-12) < 1e-9

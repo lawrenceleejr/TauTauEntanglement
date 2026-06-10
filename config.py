@@ -55,8 +55,10 @@ PDGID_Z          = 23
 # Accepted tau decay modes.  Options:
 #   "pi_nu"   — single charged pion (tau -> pi nu), cleanest channel
 #   "rho_nu"  — rho meson (tau -> rho nu -> pi pi0 nu), higher BR
-# Set to a list to accept multiple modes, e.g. ["pi_nu", "rho_nu"].
-ALLOWED_DECAY_MODES = ["pi_nu"]
+# Both channels carry unit analysing power when fully reconstructed:
+# the polarimeter direction is the pion direction for pi_nu and the
+# (lightlike) polarimeter vector H = 2(q.N)q - q^2 N for rho_nu.
+ALLOWED_DECAY_MODES = ["pi_nu", "rho_nu"]
 
 # Binning for spacetime interval plots
 N_BINS_SPACETIME = 8

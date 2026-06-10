@@ -130,28 +130,28 @@ def compute_impact_parameter(pv_xyz, track_point_xyz, track_dir):
 # Jeans reconstruction for tau -> pi nu
 # ---------------------------------------------------------------------------
 
-def _solve_tau_momentum(p_pi, tau_direction):
-    """Solve for the tau momentum magnitude given the pion 4-momentum and
+def _solve_tau_momentum(p_vis, tau_direction):
+    """Solve for the tau momentum magnitude given the visible 4-momentum and
     a candidate tau flight direction.
 
-    For tau -> pi nu with m_nu = 0:
-      p_tau = p_pi + p_nu,  m_tau^2 = (p_pi + p_nu)^2
+    For tau -> vis + nu with m_nu = 0 (vis = pi for pi_nu, pi+pi0 for rho_nu):
+      p_tau = p_vis + p_nu,  m_tau^2 = (p_vis + p_nu)^2
       p_nu lightlike => E_nu = |vec_p_nu|
 
     Parameterising p_tau = t * tau_hat (3-momentum), E_tau = sqrt(t^2 + m_tau^2):
       The massless neutrino constraint gives a quadratic in t:
 
-      (4 E_pi^2 - 4 B^2) t^2 - 4 A B t + (4 E_pi^2 m_tau^2 - A^2) = 0
+      (4 E_vis^2 - 4 B^2) t^2 - 4 A B t + (4 E_vis^2 m_tau^2 - A^2) = 0
 
-    where A = m_tau^2 + m_pi^2, B = tau_hat . vec_p_pi.
+    where A = m_tau^2 + m_vis^2, B = tau_hat . vec_p_vis.
 
     Returns list of (t, p_tau_4vec, p_nu_4vec) solutions with t > 0.
     """
     d = tau_direction
-    k = p3vec(p_pi)
-    E_k = p_pi[0]
+    k = p3vec(p_vis)
+    E_k = p_vis[0]
 
-    A = M_TAU**2 + M_PI**2
+    A = M_TAU**2 + max(mass2(p_vis), 0.0)
     B = np.dot(d, k)
 
     aa = 4.0 * (E_k**2 - B**2)
@@ -181,7 +181,7 @@ def _solve_tau_momentum(p_pi, tau_direction):
             continue
 
         p_tau = np.array([E_tau, t * d[0], t * d[1], t * d[2]])
-        p_nu = p_tau - p_pi
+        p_nu = p_tau - p_vis
 
         # Neutrino must have positive energy
         if p_nu[0] < -0.01:
@@ -199,20 +199,22 @@ _ALPHA_VALUES = np.concatenate([
 ])
 _COS_ALPHA = np.cos(_ALPHA_VALUES)
 _SIN_ALPHA = np.sin(_ALPHA_VALUES)
-_A_CONST = M_TAU**2 + M_PI**2
 
 
-def _solve_alpha_scan_vectorised(p_pi, pi_hat, d_hat, d_mag):
+def _solve_alpha_scan_vectorised(p_vis, pi_hat, d_hat, d_mag):
     """Vectorised alpha scan: solve the mass constraint for all alpha at once.
 
-    Instead of looping over 300 alpha values in Python, this computes all
-    tau directions, quadratic coefficients, and solutions in numpy arrays.
+    The tau direction is parameterised in the plane spanned by the CHARGED
+    track direction pi_hat and the impact-parameter direction d_hat (this
+    plane contains the tau for any decay mode, since the decay vertex lies
+    on the charged track).  The mass constraint uses the full VISIBLE
+    system p_vis (= charged pion for pi_nu; pi + pi0 for rho_nu).
 
     Returns list of dicts (same format as the scalar version).
     """
-    k = p_pi[1:4]
-    E_k = p_pi[0]
-    A = _A_CONST
+    k = p_vis[1:4]
+    E_k = p_vis[0]
+    A = M_TAU**2 + max(mass2(p_vis), 0.0)
 
     # tau_dirs: (N_alpha, 3) — tau direction for each alpha
     # tau_dir = cos(alpha) * pi_hat + sin(alpha) * d_hat  (already unit)
@@ -283,7 +285,7 @@ def _solve_alpha_scan_vectorised(p_pi, pi_hat, d_hat, d_mag):
             tau_dir_j = dirs_ok[j]
             L_j = L_ok[j]
             p_tau_j = np.array([E_val, p_tau_3[j, 0], p_tau_3[j, 1], p_tau_3[j, 2]])
-            p_nu_j = p_tau_j - p_pi
+            p_nu_j = p_tau_j - p_vis
 
             beta_j = t_val / E_val
             results.append({
@@ -301,22 +303,29 @@ def _solve_alpha_scan_vectorised(p_pi, pi_hat, d_hat, d_mag):
     return results
 
 
-def reconstruct_single_tau(p_pi, pv_xyz, decay_vtx_xyz_truth):
-    """Reconstruct a single tau -> pi nu using the Jeans impact parameter method.
+def reconstruct_single_tau(p_vis, p_track, pv_xyz, decay_vtx_xyz_truth):
+    """Reconstruct a single hadronic tau with the Jeans impact-parameter method.
 
-    Uses the truth decay vertex position ONLY to define the pion track
-    geometry (simulating a measured track from the detector). The reconstruction
-    then proceeds using only the track + PV + mass constraint.
+    Uses the truth decay vertex position ONLY to define the charged-track
+    geometry (simulating a measured track from the detector). The
+    reconstruction then proceeds using only the track + PV + mass constraint.
+
+    The geometry is set by the CHARGED track (the decay vertex lies on it,
+    so the tau direction is confined to the plane spanned by the track and
+    the impact-parameter vector, for any decay mode).  The tau-mass
+    constraint uses the full visible system.
 
     Parameters
     ----------
-    p_pi : np.ndarray
-        Charged pion 4-momentum (E, px, py, pz)
+    p_vis : np.ndarray
+        Visible 4-momentum (charged pion for pi_nu; pi + pi0 for rho_nu)
+    p_track : np.ndarray
+        Charged pion 4-momentum, defining the measured track line
     pv_xyz : np.ndarray
         Production vertex position (x, y, z) in metres
     decay_vtx_xyz_truth : np.ndarray
         Truth decay vertex (x, y, z) in metres — used only to define
-        the pion track line (surrogate for a measured detector track)
+        the track line (surrogate for a measured detector track)
 
     Returns
     -------
@@ -324,17 +333,18 @@ def reconstruct_single_tau(p_pi, pv_xyz, decay_vtx_xyz_truth):
         'p_tau', 'p_nu', 'tau_dir', 'alpha',
         'decay_length_m', 'decay_vertex_xyz', 'decay_vertex_t'
     """
-    pi_hat = p3hat(p_pi)
+    pi_hat = p3hat(p_track)
 
     # Step 1: Compute impact parameter geometry
-    # The pion track passes through the truth decay vertex in direction pi_hat
+    # The charged track passes through the truth decay vertex along pi_hat
     d_vec, d_mag, pca = compute_impact_parameter(pv_xyz, decay_vtx_xyz_truth, pi_hat)
 
-    # Handle degenerate case: pion track passes through PV (d = 0)
+    # Handle degenerate case: charged track passes through PV (d = 0)
     if d_mag < 1e-12:
-        # Tau and pion exactly collinear from PV — no track plane defined
-        # Fall back to collinear approximation: tau_dir = pi_hat
-        solutions = _solve_tau_momentum(p_pi, pi_hat)
+        # Tau and track exactly collinear from PV — no track plane defined.
+        # Fall back to collinear approximation: tau_dir along the visible system.
+        vis_hat = p3hat(p_vis)
+        solutions = _solve_tau_momentum(p_vis, vis_hat)
         results = []
         for (t, p_tau, p_nu) in solutions:
             # Decay length indeterminate when d=0; use truth as fallback
@@ -343,10 +353,10 @@ def reconstruct_single_tau(p_pi, pv_xyz, decay_vtx_xyz_truth):
             results.append({
                 'p_tau': p_tau,
                 'p_nu': p_nu,
-                'tau_dir': pi_hat,
+                'tau_dir': vis_hat,
                 'alpha': 0.0,
                 'decay_length_m': L,
-                'decay_vertex_xyz': pv_xyz + L * pi_hat,
+                'decay_vertex_xyz': pv_xyz + L * vis_hat,
                 'decay_vertex_t': L / (beta * C_LIGHT),
             })
         return results
@@ -356,14 +366,14 @@ def reconstruct_single_tau(p_pi, pv_xyz, decay_vtx_xyz_truth):
     # Step 2: Define the track plane
     # The tau direction lies in the plane spanned by pi_hat and d_hat.
     # Parameterise: tau_hat = cos(alpha) * pi_hat + sin(alpha) * d_hat
-    # where alpha is the opening angle between tau and pion directions.
+    # where alpha is the angle between the tau and the charged track.
     #
     # The decay length is then: L = |d| / sin(alpha)
-    # (geometric: the perpendicular distance from PV to the pion line
+    # (geometric: the perpendicular distance from PV to the track line
     #  equals L * sin(alpha), which is |d|)
 
     # Step 3: Vectorised alpha scan — solve mass constraint for all alpha at once
-    return _solve_alpha_scan_vectorised(p_pi, pi_hat, d_hat, d_mag)
+    return _solve_alpha_scan_vectorised(p_vis, pi_hat, d_hat, d_mag)
 
 
 def reconstruct_event(event: EventRecord):
@@ -388,20 +398,25 @@ def reconstruct_event(event: EventRecord):
     p_H = P_BEAM_TOTAL - p_Z
 
     # Missing momentum should equal total neutrino momentum
-    p_pi_minus = event.tau_minus.charged_pion_p4
-    p_pi_plus = event.tau_plus.charged_pion_p4
-    p_miss = p_H - p_pi_minus - p_pi_plus
+    p_vis_minus = event.tau_minus.visible_p4
+    p_vis_plus = event.tau_plus.visible_p4
+    p_miss = p_H - p_vis_minus - p_vis_plus
 
     # Production vertex (PV) — both taus produced at the Higgs decay vertex
     pv_xyz = event.tau_minus.production_vertex[1:4]  # (x, y, z) in metres
 
-    # Truth decay vertices — used only to define the pion tracks
+    # Truth decay vertices — used only to define the charged tracks
     dv_minus_truth = event.tau_minus.decay_vertex[1:4]
     dv_plus_truth = event.tau_plus.decay_vertex[1:4]
 
-    # Get candidate solutions for each tau
-    sols_minus = reconstruct_single_tau(p_pi_minus, pv_xyz, dv_minus_truth)
-    sols_plus = reconstruct_single_tau(p_pi_plus, pv_xyz, dv_plus_truth)
+    # Get candidate solutions for each tau (track geometry from the charged
+    # pion; mass constraint from the full visible system)
+    sols_minus = reconstruct_single_tau(p_vis_minus,
+                                        event.tau_minus.charged_pion_p4,
+                                        pv_xyz, dv_minus_truth)
+    sols_plus = reconstruct_single_tau(p_vis_plus,
+                                       event.tau_plus.charged_pion_p4,
+                                       pv_xyz, dv_plus_truth)
 
     if not sols_minus or not sols_plus:
         return None

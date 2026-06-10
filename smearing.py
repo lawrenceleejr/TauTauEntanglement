@@ -14,7 +14,7 @@ Reference: ILD Interim Design Report, arXiv:2003.01116
 """
 import numpy as np
 from copy import deepcopy
-from config import M_PI, M_MU
+from config import M_PI, M_MU, M_PI0
 
 # ---------------------------------------------------------------------------
 # ILD resolution parameters
@@ -25,6 +25,11 @@ _A_D0 = 5e-6            # sigma(d0) constant term [m] = 5 um
 _B_D0 = 10e-6           # sigma(d0) MS term [m GeV] = 10 um GeV, divide by (p sin^{3/2} theta)
 _SIGMA_THETA = 1e-4     # angular resolution [rad] = 0.1 mrad
 _SIGMA_PHI = 1e-4        # angular resolution [rad] = 0.1 mrad
+
+# ECAL (pi0 -> gamma gamma cluster) resolution, ILD-like
+_A_ECAL = 0.17          # stochastic term: sigma_E/E = 17%/sqrt(E)
+_B_ECAL = 0.01          # constant term: 1%
+_SIGMA_ECAL_ANG = 2e-3  # cluster angular resolution [rad] = 2 mrad
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +98,34 @@ def smear_p4(p4, particle_mass, rng):
     E_s = np.sqrt(px_s**2 + py_s**2 + pz_s**2 + particle_mass**2)
 
     return np.array([E_s, px_s, py_s, pz_s])
+
+
+def smear_pi0_p4(p4, rng):
+    """Smear a pi0 4-momentum using ILD-like ECAL resolution.
+
+    Smears the energy with sigma_E/E = 17%/sqrt(E) + 1% and the cluster
+    direction with 2 mrad angular resolution, then rebuilds the on-shell
+    4-vector.
+    """
+    E = p4[0]
+    if E < 1e-6:
+        return p4.copy()
+
+    sig_E = E * np.sqrt(_A_ECAL**2 / E + _B_ECAL**2)
+    E_s = max(E + rng.normal(0, sig_E), M_PI0 * 1.001)
+
+    px, py, pz = p4[1], p4[2], p4[3]
+    pT = np.sqrt(px**2 + py**2)
+    theta = np.arctan2(pT, pz)
+    phi = np.arctan2(py, px)
+    theta_s = np.clip(theta + rng.normal(0, _SIGMA_ECAL_ANG), 0.01, np.pi - 0.01)
+    phi_s = phi + rng.normal(0, _SIGMA_ECAL_ANG)
+
+    p_mag = np.sqrt(max(E_s**2 - M_PI0**2, 0.0))
+    return np.array([E_s,
+                     p_mag * np.sin(theta_s) * np.cos(phi_s),
+                     p_mag * np.sin(theta_s) * np.sin(phi_s),
+                     p_mag * np.cos(theta_s)])
 
 
 def _smear_track_point(decay_vtx_xyz, pi_hat, sigma, rng):
@@ -164,10 +197,16 @@ def smear_event(event, rng):
 
         p_pi = tau_t.charged_pion_p4
 
-        # Smear pion 4-momentum
+        # Smear charged pion 4-momentum (tracker)
         tau_s.charged_pion_p4 = smear_p4(p_pi, M_PI, rng)
-        if tau_s.decay_mode == "pi_nu":
-            tau_s.visible_p4 = tau_s.charged_pion_p4.copy()
+
+        # Smear neutral pions (ECAL) and rebuild the visible system
+        tau_s.neutral_pions_p4 = [smear_pi0_p4(p, rng)
+                                  for p in tau_t.neutral_pions_p4]
+        vis = tau_s.charged_pion_p4.copy()
+        for p in tau_s.neutral_pions_p4:
+            vis = vis + p
+        tau_s.visible_p4 = vis
 
         # Smear track position (decay vertex used as point on track)
         dv_xyz = tau_t.decay_vertex[1:4]

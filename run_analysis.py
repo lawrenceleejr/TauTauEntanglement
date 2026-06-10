@@ -74,10 +74,12 @@ def _build_lightlike_binning(signed_ds_arr, n_spacelike_bins):
     sl_edges = np.percentile(spacelike, qs)
     sl_edges[-1] = 0.0
 
-    # One timelike bin: 0 to 98th percentile (or reasonable max)
+    # One timelike bin: 0 to 98th percentile (or reasonable max), capped so
+    # a few timelike outliers cannot stretch the axis past the spacelike range
     if len(timelike) > 0:
         tl_hi = np.percentile(timelike, 98) if len(timelike) > 5 else np.max(timelike)
         tl_hi = max(tl_hi, 0.1)  # at least a small window
+        tl_hi = min(tl_hi, abs(sl_edges[0]))
     else:
         tl_hi = 1.0
 
@@ -294,11 +296,45 @@ def process_events(filepath, max_events=None, smear=False):
     print(f"    Concurrence witness W = {global_truth['witness_W']:.4f} "
           f"+/- {global_truth['witness_W_err']:.4f}")
 
+    # Per-channel breakdown: the pi x pi subset has the least reconstruction
+    # dilution (no neutrino needed for the polarimeter), so it carries the
+    # cleanest CHSH measurement; rho channels add statistics for the
+    # entanglement witness and the LR test.
+    from entanglement import chsh_test, concurrence_witness
+    mode_pairs = np.array([f"{e.tau_minus.decay_mode[:-3]}x{e.tau_plus.decay_mode[:-3]}"
+                           for e in events_good])
+    print("\n  Per-channel breakdown (reco):")
+    chan_results = {}
+    for chan in sorted(set(mode_pairs)):
+        cmask = mode_pairs == chan
+        n_c = int(np.sum(cmask))
+        if n_c < 6:
+            continue
+        chsh_c = chsh_test(cos_theta_plus_reco[cmask], cos_theta_minus_reco[cmask])
+        wit_c = concurrence_witness(cos_theta_plus_reco[cmask],
+                                    cos_theta_minus_reco[cmask])
+        chan_results[chan] = {'n': n_c,
+                              'chsh_S': chsh_c['S'], 'chsh_S_err': chsh_c['S_err'],
+                              'witness_W': wit_c['W'], 'witness_W_err': wit_c['W_err']}
+        print(f"    {chan:10s}: N={n_c:5d}  S={chsh_c['S']:.3f}+/-{chsh_c['S_err']:.3f}"
+              f"  W={wit_c['W']:.3f}+/-{wit_c['W_err']:.3f}")
+
     # Significance from the RECO measurement.
     # Bell / local realism: the CHSH score with fixed a-priori axes is a
     # LINEAR function of C_ij, hence an unbiased estimator with Gaussian
     # errors -- unlike m12, whose eigenvalue structure inflates under noise.
-    loc_sigma = global_reco['chsh_z_bell']
+    # The CHSH claim uses the a-priori subset with at most one rho (the
+    # rho x rho channel needs both neutrinos reconstructed and carries
+    # most of the polarimeter dilution).
+    bell_mask = mode_pairs != "rhoxrho"
+    if np.sum(bell_mask) >= 6:
+        chsh_bell = chsh_test(cos_theta_plus_reco[bell_mask],
+                              cos_theta_minus_reco[bell_mask])
+        print(f"\n  CHSH on <=1-rho subset (N={int(np.sum(bell_mask))}): "
+              f"S = {chsh_bell['S']:.4f} +/- {chsh_bell['S_err']:.4f}")
+        loc_sigma = chsh_bell['z_bell']
+    else:
+        loc_sigma = global_reco['chsh_z_bell']
     ent_sigma = global_reco['witness_z_sep']
 
     print(f"\n  Reject local realism (CHSH S <= 2):     {loc_sigma:.1f} sigma")
@@ -339,6 +375,16 @@ def process_events(filepath, max_events=None, smear=False):
 
     binned_ds = _bin_entanglement(cos_theta_plus_reco_vtx, cos_theta_minus_reco_vtx,
                                    signed_ds_reco, ds_edges, N_BOOTSTRAP)
+
+    # Truth-level validation in the same bins (vs truth interval): the
+    # witness is flat at W = 1, demonstrating that any reco-level trend
+    # with |ds| is reconstruction dilution, not decoherence.
+    cos_theta_plus_truth_vtx = cos_theta_plus_truth[ip_pass_arr]
+    cos_theta_minus_truth_vtx = cos_theta_minus_truth[ip_pass_arr]
+    signed_ds_truth = np.array([iv['signed_ds_mm'] for iv in truth_intervals])
+    binned_ds_truth = _bin_entanglement(
+        cos_theta_plus_truth_vtx, cos_theta_minus_truth_vtx,
+        signed_ds_truth, ds_edges, max(N_BOOTSTRAP // 4, 100))
 
     # --- Binned m12 vs v_signal (bin count adapted to statistics) ---
     v_finite = v_arr[np.isfinite(v_arr)]
@@ -438,7 +484,7 @@ def process_events(filepath, max_events=None, smear=False):
     plot_data = _build_plot_data(
         truth_intervals=truth_intervals,
         reco_intervals=reco_intervals,
-        binned_ds=binned_ds, ds_edges=ds_edges,
+        binned_ds=binned_ds, binned_ds_truth=binned_ds_truth, ds_edges=ds_edges,
         binned_v=binned_v, v_edges=v_edges,
         vpsi_results=vpsi_results,
         global_reco=global_reco, global_truth=global_truth,
@@ -447,6 +493,7 @@ def process_events(filepath, max_events=None, smear=False):
         acoplanarity_truth=acoplanarity_truth,
         v_arr=v_arr,
         sigma_v_frac=sigma_v_frac,
+        chan_results=chan_results,
         reco_good=reco_good_vtx,
         loc_sigma=loc_sigma, ent_sigma=ent_sigma,
         n_spacelike_reco=n_spacelike_reco,
@@ -501,7 +548,8 @@ def _run_plots(pd):
         pd['binned_ds'], pd['ds_edges'],
         xlabel=r"Signed $\sqrt{|\Delta s^2|}$ [mm]",
         suffix="spacetime_interval",
-        lightlike_boundary=True)
+        lightlike_boundary=True,
+        binned_truth=pd.get('binned_ds_truth'))
 
     # 3. Entanglement vs signal speed
     plot_entanglement_vs_spacetime(
@@ -601,6 +649,10 @@ def _run_plots(pd):
             'concurrence_err': float(global_truth['concurrence_err']),
             'C': global_truth['C'].tolist(),
             'C_err': global_truth['C_err'].tolist(),
+        },
+        'channels': {
+            chan: {k: _to_json(v) for k, v in res.items()}
+            for chan, res in pd.get('chan_results', {}).items()
         },
         'vpsi_scan': [
             {k: _to_json(v) for k, v in r.items()}

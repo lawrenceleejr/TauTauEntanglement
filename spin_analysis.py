@@ -28,7 +28,60 @@ The single-tau polarisation B_i is extracted from:
 """
 import numpy as np
 from config import P_BEAM_MINUS, P_BEAM_TOTAL, M_TAU
-from tau_reconstruction import boost, p3hat, p3vec, p3mag, beta_vec, mass
+from tau_reconstruction import boost, p3hat, p3vec, p3mag, beta_vec, mass, mass2
+
+
+# ---------------------------------------------------------------------------
+# Hadronic polarimeter vectors
+# ---------------------------------------------------------------------------
+
+def polarimeter_direction(q_rf, N_rf):
+    """Polarimeter direction for a hadronic tau decay, in the tau rest frame.
+
+    For a real hadronic current J ~ q the polarimeter 4-vector is
+        H^mu = 2 (q.N) q^mu - q^2 N^mu ,
+    with q the hadronic momentum (q = p_pi for pi_nu; q = p_pi - p_pi0 for
+    rho_nu) and N the neutrino 4-momentum [Kuhn, Phys. Lett. B 313 (1993)].
+    Since N^2 = 0, H is exactly lightlike (H.H = 0), so |H_vec| = H^0 and
+    the polarimeter DIRECTION carries unit analysing power:
+        dGamma ~ 1 + s . h,   h = H_vec / |H_vec| .
+    H is quadratic in q, so the pi/pi0 ordering sign is irrelevant.
+    For pi_nu this reduces to the pion direction.
+
+    Parameters are 4-vectors in the tau rest frame.
+    """
+    qN = q_rf[0] * N_rf[0] - np.dot(q_rf[1:4], N_rf[1:4])
+    q2 = mass2(q_rf)
+    H_vec = 2.0 * qN * q_rf[1:4] - q2 * N_rf[1:4]
+    norm = np.linalg.norm(H_vec)
+    if norm < 1e-30:
+        return np.array([0.0, 0.0, 1.0])
+    return H_vec / norm
+
+
+def _tau_polarimeter(tau_info, p_pi_H, pi0s_H, beta_tau, nu_H=None):
+    """Compute the polarimeter direction h-hat for one tau.
+
+    All inputs are 4-vectors in the Higgs rest frame; beta_tau boosts into
+    the tau rest frame.  If nu_H (the neutrino 4-momentum in the Higgs
+    frame) is given it is used directly (truth mode); otherwise the
+    neutrino is inferred from the tau-mass constraint in the tau rest
+    frame, N = (m_tau, 0) - p_vis (reco mode).
+    """
+    p_pi_rf = boost(p_pi_H, beta_tau)
+
+    if tau_info.decay_mode == "rho_nu" and len(pi0s_H) >= 1:
+        p_pi0_rf = boost(pi0s_H[0], beta_tau)
+        q_rf = p_pi_rf - p_pi0_rf
+        if nu_H is not None:
+            N_rf = boost(nu_H, beta_tau)
+        else:
+            p_vis_rf = p_pi_rf + p_pi0_rf
+            N_rf = np.array([M_TAU, 0.0, 0.0, 0.0]) - p_vis_rf
+        return polarimeter_direction(q_rf, N_rf)
+
+    # pi_nu: the pion direction is the polarimeter (alpha = 1)
+    return p3hat(p_pi_rf)
 
 
 def _define_basis(p_tau_minus, p_beam_minus):
@@ -93,9 +146,11 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
         'cos_theta_minus' : array of 3 (n, r, k projections for tau-)
         'acoplanarity'    : delta phi between the two decay planes
     """
-    # Pion momenta (always from truth -- these are the "measured" decay products)
+    # Decay-product momenta (the "measured" tracks/clusters)
     p_pi_m = event.tau_minus.charged_pion_p4
     p_pi_p = event.tau_plus.charged_pion_p4
+    pi0s_m = event.tau_minus.neutral_pions_p4
+    pi0s_p = event.tau_plus.neutral_pions_p4
 
     if use_reco_tau and reco is not None:
         # CRITICAL: Use the Higgs 4-momentum from beam - Z (measured muons),
@@ -123,12 +178,17 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
         p_tau_m_H = np.array([E_tau, *(p_tau_mag * tau_m_dir)])
         p_tau_p_H = np.array([E_tau, *(p_tau_mag * tau_p_dir)])
 
-        # Boost pions to this (correct) Higgs rest frame
+        # Boost decay products to this (correct) Higgs rest frame
         p_pi_m_H = boost(p_pi_m, beta_H)
         p_pi_p_H = boost(p_pi_p, beta_H)
+        pi0s_m_H = [boost(p, beta_H) for p in pi0s_m]
+        pi0s_p_H = [boost(p, beta_H) for p in pi0s_p]
         p_beam_m_H = boost(P_BEAM_MINUS, beta_H)
+        # Neutrinos inferred from the tau-mass constraint in reco mode
+        nu_m_H = None
+        nu_p_H = None
     else:
-        # Truth: use exact tau momenta
+        # Truth: use exact tau momenta and the truth neutrinos
         p_tau_m = event.tau_minus.tau_p4
         p_tau_p = event.tau_plus.tau_p4
         p_H = p_tau_m + p_tau_p
@@ -137,39 +197,41 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
         p_tau_p_H = boost(p_tau_p, beta_H)
         p_pi_m_H = boost(p_pi_m, beta_H)
         p_pi_p_H = boost(p_pi_p, beta_H)
+        pi0s_m_H = [boost(p, beta_H) for p in pi0s_m]
+        pi0s_p_H = [boost(p, beta_H) for p in pi0s_p]
         p_beam_m_H = boost(P_BEAM_MINUS, beta_H)
+        nu_m_H = boost(event.tau_minus.neutrino_p4, beta_H)
+        nu_p_H = boost(event.tau_plus.neutrino_p4, beta_H)
 
     # Define the {n, r, k} basis using tau- direction in Higgs rest frame
     k_hat, r_hat, n_hat = _define_basis(p_tau_m_H, p_beam_m_H)
     basis = np.array([n_hat, r_hat, k_hat])  # shape (3, 3), rows are basis vecs
 
-    # Boost pions to their parent tau rest frames.
+    # Compute the polarimeter direction in each tau rest frame.
     #
-    # WHY TAU REST FRAMES? The pion direction in the tau rest frame is the
-    # spin analyser: dGamma/d(cos theta) ~ (1 + alpha_pi * P * cos theta)
-    # with alpha_pi = 1 for tau -> pi nu. The spin information lives in
-    # the tau RF, not the Higgs RF.
+    # WHY TAU REST FRAMES? The polarimeter direction h-hat in the tau rest
+    # frame is the spin analyser: dGamma ~ (1 + s . h) with unit analysing
+    # power for fully reconstructed pi_nu and rho_nu decays (see
+    # polarimeter_direction).  The spin information lives in the tau RF.
     #
     # WHY IS THE {n,r,k} BASIS STILL VALID? The boost from Higgs RF to each
     # tau RF is along k-hat (the tau flight direction). The transverse axes
     # {n, r} are perpendicular to the boost and therefore identical in both
     # frames. The k-hat direction is parallel to the boost and also unchanged.
-    # So projecting the pion direction (measured in tau RF) onto {n, r, k}
+    # So projecting h-hat (computed in the tau RF) onto {n, r, k}
     # (defined in Higgs RF) is correct — the basis vectors are the same in
     # both frames.
     beta_tau_m = beta_vec(p_tau_m_H)
     beta_tau_p = beta_vec(p_tau_p_H)
 
-    p_pi_m_taurf = boost(p_pi_m_H, beta_tau_m)
-    p_pi_p_taurf = boost(p_pi_p_H, beta_tau_p)
-
-    # Unit vectors of pion momenta in tau rest frames
-    pi_m_hat = p3hat(p_pi_m_taurf)
-    pi_p_hat = p3hat(p_pi_p_taurf)
+    h_m_hat = _tau_polarimeter(event.tau_minus, p_pi_m_H, pi0s_m_H,
+                               beta_tau_m, nu_H=nu_m_H)
+    h_p_hat = _tau_polarimeter(event.tau_plus, p_pi_p_H, pi0s_p_H,
+                               beta_tau_p, nu_H=nu_p_H)
 
     # Project onto the {n, r, k} basis (same in Higgs RF and tau RF, see above)
-    cos_theta_minus = basis @ pi_m_hat  # shape (3,): (n, r, k) components
-    cos_theta_plus = basis @ pi_p_hat
+    cos_theta_minus = basis @ h_m_hat  # shape (3,): (n, r, k) components
+    cos_theta_plus = basis @ h_p_hat
 
     # Acoplanarity angle
     # phi of each pion in the tau rest frame, w.r.t. the {n, r} plane

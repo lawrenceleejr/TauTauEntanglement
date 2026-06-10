@@ -62,37 +62,30 @@ python run_analysis.py <path_to_hepmc_file> [--max-events N] [--smear]
 Output is written to the `plots/` directory (PDFs, PNGs, and a
 `results.json` with numerical results).
 
-## Enabling rho decay mode
+## Tau decay modes
 
-By default, only the cleanest tau decay channel is used:
+By default both hadronic channels are analysed with polarimeter vectors:
 
 ```python
 # config.py
-ALLOWED_DECAY_MODES = ["pi_nu"]   # tau -> pi nu  (BR ~ 10.8%)
-```
-
-To also accept the higher-statistics rho channel (tau -> rho nu -> pi pi0
-nu, BR ~ 25.5%), edit `config.py`:
-
-```python
 ALLOWED_DECAY_MODES = ["pi_nu", "rho_nu"]
 ```
 
-Or to use only the rho channel:
+| Mode | Decay | Branching ratio | Polarimeter |
+|---|---|---|---|
+| `"pi_nu"` | tau -> pi nu | 10.8% | pion direction (alpha = 1) |
+| `"rho_nu"` | tau -> rho nu -> pi pi0 nu | 25.5% | H = 2(q.N)q - q^2 N (unit, lightlike) |
 
-```python
-ALLOWED_DECAY_MODES = ["rho_nu"]
-```
+For tau -> rho nu the neutrino is inferred from the Jeans+Higgs kinematic
+constraints, restoring unit analysing power (the famous ~0.46 dilution
+applies only when the neutrino is unknown). Reconstruction errors dilute
+the rho channels in practice; the pi x pi subset is cleanest and is used
+for the CHSH (Bell) claim, while all channels feed the entanglement
+witness and the likelihood-ratio test.
 
-The supported decay modes are:
-
-| Mode | Decay | Branching ratio |
-|---|---|---|
-| `"pi_nu"` | tau -> pi nu | 10.8% |
-| `"rho_nu"` | tau -> rho nu -> pi pi0 nu | 25.5% |
-
-The luminosity estimate printed on every plot adjusts automatically for
-the combined branching ratio of the selected modes.
+To restrict to the cleanest channel, set `ALLOWED_DECAY_MODES = ["pi_nu"]`.
+The luminosity estimate adjusts automatically for the combined branching
+ratio of the selected modes.
 
 ## Analysis pipeline
 

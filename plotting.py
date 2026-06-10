@@ -470,7 +470,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
 # ---------------------------------------------------------------------------
 
 def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
-                                    lightlike_boundary=False):
+                                    lightlike_boundary=False, binned_truth=None):
     _apply_style()
 
     bc = 0.5 * (bin_edges[:-1] + bin_edges[1:])
@@ -530,6 +530,19 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
                linestyle=_S['ref_ls_bell'], zorder=1)
     if lightlike_boundary:
         ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
+    # Truth-level validation: open markers (flat at W = 1; any trend in
+    # the reconstructed witness is dilution, not decoherence)
+    if binned_truth is not None:
+        w_t = np.array([r.get('witness_W', np.nan) for r in binned_truth])
+        we_t = np.array([r.get('witness_W_err', np.nan) for r in binned_truth])
+        ok_t = ~np.isnan(w_t)
+        ax.errorbar(bc[ok_t], w_t[ok_t], yerr=we_t[ok_t],
+                    fmt='o', markersize=2.6, markerfacecolor='white',
+                    markeredgecolor=_C['truth'], markeredgewidth=0.5,
+                    ecolor=_C['truth'], elinewidth=0.3, capsize=0,
+                    zorder=4, alpha=0.85)
+        _label_shadow(ax, 0.97, 0.64, 'truth (open)',
+                      fontsize=_S['annot_fs'], color=_C['truth'])
     _shadow_errorbar(ax, bc[ok_c], conc[ok_c], yerr=conce[ok_c], xerr=hw[ok_c],
                      color=_C['accent'], marker='s', ms=2.8)
     _label_shadow(ax, 0.97, 0.92, r'Witness $\mathcal{W}\leq\mathcal{C}$',
@@ -551,6 +564,15 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
         ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
     ax.set_xlim(bin_edges[0], bin_edges[-1])
     ax.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
+
+    # Symlog x-axis when quantile bins concentrate near the lightlike
+    # boundary (most events have |ds| << the range): keeps all bins legible.
+    if lightlike_boundary and len(bin_edges) > 2:
+        widths = np.diff(bin_edges)
+        if np.max(widths) > 20 * np.min(widths):
+            linthresh = max(np.min(widths[widths > 0]), 1e-3)
+            for a in axes:
+                a.set_xscale('symlog', linthresh=linthresh, linscale=0.8)
 
     _paper_bg(fig, axes)
     fig.align_ylabels(axes)
@@ -856,6 +878,18 @@ def plot_vpsi_exclusion(vpsi_scan_results):
         s_plot0 = np.append(s_plot0, 0.0)
         v_plot1 = np.append(v_plot1, v_zero)
         s_plot1 = np.append(s_plot1, 0.0)
+
+    # Ideal expected significance for the LR test: Z = sqrt(N)/2 from the
+    # exact per-event LLR moments (detector dilution pulls data below this)
+    if np.any(ok):
+        z_exp = np.sqrt(nev[ok].astype(float)) / 2.0
+        ax.plot(v_psi[ok], z_exp, linestyle=':', color=_C['truth'],
+                linewidth=0.5, alpha=0.7, zorder=2)
+        ax.annotate(r'$\sqrt{N}/2$ (ideal)',
+                    xy=(v_psi[ok][0], z_exp[0]),
+                    xytext=(4, 3), textcoords='offset points',
+                    fontsize=_S['annot_fs'], color=_C['truth'],
+                    alpha=0.85, ha='left', va='bottom')
 
     # Data lines
     ax.plot(v_plot0, s_plot0, 'o-', color=_C['truth'], markersize=2.5,
