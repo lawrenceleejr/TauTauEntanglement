@@ -704,15 +704,19 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                 billboard_label(sym[label][0],
                                 g["dv"] * 0.55 + Vector((0, 0, 1.0 * s)), 0.5,
                                 "Rest", "rs_" + label)
-                # pi label lifted off the arrow shaft toward the plane
-                # opening; nu label mid-line on the opposite side.  Both are
-                # kept INBOARD of the arrow tip: the tau- tip sits right at
-                # the 3/4-camera's frame edge
+                # pi label above its arrow, nu label below its dashed line,
+                # staggered in WORLD-Z (screen-up in all these cameras: the
+                # pion and neutrino are nearly collinear for the small-alpha
+                # tau, so an offset along q-hat projects onto the lines).
+                # Both kept INBOARD of the arrow tip: the tau- tip sits
+                # right at the 3/4-camera's frame edge
                 billboard_label(sym[label][1],
-                                g["dv"] + g["pdir"] * 3.6 + q * 0.75, 0.5,
+                                g["dv"] + g["pdir"] * 3.6
+                                + Vector((0, 0, 0.75)), 0.5,
                                 "Rest", "rs_pi_" + label)
                 billboard_label("ν",
-                                g["dv"] + g["nudir"] * 3.2 - q * 0.6, 0.42,
+                                g["dv"] + g["nudir"] * 3.2
+                                + Vector((0, 0, -0.75)), 0.42,
                                 "Rest", "rs_nu_" + label)
         else:
             # angular-only: pion direction straight from the PV
