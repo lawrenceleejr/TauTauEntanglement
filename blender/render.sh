@@ -10,7 +10,7 @@
 #   ./render.sh event 96              # a single shot
 #   ./render.sh boost 64 GPU          # just the boost animation
 #
-# Shots: event | reco | rest | planes | planes-axial | event-angular
+# Shots: event | reco | rest | planes | planes-axial | event-angular | measurable
 #        steps  (the 6-frame rest-frame storyboard)
 #        event-anim | reco-anim | rest-anim | planes-anim | boost | zoom
 #        stills | anims | all

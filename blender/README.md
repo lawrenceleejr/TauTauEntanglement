@@ -27,12 +27,17 @@ physics labels, so the sequence can be narrated however you like.
 
 | Frame | Diagram |
 |---|---|
-| `01_boost_to_rest_frame` | Boost into the Higgs rest frame, defined by the measured Z→μ⁺μ⁻ (muons shown); τ's back-to-back, `|p| ≈ M_H/2` |
-| `02_higgs_rest_frame` | Muons removed — the Higgs decay in its own frame: τ's fly to their (boosted) decay vertices and decay to π ν |
-| `03_acoplanarity` | The two translucent decay planes, hinged on the common τ axis, with the **single** acoplanarity angle φ between them |
-| `04_acoplanarity_axial` | The same planes viewed down the τ axis: the classic "clock face" — one angle, unmistakably |
-| `05_impact_parameters` | **Zoom in** on the vertex region: each measured π track *misses* the PV by its impact parameter d (right-angle markers) |
-| `06_decay_locations` | The payoff: d and the opening angle α pin down where each τ decayed — `L = |d|/sin α` for both τ's |
+| `00_lab_event` | The lab event: μ⁺μ⁻ from the Z and τ⁺τ⁻ from the Higgs (beam horizontal) |
+| `01_what_is_measured` | What a detector **actually measures**: the four charged tracks, the primary vertex and the pion impact parameters — solid/bright; the τ flight paths, decay vertices and neutrinos are **inferred** and drawn as faint ghosts |
+| `02_boost_to_rest_frame` | Boost into the Higgs rest frame, defined by the measured Z→μ⁺μ⁻ (muons shown); τ's back-to-back, `|p| ≈ M_H/2` |
+| `03_higgs_rest_frame` | Muons removed — the Higgs decay in its own frame: τ's fly to their (boosted) decay vertices and decay to π ν |
+| `04_acoplanarity` | The two translucent decay planes, hinged on the common τ axis, with the **single** acoplanarity angle φ between them |
+| `05_acoplanarity_axial` | The same planes viewed down the τ axis: the classic "clock face" — one angle, unmistakably |
+| `06_impact_parameters` | **Zoom in** on the vertex region: each measured π track *misses* the PV by its impact parameter d (right-angle markers) |
+| `07_decay_locations` | The payoff: d and the opening angle α pin down where each τ decayed — `L = |d|/sin α` for both τ's |
+
+A standalone `--shot measurable` renders the "what is measured" frame (08) on
+its own.
 
 Physics conventions match the analysis (`spin_analysis.py`): the common axis
 k̂ is the τ⁻ direction in the Higgs frame, both pions' azimuths are measured
@@ -75,14 +80,14 @@ event, and renders:
 ```bash
 cd blender
 ./render.sh                       # all stills + storyboard + boost animation
-./render.sh steps 160             # the 11-frame step-by-step storyboard
+./render.sh steps 160             # the 8-frame step-by-step storyboard
 ./render.sh stills 160            # the standalone still frames
 ./render.sh anims 96 GPU          # the animations, on the GPU
 ./render.sh planes 192            # a single still
 ```
 
 Shots: `event`, `reco`, `rest`, `planes`, `planes-axial`, `event-angular`
-(stills) · `steps` (the 6-frame storyboard) · `event-anim`, `reco-anim`,
+(stills) · `steps` (the 8-frame storyboard) · `event-anim`, `reco-anim`,
 `rest-anim`, `planes-anim`, `boost`, `zoom` (animations) · `stills`, `anims`,
 `all`.
 
