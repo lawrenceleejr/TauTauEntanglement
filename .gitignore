@@ -5,6 +5,13 @@ plots/
 *.egg-info/
 .eggs/
 
+# Blender docker render artifacts
+blender/blender.tar.xz
+blender/output/*.png
+blender/output/*.mp4
+blender/output/*.blend
+blender/output/*.blend1
+
 # LaTeX build artifacts
 paper/*.aux
 paper/*.log
