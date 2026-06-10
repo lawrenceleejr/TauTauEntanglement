@@ -64,11 +64,11 @@ Output is written to the `plots/` directory (PDFs, PNGs, and a
 
 ## Tau decay modes
 
-By default both hadronic channels are analysed with polarimeter vectors:
+The analysis uses the cleanest channel by default:
 
 ```python
 # config.py
-ALLOWED_DECAY_MODES = ["pi_nu", "rho_nu"]
+ALLOWED_DECAY_MODES = ["pi_nu"]
 ```
 
 | Mode | Decay | Branching ratio | Polarimeter |
@@ -76,14 +76,13 @@ ALLOWED_DECAY_MODES = ["pi_nu", "rho_nu"]
 | `"pi_nu"` | tau -> pi nu | 10.8% | pion direction (alpha = 1) |
 | `"rho_nu"` | tau -> rho nu -> pi pi0 nu | 25.5% | H = 2(q.N)q - q^2 N (unit, lightlike) |
 
-For tau -> rho nu the neutrino is inferred from the Jeans+Higgs kinematic
-constraints, restoring unit analysing power (the famous ~0.46 dilution
-applies only when the neutrino is unknown). Reconstruction errors dilute
-the rho channels in practice; the pi x pi subset is cleanest and is used
-for the CHSH (Bell) claim, while all channels feed the entanglement
-witness and the likelihood-ratio test.
-
-To restrict to the cleanest channel, set `ALLOWED_DECAY_MODES = ["pi_nu"]`.
+The rho channel is implemented (polarimeter vectors with the neutrino
+inferred from the Jeans+Higgs constraints) and closes on the SM at truth
+level, but the reconstructed-neutrino polarimeter suffers substantial
+azimuthal dilution (<cos dphi> ~ 0.73 for pi x rho, ~0.50 for rho x rho),
+which significantly degrades the measured spin correlations. It is
+therefore disabled by default; set
+`ALLOWED_DECAY_MODES = ["pi_nu", "rho_nu"]` for dedicated studies.
 The luminosity estimate adjusts automatically for the combined branching
 ratio of the selected modes.
 

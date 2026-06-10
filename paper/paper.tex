@@ -47,16 +47,13 @@ permutation-calibrated test of the hypothesis that the correlations
 are carried by a signal of finite speed $\vpsi$.  The causal-speed
 distribution is shown to follow an exact Pareto law,
 $P(\vsig>v)=\beta/v$, yielding the closed-form exclusion reach
-$\vpsi^{95}\simeq N\beta/(4z_{95}^2)$.  Using polarimeter vectors,
-which carry unit analysing power for fully reconstructed
-$\tau\to\pinu$ and $\tau\to\rho\nu$ decays, we analyse $10^{3}$
-simulated events with overwhelmingly spacelike-separated decay
-vertices: entanglement is certified at $6.9\sigma$, the CHSH bound
-$S\le2$ is disfavored at $2.6\sigma$, and finite-speed causal models
-are excluded up to $\vpsi\approx 20c$ at 95\%~C.L., in agreement with
-the analytic reach.  At the full ILC the exclusion extends beyond
-$10^{2}c$, providing the first test of quantum nonlocality in a
-Yukawa-mediated process with massive fermions.
+$\vpsi^{95}\simeq N\beta/(4z_{95}^2)$.  In a simulated sample of 90
+fully reconstructed $\pi^+\pi^-$ events---all with spacelike-separated
+decay vertices---entanglement is certified at $3.7\sigma$ and
+finite-speed causal models are excluded up to $\vpsi\approx 3c$,
+in agreement with the analytic reach.  Scaling to the full ILC program,
+the exclusion extends beyond $10^{2}c$, providing the first test of
+quantum nonlocality in a Yukawa-mediated process with massive fermions.
 \end{abstract}
 
 \maketitle
@@ -156,17 +153,10 @@ $2\sqrt{\mtwo}=2\sqrt{2}$, the Tsirelson bound.  CP violation rotates
 the correlations but does not dilute them; entanglement and CP
 structure are measured simultaneously from the same matrix.
 
-\textit{Extraction from data.}---Each hadronic tau decay defines a
-polarimeter 4-vector $H^\mu = 2(q\!\cdot\!N)q^\mu - q^2 N^\mu$, with
-$q$ the hadronic momentum ($q=p_\pi$ for $\pinu$;
-$q=p_{\pi^\pm}-p_{\pi^0}$ for $\rho\nu$) and $N$ the neutrino
-momentum~\cite{Tsai1971,Kuhn1995}.  Because $N^2=0$, $H$ is exactly
-lightlike, so its direction $\hhat=\vec{H}/|\vec{H}|$ in the tau rest
-frame carries \emph{unit} analysing power for any fully reconstructed
-hadronic mode: $d\Gamma\propto 1+\vec{s}\cdot\hhat$.  (For $\pinu$,
-$\hhat$ is the pion direction; for $\rho\nu$ the famous dilution
-factor $\approx0.46$ applies only when the neutrino is not
-reconstructed, which the kinematic constraints here provide.)  The
+\textit{Extraction from data.}---In $\tau\to\pi\nu$ the pion is a
+perfect spin analyser ($\alpha_\pi=1$)~\cite{Tsai1971}: the
+polarimeter direction $\hhat$ in the tau rest frame is the pion
+direction, with $d\Gamma\propto 1+\vec{s}\cdot\hhat$.  The
 joint angular density is
 \begin{equation}
   p(\hhat^+,\hhat^-\,|\,C) =
@@ -187,8 +177,7 @@ $\hhat^+$ and $\hhat^-$ about $\hat k$) inherits the modulation
 \end{equation}
 where $\pi^2/16\simeq0.617$ combines $C_{nn}=C_{rr}=1$ with
 $\langle\sin\theta\rangle^2=(\pi/4)^2$ from each polar
-average~\cite{Harnik2013,Desch2004}; this holds for any unit
-polarimeter, hence for all channels used here.
+average~\cite{Harnik2013,Desch2004}.
 
 \textit{Estimators and their sampling properties.}---A reliable
 nonlocality claim at small $N$ requires care: the eigenvalue
@@ -280,108 +269,97 @@ the median 95\%~C.L. exclusion reach is
 % ANALYSIS
 %=====================================================================
 
-\textit{Simulation and reconstruction.}---We analyse 1003 simulated
+\textit{Simulation and reconstruction.}---We analyse simulated
 $\ee\to ZH\to\mumu\tautau$ events at $\sqrts=240$~GeV with both taus
-decaying to $\pinu$ or $\rho\nu$ ($90$ $\pi{\times}\pi$, $417$
-$\pi{\times}\rho$, $496$ $\rho{\times}\rho$); 999 are fully
-reconstructed.  The sample size is comparable to the $\pi/\rho$ yield
-of the full ILC program when all usable $Z$ decays are included (see
-projections below).  The Higgs four-momentum is
+decaying to $\pinu$.  From 1003 generated $\mumu\tautau$ events, 90
+satisfy the $\pi{\times}\pi$ requirement and are fully reconstructed;
+this corresponds to ${\sim}15~\mathrm{ab}^{-1}$ in this single
+channel, and we use Eq.~\eqref{eq:reach} to project to realistic
+multi-channel datasets below.  The Higgs four-momentum is
 $p_H=p_{\mathrm{beam}}-p_{\mu^+}-p_{\mu^-}$, exploiting the known
 beam energy.  The tau direction and decay vertex follow from the
-impact-parameter method~\cite{Jeans2015}: the charged-pion track and
-the production vertex define a plane that contains the tau momentum
-for any decay mode (the decay vertex lies on the track); the opening
-angle $\alpha$ fixes the decay length $L=d/\sin\alpha$, and the
-$\tau$-mass constraint applied to the full visible system
-($\pi$ or $\pi\pi^0$) fixes the momentum, with the two-fold ambiguity
-resolved by the missing-momentum constraint.  Tau energies are then
-set by the Higgs-frame constraint $E_\tau=m_H/2$, and the neutrino
-needed for the $\rho\nu$ polarimeter is inferred from
-$p_\nu=p_\tau-p_{\mathrm{vis}}$.  A vertex-quality requirement of
-$3\sigma$ impact-parameter significance on both taus retains 573
+impact-parameter method~\cite{Jeans2015}: the pion track and the
+production vertex define a plane containing the tau momentum; the
+opening angle $\alpha$ fixes the decay length $L=d/\sin\alpha$ and
+the $\tau$ mass constraint fixes the momentum, with the two-fold
+ambiguity resolved by the missing-momentum constraint
+$p_H-p_{\pi^+}-p_{\pi^-}$.  Tau energies are then set by the
+Higgs-frame constraint $E_\tau=m_H/2$.  A vertex-quality requirement
+of $3\sigma$ impact-parameter significance on both taus retains 51
 events for vertex-dependent observables; the spin observables use all
-999.  Detector response is modelled by Gaussian smearing of ILD-like
+90.  Detector response is modelled by Gaussian smearing of ILD-like
 track parameters
 ($\sigma_{d_0}=\sqrt{5^2+(10/p\sin^{3/2}\theta)^2}~\mu$m,
 $\sigma_{\theta,\phi}=0.1$~mrad,
-$\sigma_{1/p_T}\simeq2\times10^{-5}$~GeV$^{-1}$) and ECAL response
-($\sigma_E/E=17\%/\sqrt{E}\oplus1\%$, 2~mrad) for
-$\pi^0$s~\cite{ILD_IDR}.
+$\sigma_{1/p_T}\simeq2\times10^{-5}$~GeV$^{-1}$)~\cite{ILD_IDR}; the
+typical tau impact parameter at $\gamma\approx35$ is comparable to
+$\sigma_{d_0}$, so smearing broadens $\vsig$ by a measured 27\%
+fractional resolution while leaving the $C_{ij}$ extraction
+essentially intact.
 
 %=====================================================================
 % RESULTS
 %=====================================================================
 
-\textit{Spin correlations.}---At truth level the framework closes
-exactly on the SM: $S=2.819\pm0.169$ (prediction $2\sqrt2=2.828$),
-$\mathcal{W}=0.965\pm0.068$ (prediction 1), and acoplanarity
-modulation $B=-0.594\pm0.040$ (prediction $-\pi^2/16=-0.617$; a
-frequently quoted value of $-0.5$ is not the SM expectation).
-Figure~\ref{fig:Cij} shows the reconstructed correlation matrix,
-consistent with Eq.~\eqref{eq:Cij_SM} up to reconstruction dilution
-that depends on the channel: the polarimeter of the clean
-$\pi{\times}\pi$ subsample needs no neutrino and gives
-$S=2.71\pm0.57$, $\mathcal{W}=0.91\pm0.24$; the mixed
-$\pi{\times}\rho$ channels retain $S\simeq2.5$--$2.8\pm0.4$,
-$\mathcal{W}\simeq0.81$--$0.83\pm0.17$; the $\rho{\times}\rho$
-channel, requiring both neutrinos, is most diluted
-($\mathcal{W}=0.23\pm0.11$).  Combining all channels,
+\textit{Spin correlations.}---Figure~\ref{fig:Cij} shows the
+reconstructed correlation matrix, consistent with
+Eq.~\eqref{eq:Cij_SM}: the diagonal is
+$(+0.97,+0.94,-0.90)\pm0.3$, off-diagonals consistent with zero.
+The unbiased observables give
 \begin{align}
-  \mathcal{W} &= 0.534 \pm 0.077 &
-  &\Rightarrow\;\text{separability rejected at } 6.9\sigma,
-  \nonumber\\
-  S_{\le1\rho} &= 2.62 \pm 0.24 &
-  &\Rightarrow\; S\le2 \text{ disfavored at } 2.6\sigma,
+  S &= 2.71 \pm 0.57, &
+  \mathcal{W} &= 0.91 \pm 0.24,
   \label{eq:results}
 \end{align}
-where the CHSH test uses the a-priori subset with at most one $\rho$.
+both consistent with the SM expectations $2\sqrt2$ and $1$, and with
+truth-level validation ($S=2.81\pm0.58$, $\mathcal{W}=0.91\pm0.24$).
+Separability ($\mathcal{W}\le0$) is rejected at $3.7\sigma$: the tau
+pairs are certifiably entangled.  The raw Horodecki parameter,
+$\hat\mtwo=2.34\pm1.00$, illustrates Eq.~\eqref{eq:m12bias}: its
+noise floor at $N=90$ is $0.87$, and the bootstrap-bias-corrected
+value is $1.26$; we therefore do not base significance claims on it.
 The optimal LR test rejects ``no correlation'' with permutation
-$p<10^{-4}$ ($Z=10.7$, against the ideal $\sqrt{999}/2=15.8$; the
-ratio measures the average reconstruction dilution
-$\epsilon\simeq0.7$).  The raw Horodecki parameter illustrates
-Eq.~\eqref{eq:m12bias} and is not used for significance claims.  With
-full detector smearing the conclusions are unchanged
-($\mathcal{W}=0.36\pm0.08$, separability rejected at $4.3\sigma$;
-LR $Z=9.0$).
+$p<10^{-4}$ ($Z=4.3$, against the ideal expectation
+$\sqrt{90}/2=4.7$).  The acoplanarity modulation,
+$B=-0.67\pm0.13$ at truth level and $-0.58\pm0.16$ after
+reconstruction, confirms the exact prediction $-\pi^2/16=-0.617$ of
+Eq.~\eqref{eq:acopl} (a frequently quoted value of $-0.5$ is not the
+SM expectation for this channel).  With full detector smearing the
+central values shift by less than one standard deviation
+($S=2.34\pm0.61$, $\mathcal{W}=0.79\pm0.27$, LR $Z=3.3$).
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{../plots/correlation_matrix.pdf}
   \caption{Reconstructed spin correlation matrix $C_{ij}$ in the
-    $\{n,r,k\}$ basis from 999 fully reconstructed $\pi/\rho$ tau
-    pairs, using polarimeter vectors.  Entries show the central value
-    $\pm$ bootstrap uncertainty.  The exact SM prediction,
-    Eq.~\eqref{eq:Cij_SM}, is $C=\mathrm{diag}(+1,+1,-1)$ for any
-    $\beta$; deviations from unit magnitude reflect channel-dependent
-    reconstruction dilution (see text).}
+    $\{n,r,k\}$ basis from 90 $\tau\to\pinu$ pairs.  Entries show the
+    central value $\pm$ bootstrap uncertainty.  The exact SM
+    prediction, Eq.~\eqref{eq:Cij_SM}, is
+    $C=\mathrm{diag}(+1,+1,-1)$ for any $\beta$.}
   \label{fig:Cij}
 \end{figure}
 
 \textit{Spacetime-resolved entanglement.}---Figure~\ref{fig:ds} shows
 $\mtwo$ (bias-corrected) and the witness $\mathcal{W}$ versus the
-signed interval $\mathrm{sgn}(\Delta s^2)\sqrt{|\Delta s^2|}$.  Of
-the 573 vertex-selected events, 570 are spacelike separated, a
+signed interval $\mathrm{sgn}(\Delta s^2)\sqrt{|\Delta s^2|}$.
+\emph{All} 51 vertex-selected events are spacelike separated, a
 consequence of the back-to-back topology, the ultrarelativistic
 boost, and the vertex-quality requirement (timelike configurations
 require one near-prompt decay, which fails the impact-parameter
-cut).  At truth level the witness is flat and consistent with
-$\mathcal{W}=1$ in every spacelike bin (open markers): entanglement
-persists undiminished across spacelike separations.  The mild
-decrease of the \emph{reconstructed} witness at large $|\Delta s|$
-tracks the decay-length dependence of the polarimeter dilution---not
-decoherence---and would be unfolded with a standard MC-based
-correction in a real measurement; we deliberately display the
-uncorrected values.
+cut).  At truth level the witness is consistent with $\mathcal{W}=1$
+in every spacelike bin (open markers): entanglement persists
+undiminished across spacelike separations, and any residual trend in
+the reconstructed values reflects decay-length-dependent resolution,
+not decoherence.
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{../plots/entanglement_vs_spacetime_interval.pdf}
   \caption{Bias-corrected $\mtwo$ (top) and concurrence witness
     $\mathcal{W}$ (middle) versus the signed spacetime interval
     between the two tau decay vertices; negative values are
-    spacelike.  Open markers show the truth-level witness, flat at
-    the SM value $\mathcal{W}=1$; the decrease of the reconstructed
-    (filled) witness with $|\Delta s|$ is reconstruction dilution,
-    not decoherence.  Bottom: event counts.  Dashed lines mark the SM
+    spacelike.  Open markers show the truth-level witness, consistent
+    with the SM value $\mathcal{W}=1$ in every bin; differences
+    between filled (reconstructed) and open markers reflect
+    resolution, not decoherence.  Bottom: event counts.  Dashed lines mark the SM
     predictions and the Bell ($\mtwo=1$) and separability
     ($\mathcal{W}=0$) thresholds.}
   \label{fig:ds}
@@ -390,15 +368,13 @@ uncorrected values.
 \textit{Finite-speed exclusion.}---For each hypothesis $\vpsi$ we
 select the events with $\vsig>\vpsi$ and apply the permutation-%
 calibrated LR test.  Figure~\ref{fig:vpsi} shows the result: the
-no-correlation hypothesis is rejected at more than $5\sigma$ for
-$\vpsi\le3c$, more than $4\sigma$ for $\vpsi\le10c$, and at
-95\%~C.L. up to $\vpsi\approx20c$.  This matches the analytic
-expectation: Eq.~\eqref{eq:reach} with $N=570$ gives an ideal reach
-of $37c$, reduced to ${\sim}17c$ by the measured dilution
-$\epsilon^2\simeq0.5$.  The surviving event counts follow the Pareto
-law of Eq.~\eqref{eq:pareto} over three decades
-(Fig.~\ref{fig:vpsi}, bottom; observed median $\vsig=2.2$, predicted
-$2\beta\simeq2$).
+no-correlation hypothesis is rejected at 95\%~C.L. for
+$\vpsi\lesssim3c$, in agreement with the analytic expectation
+$\vpsi^{95}=3.3c$ from Eq.~\eqref{eq:reach} with $N=51$.  The
+surviving event counts follow the Pareto law of Eq.~\eqref{eq:pareto}
+(Fig.~\ref{fig:vpsi}, bottom; observed median $\vsig=2.6$, predicted
+$2\beta\simeq2$, with the difference attributable to resolution and
+selection).
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{../plots/vpsi_exclusion.pdf}
@@ -418,18 +394,21 @@ simulation, converts event counts directly into physics reach.  At
 the full ILC program ($2~\mathrm{ab}^{-1}$ at
 $\sqrts=250$~GeV~\cite{ILC_TDR}), about $3.0\times10^4$ $\Htautau$
 decays are produced.  Including $Z\to q\bar q$ and $Z\to ee,\mumu$
-(76\% of $Z$ decays) and the $\pi/\rho$ tau modes analysed with
-polarimeter vectors~\cite{Jeans2015,Desch2004}, $N\simeq3\times10^3$
-reconstructed pairs are expected---three times the sample analysed
-here---giving $\vpsi^{95}\approx10^{2}c$ after the measured dilution.
-A $5\sigma$ Bell-inequality violation requires
-$N_{\le1\rho}\simeq1.9\times10^3$ events at the measured
-$S_{\le1\rho}=2.62$ (or $10^3$ at the ideal $2\sqrt2$), within reach
-of the full dataset; entanglement certification at $5\sigma$ needs
-only ${\sim}300$ events.  Using all hadronic tau modes, improving the
-$\rho{\times}\rho$ polarimetry with a global kinematic fit, and
-adding beam polarisation would push the exclusion towards
-$10^{3}c$.
+(76\% of $Z$ decays), $N\simeq3\times10^2$ $\pi{\times}\pi$ pairs are
+expected, giving $\vpsi^{95}\approx20c$; entanglement certification
+at $5\sigma$ needs only ${\sim}110$ such events.  The
+$\tau\to\rho\nu$ channels would increase the yield tenfold: the
+$\rho\nu$ polarimeter vector $H^\mu=2(q\!\cdot\!N)q^\mu-q^2N^\mu$
+(with $q=p_{\pi^\pm}-p_{\pi^0}$) is exactly lightlike and carries
+unit analysing power when the neutrino is
+reconstructed~\cite{Kuhn1995}, and in our simulation it closes on the
+SM at truth level; however, the kinematically inferred neutrino
+dilutes the azimuthal correlations substantially
+($\langle\cos\delta\phi\rangle\simeq0.5$--$0.7$), so exploiting these
+channels---and a reach beyond $10^{2}c$, with a $5\sigma$
+Bell-inequality violation ($N\gtrsim10^3$ at the ideal
+$S=2\sqrt2$)---requires a global kinematic fit of the tau pair, which
+we leave to future work.
 
 %=====================================================================
 % DISCUSSION

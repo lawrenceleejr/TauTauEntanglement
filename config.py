@@ -55,10 +55,12 @@ PDGID_Z          = 23
 # Accepted tau decay modes.  Options:
 #   "pi_nu"   — single charged pion (tau -> pi nu), cleanest channel
 #   "rho_nu"  — rho meson (tau -> rho nu -> pi pi0 nu), higher BR
-# Both channels carry unit analysing power when fully reconstructed:
-# the polarimeter direction is the pion direction for pi_nu and the
-# (lightlike) polarimeter vector H = 2(q.N)q - q^2 N for rho_nu.
-ALLOWED_DECAY_MODES = ["pi_nu", "rho_nu"]
+# The analysis uses the clean pi channel only: the rho polarimeter
+# (H = 2(q.N)q - q^2 N) carries unit analysing power at truth level but
+# requires the reconstructed neutrino, and the resulting azimuthal
+# dilution (<cos dphi> ~ 0.5 for rho x rho) significantly degrades the
+# spin correlations.  Enable "rho_nu" only for dedicated studies.
+ALLOWED_DECAY_MODES = ["pi_nu"]
 
 # Binning for spacetime interval plots
 N_BINS_SPACETIME = 8
