@@ -12,36 +12,37 @@ The shots tell the story in several beats:
 | `02_reconstruction_geometry` (.png / .mp4) | The Jeans impact-parameter method for one τ: the measured π track misses the primary vertex by **d**; the τ flight, the opening angle **α**, and **L = \|d\|/sin α** form a right triangle in a translucent track plane. |
 | `03_higgs_rest_frame` (.png / .mp4) | Boosted into the Higgs rest frame the two τ's are **back-to-back**, each ≈ M_H/2. |
 | `04_boost_to_rest_frame.mp4` | The boost itself: the lab-frame τ momenta morph into the back-to-back rest-frame configuration. |
-| `05_decay_planes` (.png / .mp4) | The two **translucent τ decay planes** and the **acoplanarity angle φ** between them — the heart of the angular analysis — *with* the resolved decay displacement. |
-| `06_decay_planes_angular` (.png) | The **same event with the displacement left unresolved**: only the π directions from the PV and the two decay planes + φ. This is the pure angular analysis when the τ separation can't be resolved. |
-| `07_event_angular` (.png) | The event display without the resolved displacement (pions drawn straight from the PV). |
-| `step_00 … step_10` (.png) | A **numbered pedagogical storyboard** — one rendered frame per reconstruction step (see below). |
+| `05_decay_planes` (.png / .mp4) | Rest frame: the two **translucent τ decay planes** hinged on the common τ axis and the **single acoplanarity angle φ** between them. |
+| `05_zoom_to_impact_parameters.mp4` | Animated dolly from the wide rest-frame view down into the vertex region where the impact parameters live. |
+| `06_decay_planes_axial` (.png) | The same decay planes viewed **down the τ axis** — the classic "clock face" where the one angle φ is unmistakable. |
+| `07_event_angular` (.png) | The lab event display without the resolved displacement (pions drawn straight from the PV). |
+| storyboard `01 … 06` (.png) | The **pedagogical storyboard** — one rendered frame per step of the method (see below). |
 | `tautau_event.blend` | The full Blender scene, for opening / tweaking by hand. |
 
 ### The step-by-step storyboard (`--shot steps`)
 
-A clean diagram per step of the method, in narrative order.  **No step-number
-captions** — each frame carries only its physics labels, so the sequence can be
-reordered and narrated however you like.  The flow: first boost into the Higgs
-rest frame from the measured Z→μμ; then drop the muons (we're now just looking
-at the Higgs); then build up the impact-parameter reconstruction of one τ, one
-element at a time.
+A clean diagram per step, in narrative order, **all in the Higgs rest frame**
+after the boost.  No step-number captions — each frame carries only its
+physics labels, so the sequence can be narrated however you like.
 
 | Frame | Diagram |
 |---|---|
-| `01_higgs_rest_frame` | Boost into the Higgs rest frame from the measured Z→μ⁺μ⁻; τ's back-to-back, `|p| ≈ M_H/2` (muons shown) |
-| `02_higgs_to_tautau` | Muons dropped — just the Higgs → τ⁺τ⁻ |
-| `03_impact_parameter` | The measured π track misses the PV by the impact parameter **d** |
-| `04_track_plane` | `p_τ` lies in the track plane span(π̂, d̂) |
-| `05_alpha` | Parameterise the τ direction: `τ̂ = cos α·π̂ + sin α·d̂` |
-| `06_mass_constraint` | The τ-mass constraint `m_τ² = (p_π+p_ν)²` locks `|p_τ|` |
-| `07_decay_length` | Decay length from geometry: `L = |d|/sin α` |
-| `08_decay_vertex` | Decay vertex `x = PV + L·τ̂` and proper time `t = L/βc` |
-| `09_missing_momentum` | Resolve the ambiguity: `p_ν₁+p_ν₂ = p_H − p_π₁ − p_π₂` |
-| `10_decay_planes` | Both τ's done → decay planes and the acoplanarity angle **φ** |
+| `01_boost_to_rest_frame` | Boost into the Higgs rest frame, defined by the measured Z→μ⁺μ⁻ (muons shown); τ's back-to-back, `|p| ≈ M_H/2` |
+| `02_higgs_rest_frame` | Muons removed — the Higgs decay in its own frame: τ's fly to their (boosted) decay vertices and decay to π ν |
+| `03_acoplanarity` | The two translucent decay planes, hinged on the common τ axis, with the **single** acoplanarity angle φ between them |
+| `04_acoplanarity_axial` | The same planes viewed down the τ axis: the classic "clock face" — one angle, unmistakably |
+| `05_impact_parameters` | **Zoom in** on the vertex region: each measured π track *misses* the PV by its impact parameter d (right-angle markers) |
+| `06_decay_locations` | The payoff: d and the opening angle α pin down where each τ decayed — `L = |d|/sin α` for both τ's |
 
-The single-τ frames (03–08) build up the *same* hero view of the τ⁺ track plane
-element by element.
+Physics conventions match the analysis (`spin_analysis.py`): the common axis
+k̂ is the τ⁻ direction in the Higgs frame, both pions' azimuths are measured
+about it, and the displayed φ is exactly the analysis acoplanarity.  The
+rest-frame impact parameters, opening angles and decay lengths are obtained by
+Lorentz-boosting the reconstructed decay 4-positions into the Higgs frame
+(`extract_event.py`); the geometric identity `L = |d|/sin α` holds exactly in
+that frame too.  The displayed rest-frame space is rotated so the τ axis is
+world-X (horizontal in frame, level horizon) and the decay planes open
+symmetrically upward.
 
 ## Look & feel
 
@@ -80,9 +81,10 @@ cd blender
 ./render.sh planes 192            # a single still
 ```
 
-Shots: `event`, `reco`, `rest`, `planes`, `planes-angular`, `event-angular`
-(stills) · `steps` (the 11-frame storyboard) · `event-anim`, `reco-anim`,
-`rest-anim`, `planes-anim`, `boost` (animations) · `stills`, `anims`, `all`.
+Shots: `event`, `reco`, `rest`, `planes`, `planes-axial`, `event-angular`
+(stills) · `steps` (the 6-frame storyboard) · `event-anim`, `reco-anim`,
+`rest-anim`, `planes-anim`, `boost`, `zoom` (animations) · `stills`, `anims`,
+`all`.
 
 ### GPU rendering (for the finals)
 

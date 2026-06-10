@@ -144,6 +144,26 @@ def build_payload(ev, reco):
         p_pi_rest = boost(p_pi, beta_H)
         p_tau_truth_rest = boost(tinfo.tau_p4, beta_H)
         p_tau_reco_rest = boost(r["p_tau_reco"], beta_H)
+        p_nu_reco_rest = boost(r["p_nu_reco"], beta_H)
+
+        # Rest-frame DECAY GEOMETRY: boost the reco decay 4-position into the
+        # Higgs frame (the PV sits at the origin of both frames at t = 0, so
+        # the boosted spatial part is the rest-frame decay vertex).  boost()
+        # transforms (E, px, py, pz); the same Lorentz map applies to (ct, x).
+        t_lab = r["decay_vertex_t"]                      # s
+        x_lab = dv_reco - pv                              # m, relative to PV
+        X4 = np.array([C_LIGHT * t_lab, x_lab[0], x_lab[1], x_lab[2]])
+        X4_rest = boost(X4, beta_H)
+        x_rest = X4_rest[1:4]                             # m
+        L_rest = np.linalg.norm(x_rest)
+        tau_dir_rest = x_rest / L_rest
+        pi_hat_rest = p_pi_rest[1:4] / np.linalg.norm(p_pi_rest[1:4])
+        alpha_rest = float(np.arccos(np.clip(
+            np.dot(tau_dir_rest, pi_hat_rest), -1.0, 1.0)))
+        # PCA of the rest-frame pion line (through x_rest along pi_hat_rest)
+        # to the PV at the origin; |pca| is the rest-frame impact parameter.
+        pca_rest = x_rest - np.dot(x_rest, pi_hat_rest) * pi_hat_rest
+        d_rest = float(np.linalg.norm(pca_rest))
 
         payload["taus"][label] = {
             "pdgid": int(tinfo.tau_pdgid),
@@ -175,6 +195,15 @@ def build_payload(ev, reco):
                 "tau_p4_truth": v(p_tau_truth_rest),
                 "tau_p4_reco": v(p_tau_reco_rest),
                 "pion_p4": v(p_pi_rest),
+                "neutrino_p4_reco": v(p_nu_reco_rest),
+                # boosted reco decay geometry (PV at the origin)
+                "decay_vertex_um": v(x_rest * UM),
+                "decay_length_um": float(L_rest * UM),
+                "tau_dir": v(tau_dir_rest),
+                "pion_dir": v(pi_hat_rest),
+                "alpha_rad": alpha_rest,
+                "impact_param_um": d_rest * UM,
+                "pca_um": v(pca_rest * UM),
             },
         }
 
