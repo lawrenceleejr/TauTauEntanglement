@@ -35,8 +35,17 @@ if [ ! -f "$TARBALL" ]; then
         "https://download.blender.org/release/Blender${BLENDER_SERIES}/blender-${BLENDER_VERSION}-linux-x64.tar.xz"
 fi
 
-echo "==> (Re)generating the real-MC event payload"
-python3 "$HERE/extract_event.py"
+EVENT_JSON="$HERE/data/event.json"
+if [ ! -f "$EVENT_JSON" ]; then
+    echo "==> Generating the real-MC event payload"
+    python3 "$HERE/extract_event.py"
+else
+    echo "==> Using existing event payload ($EVENT_JSON)  [pass REGEN=1 to force]"
+fi
+if [ "${REGEN:-0}" = "1" ]; then
+    echo "==> Regenerating the real-MC event payload (REGEN=1)"
+    python3 "$HERE/extract_event.py"
+fi
 
 echo "==> Building docker image '$IMAGE'"
 docker build -t "$IMAGE" "$HERE"
