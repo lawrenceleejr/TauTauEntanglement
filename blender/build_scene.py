@@ -336,14 +336,14 @@ def draw_angle_arc(apex, dir_a, dir_b, radius, mat, name, collection,
     return mid.normalized()
 
 
-def billboard_label(body, loc, size, collection, name="lbl", weight="reg"):
+def billboard_label(body, loc, size, collection, name="lbl", align='CENTER'):
     """A flat, modern-font text label that turns to face the active camera."""
     cu = bpy.data.curves.new(name, type='FONT')
     if LABEL_FONT is not None:
         cu.font = LABEL_FONT
     cu.body = body
     cu.size = size
-    cu.align_x = 'CENTER'
+    cu.align_x = align
     cu.align_y = 'CENTER'
     o = bpy.data.objects.new(name, cu)
     mat = matte_material("text", PALETTE["text"], roughness=0.6, emission=5.0)
@@ -351,6 +351,26 @@ def billboard_label(body, loc, size, collection, name="lbl", weight="reg"):
     col(collection).objects.link(o)
     o.location = loc
     return o
+
+
+def screen_caption(cam, lines, collection, size=0.34, frac_x=-0.62,
+                   frac_y=0.66, d=11.0, name="caption"):
+    """A multi-line caption pinned to a fixed spot in the camera frame (default
+    upper-left) so a numbered storyboard reads with a steady 'slide title'."""
+    q = cam.rotation_quaternion
+    right = q @ Vector((1, 0, 0))
+    up = q @ Vector((0, 1, 0))
+    forward = q @ Vector((0, 0, -1))
+    half_w = d * (cam.data.sensor_width * 0.5) / cam.data.lens
+    half_h = half_w * 9.0 / 16.0
+    # compensate for the camera's lens shift so the caption lands at the
+    # intended screen fraction regardless of how the subject was shifted
+    fx = frac_x + 2.0 * cam.data.shift_x
+    fy = frac_y + 2.0 * cam.data.shift_y
+    pos = (Vector(cam.location) + forward * d
+           + right * (fx * half_w) + up * (fy * half_h))
+    return billboard_label("\n".join(lines), pos, size, collection, name,
+                           align='LEFT')
 
 
 def face_labels_to_camera(cam):
@@ -770,6 +790,152 @@ def build_rest():
 
 
 # ===========================================================================
+#  Step-by-step storyboard of the reconstruction
+# ===========================================================================
+#  A consistent "hero" view of the tau+ reconstruction, built up one element
+#  at a time, so each frame teaches exactly one step.  Event-level steps
+#  (the Z tag, the missing-momentum closure) use the wide event view.
+# ---------------------------------------------------------------------------
+def _reco_vectors(label="tau_plus"):
+    t = DATA["taus"][label]
+    dv = bu(t["decay_vertex_reco_um"])
+    pca = bu(t["pca_point_um"])
+    pdir = rdir(t["pion_dir"])
+    taudir = rdir(t["tau_dir"])
+    dhat = (pca - Vector(PV)).normalized()
+    return t, dv, pca, pdir, taudir, dhat
+
+
+def reco_hero_camera():
+    """The static face-on track-plane camera used for all single-tau steps."""
+    t, dv, pca, pdir, taudir, dhat = _reco_vectors()
+    focus = (Vector(PV) + dv) / 2.0
+    n = pdir.cross(dhat).normalized()
+    if n.z < 0:
+        n = -n
+    dist, tilt = 20.0, math.radians(15)
+    loc = focus + n * dist * math.cos(tilt) + dhat * dist * math.sin(tilt)
+    cam = add_camera("cam_step", location=tuple(loc), look_at=tuple(focus),
+                     lens=44, shift_x=-0.05, up=dhat, fstop=4.5,
+                     focus_at=tuple(focus))
+    return cam
+
+
+def build_reco_stage(level, label="tau_plus"):
+    """Cumulative single-tau reconstruction geometry, drawn to the state that
+    is correct *at* the given step level (1..7)."""
+    clear("Reco")
+    t, dv, pca, pdir, taudir, dhat = _reco_vectors(label)
+    m_reco = matte_material("reco", PALETTE["reco"], roughness=0.5)
+    m_tau = matte_material(label, PALETTE[TAUCOL[label]], roughness=0.5)
+    m_pi = matte_material("pi_" + label, PALETTE[PIONCOL[label]], roughness=0.5)
+    m_vtx = matte_material("vertex", PALETTE["vertex"], roughness=0.4)
+    m_higgs = matte_material("higgs", PALETTE["higgs"], roughness=0.45)
+    m_ang = matte_material("angle", PALETTE["angle"], roughness=0.5, emission=2.0)
+    m_rim = matte_material("rim_reco", PALETTE["reco"], roughness=0.5, emission=2.2)
+    m_nu = matte_material("neutrino", PALETTE["neutrino"], roughness=0.8, alpha=0.5)
+
+    L_um = t["decay_length_reco_um"]
+    d_um = t["impact_param_mag_um"]
+    a_mrad = t["alpha_rad"] * 1e3
+
+    # always: production vertex + the measured pion track (a line in space)
+    sphere(PV, 0.14, m_higgs, "pv", "Reco")
+    billboard_label("PV", Vector(PV) - dhat * 0.8, 0.42, "Reco", "rl_pv")
+    cylinder_between(dv - pdir * 4.0, dv + pdir * 6.5, 0.03, m_pi,
+                     "pion_track", "Reco")
+    billboard_label("π track (measured)", (pca + dv) * 0.5 + dhat * 0.55, 0.4,
+                    "Reco", "rl_pi")
+
+    if level >= 2:   # impact parameter d, PCA, right angle
+        cylinder_between(PV, pca, 0.045, m_reco, "d", "Reco")
+        sphere(pca, 0.09, m_reco, "pca", "Reco")
+        q = 0.5
+        corner = pca - pdir * q
+        cylinder_between(corner, corner + pdir * q, 0.014, m_reco, "ra_a",
+                         "Reco", caps=False)
+        cylinder_between(corner, corner - dhat * q, 0.014, m_reco, "ra_b",
+                         "Reco", caps=False)
+        billboard_label("d = %.0f µm" % d_um, pca - pdir * 0.3 + dhat * 1.1,
+                        0.4, "Reco", "rl_d")
+
+    if level >= 3:   # the translucent track plane
+        span_u, span_w = 3.6, 1.9
+        center = Vector(PV) + pdir * 2.0
+        verts = [center + pdir * a + dhat * b for (a, b) in
+                 [(-span_u, -span_w), (span_u, -span_w),
+                  (span_u, span_w), (-span_u, span_w)]]
+        mesh = bpy.data.meshes.new("track_plane")
+        mesh.from_pydata([tuple(v) for v in verts], [], [(0, 1, 2, 3)])
+        mesh.update()
+        plane = bpy.data.objects.new("track_plane", mesh)
+        plane.data.materials.append(glass_panel_material("reco_plane",
+                                                         PALETTE["reco"], 0.10))
+        col("Reco").objects.link(plane)
+        for i in range(4):
+            cylinder_between(verts[i], verts[(i + 1) % 4], 0.014, m_rim,
+                             "pe_%d" % i, "Reco", caps=False)
+
+    # the tau direction: a dashed candidate ray (step 4, direction only),
+    # a solid momentum arrow once |p_τ| is fixed (step 5), then the resolved
+    # flight to the decay vertex (steps 6-7).
+    L_bu = (dv - Vector(PV)).length
+    if level == 4:
+        dashed_line(PV, Vector(PV) + taudir * L_bu, 0.03, m_tau,
+                    "tau_cand", "Reco")
+        billboard_label("candidate τ direction",
+                        Vector(PV) + taudir * L_bu * 0.55 + dhat * 0.5, 0.4,
+                        "Reco", "rl_taudir")
+    elif level == 5:
+        arrow(PV, taudir, L_bu, 0.045, m_tau, "tau_mom", "Reco")
+        p_tau_mag = p3(t["tau_p4_reco"]).length
+        billboard_label("|p_τ| = %.0f GeV  (locked by m_τ)" % p_tau_mag,
+                        Vector(PV) + taudir * L_bu * 0.55 + dhat * 0.5, 0.4,
+                        "Reco", "rl_ptau")
+    if level >= 6:
+        cylinder_between(PV, dv, 0.045, m_tau, "tau_flight", "Reco")
+        sphere(dv, 0.12, m_vtx, "dv", "Reco")
+        billboard_label("τ decay vertex", dv - pdir * 1.4 + dhat * 1.0, 0.42,
+                        "Reco", "rl_dv")
+
+    if level >= 4:   # opening angle alpha between the pion and tau directions
+        draw_angle_arc(PV, pdir, taudir, radius=1.6, mat=m_ang, name="alpha",
+                       collection="Reco", tube=0.03)
+        billboard_label("α = %.0f mrad" % a_mrad,
+                        Vector(PV) + (pdir + taudir).normalized() * 2.0
+                        - dhat * 0.25, 0.4, "Reco", "rl_a")
+
+    if level >= 6:   # decay length bracket
+        billboard_label("L = |d| / sin α = %.0f µm" % L_um,
+                        (Vector(PV) + dv) * 0.5 - dhat * 0.9, 0.4, "Reco", "rl_L")
+
+    if level >= 7:   # decay time
+        beta = t["beta"]
+        L_m = L_um * 1e-6
+        t_ps = L_m / (beta * DATA["constants"]["c_light"]) * 1e12
+        billboard_label("t = L / βc = %.2f ps" % t_ps,
+                        dv + dhat * 1.6 - pdir * 0.4, 0.4, "Reco", "rl_t")
+
+
+def build_higgs_recoil():
+    """Step-1 extras: the Higgs momentum reconstructed from the Z->mu mu tag."""
+    m_h = matte_material("higgs", PALETTE["higgs"], roughness=0.45)
+    p_H = p3(DATA["lab"]["p_H"])
+    arrow(PV, p_H.normalized(), 4.2, 0.05, m_h, "pH", "Lab")
+    billboard_label("p_H = p_beam − p_Z", Vector(PV) + p_H.normalized() * 4.8,
+                    0.5, "Lab", "lbl_pH")
+
+
+def build_missing_momentum():
+    """Step-8 extras: the total missing momentum = sum of the two neutrinos."""
+    m_nu = matte_material("neutrino", PALETTE["neutrino"], roughness=0.8, alpha=0.5)
+    p_miss = p3(DATA["lab"]["p_miss"])
+    arrow(PV, p_miss.normalized(), 4.0, 0.05, m_nu, "pmiss", "Lab")
+    billboard_label("p_miss = Σ p_ν", Vector(PV) + p_miss.normalized() * 4.6,
+                    0.5, "Lab", "lbl_pmiss")
+
+
+# ===========================================================================
 #  Render settings
 # ===========================================================================
 def enable_gpu():
@@ -1055,6 +1221,89 @@ def shot_boost():
     render_animation(cam, "04_boost_to_rest_frame.mp4")
 
 
+def shot_steps():
+    """A numbered pedagogical storyboard: one rendered frame per reconstruction
+    step, captioned with the idea and its equation."""
+    # event-level intro / tag / closure use the wide event view
+    def event_cam():
+        return _cam_event(False)
+
+    # --- Step 0: the event ---
+    build_event(displaced=True, show_planes=False)
+    set_visibility(lab=True, reco=False, rest=False)
+    cam = event_cam()
+    screen_caption(cam, ["Step 0", "The event",
+                         "e⁺e⁻ → Z H → μ⁺μ⁻ τ⁺τ⁻"], "Lab")
+    face_labels_to_camera(cam)
+    render_still(cam, "step_00_event")
+
+    # --- Step 1: tag the Higgs with Z -> mu mu ---
+    build_event(displaced=True, show_planes=False)
+    build_higgs_recoil()
+    set_visibility(lab=True, reco=False, rest=False)
+    cam = event_cam()
+    screen_caption(cam, ["Step 1", "Tag the Higgs",
+                         "Z → μ⁺μ⁻   ⇒   p_H = p_beam − p_Z"], "Lab")
+    face_labels_to_camera(cam)
+    render_still(cam, "step_01_higgs_tag")
+
+    # --- Steps 2-7: the single-tau geometry, one element at a time ---
+    step_text = {
+        2: ["Step 2", "The π track & impact parameter",
+            "the measured track misses the PV by d"],
+        3: ["Step 3", "The track plane",
+            "p_τ lies in the plane span( π̂ , d̂ )"],
+        4: ["Step 4", "Parameterise the τ direction",
+            "τ̂ = cos α · π̂ + sin α · d̂"],
+        5: ["Step 5", "τ-mass constraint fixes |p_τ|",
+            "m_τ² = (p_π + p_ν)²"],
+        6: ["Step 6", "Decay length from geometry",
+            "L = |d| / sin α"],
+        7: ["Step 7", "Decay vertex & proper time",
+            "x_dec = PV + L·τ̂ ,   t = L / βc"],
+    }
+    cam = reco_hero_camera()
+    for level in range(2, 8):
+        build_reco_stage(level)
+        set_visibility(lab=False, reco=True, rest=False)
+        screen_caption(cam, step_text[level], "Reco")
+        face_labels_to_camera(cam)
+        render_still(cam, "step_%02d_%s" % (level, {
+            2: "impact_parameter", 3: "track_plane", 4: "alpha",
+            5: "mass_constraint", 6: "decay_length", 7: "decay_vertex"}[level]))
+
+    # --- Step 8: resolve the two-fold ambiguity with missing momentum ---
+    build_event(displaced=True, show_planes=False)
+    build_missing_momentum()
+    set_visibility(lab=True, reco=False, rest=False)
+    cam = event_cam()
+    screen_caption(cam, ["Step 8", "Resolve the ambiguity",
+                         "p_ν₁ + p_ν₂ = p_H − p_π₁ − p_π₂"], "Lab")
+    face_labels_to_camera(cam)
+    render_still(cam, "step_08_missing_momentum")
+
+    # --- Step 9: both taus done -> decay planes & acoplanarity ---
+    build_event(displaced=True, show_planes=True)
+    set_visibility(lab=True, reco=False, rest=False)
+    # subject to the RIGHT (negative shift) so the caption corner stays clear
+    cam = add_camera("cam_step_planes", location=(10, -19, 12),
+                     look_at=(0, 0.3, 0.6), up=(0, 0, 1), lens=46,
+                     shift_x=-0.24, fstop=3.2, focus_at=(0, 0, 0))
+    screen_caption(cam, ["Step 9", "Decay planes & acoplanarity",
+                         "angle φ between the two τ decay planes"], "Lab")
+    face_labels_to_camera(cam)
+    render_still(cam, "step_09_decay_planes")
+
+    # --- Step 10: the payoff -- boost to the Higgs rest frame ---
+    build_rest()
+    set_visibility(lab=False, reco=False, rest=True)
+    cam = _cam_rest(False)
+    screen_caption(cam, ["Step 10", "Boost to the Higgs rest frame",
+                         "τ's back-to-back,  |p| ≈ M_H / 2"], "Rest")
+    face_labels_to_camera(cam)
+    render_still(cam, "step_10_rest_frame")
+
+
 # ===========================================================================
 #  Main
 # ===========================================================================
@@ -1073,9 +1322,12 @@ def main():
              "rest-anim": shot_rest, "planes-anim": shot_planes,
              "boost": shot_boost}
 
-    if s == "all":
+    if s == "steps":
+        shot_steps()
+    elif s == "all":
         for fn in stills.values():
             fn(animated=False)
+        shot_steps()
         shot_boost()
     elif s == "stills":
         for fn in stills.values():

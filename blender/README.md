@@ -15,7 +15,28 @@ The shots tell the story in several beats:
 | `05_decay_planes` (.png / .mp4) | The two **translucent τ decay planes** and the **acoplanarity angle φ** between them — the heart of the angular analysis — *with* the resolved decay displacement. |
 | `06_decay_planes_angular` (.png) | The **same event with the displacement left unresolved**: only the π directions from the PV and the two decay planes + φ. This is the pure angular analysis when the τ separation can't be resolved. |
 | `07_event_angular` (.png) | The event display without the resolved displacement (pions drawn straight from the PV). |
+| `step_00 … step_10` (.png) | A **numbered pedagogical storyboard** — one rendered frame per reconstruction step (see below). |
 | `tautau_event.blend` | The full Blender scene, for opening / tweaking by hand. |
+
+### The step-by-step storyboard (`--shot steps`)
+
+One captioned frame per step of the method (caption + equation pinned to a
+steady upper-left "slide title"; the single-tau steps build up the same hero
+view of the τ⁺ one element at a time):
+
+| Frame | Step |
+|---|---|
+| `step_00_event` | The event: `e⁺e⁻ → ZH → μ⁺μ⁻ τ⁺τ⁻` |
+| `step_01_higgs_tag` | Tag the Higgs with Z→μμ: `p_H = p_beam − p_Z` |
+| `step_02_impact_parameter` | The π track misses the PV by the impact parameter **d** |
+| `step_03_track_plane` | `p_τ` lies in the plane span(π̂, d̂) |
+| `step_04_alpha` | Parameterise the τ direction: `τ̂ = cos α·π̂ + sin α·d̂` |
+| `step_05_mass_constraint` | The τ-mass constraint `m_τ² = (p_π+p_ν)²` locks `|p_τ|` |
+| `step_06_decay_length` | Decay length from geometry: `L = |d|/sin α` |
+| `step_07_decay_vertex` | Decay vertex `x = PV + L·τ̂` and proper time `t = L/βc` |
+| `step_08_missing_momentum` | Resolve the ambiguity: `p_ν₁+p_ν₂ = p_H − p_π₁ − p_π₂` |
+| `step_09_decay_planes` | Both τ's done → decay planes and the acoplanarity angle **φ** |
+| `step_10_rest_frame` | Boost to the Higgs rest frame: τ's back-to-back, `|p| ≈ M_H/2` |
 
 ## Look & feel
 
@@ -47,15 +68,16 @@ event, and renders:
 
 ```bash
 cd blender
-./render.sh                       # all stills + the boost animation
-./render.sh stills 160            # the still frames at 160 samples
+./render.sh                       # all stills + storyboard + boost animation
+./render.sh steps 160             # the 11-frame step-by-step storyboard
+./render.sh stills 160            # the standalone still frames
 ./render.sh anims 96 GPU          # the animations, on the GPU
 ./render.sh planes 192            # a single still
 ```
 
 Shots: `event`, `reco`, `rest`, `planes`, `planes-angular`, `event-angular`
-(stills) · `event-anim`, `reco-anim`, `rest-anim`, `planes-anim`, `boost`
-(animations) · `stills`, `anims`, `all` (groups).
+(stills) · `steps` (the 11-frame storyboard) · `event-anim`, `reco-anim`,
+`rest-anim`, `planes-anim`, `boost` (animations) · `stills`, `anims`, `all`.
 
 ### GPU rendering (for the finals)
 

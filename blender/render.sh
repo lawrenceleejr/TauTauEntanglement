@@ -11,6 +11,7 @@
 #   ./render.sh boost 64 GPU          # just the boost animation
 #
 # Shots: event | reco | rest | planes | planes-angular | event-angular
+#        steps  (numbered step-by-step storyboard)
 #        event-anim | reco-anim | rest-anim | planes-anim | boost
 #        stills | anims | all
 #
