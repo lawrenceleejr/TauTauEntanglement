@@ -711,12 +711,12 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                 # Both kept INBOARD of the arrow tip: the tau- tip sits
                 # right at the 3/4-camera's frame edge
                 billboard_label(sym[label][1],
-                                g["dv"] + g["pdir"] * 3.6
-                                + Vector((0, 0, 0.75)), 0.5,
+                                g["dv"] + g["pdir"] * 4.2
+                                + Vector((0, 0, 0.9)), 0.5,
                                 "Rest", "rs_pi_" + label)
                 billboard_label("ν",
-                                g["dv"] + g["nudir"] * 3.2
-                                + Vector((0, 0, -0.75)), 0.42,
+                                g["dv"] + g["nudir"] * 2.6
+                                + Vector((0, 0, -0.8)), 0.42,
                                 "Rest", "rs_nu_" + label)
         else:
             # angular-only: pion direction straight from the PV
