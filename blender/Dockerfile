@@ -30,5 +30,8 @@ RUN mkdir -p ${BLENDER_HOME} \
     && rm /tmp/blender.tar.xz \
     && ln -s ${BLENDER_HOME}/blender /usr/local/bin/blender
 
+# A modern label typeface (Inter), bundled so renders are reproducible.
+COPY fonts/label.ttf /opt/fonts/label.ttf
+
 WORKDIR /work
 ENTRYPOINT ["blender"]

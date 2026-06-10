@@ -10,8 +10,9 @@
 #   ./render.sh event 96              # a single shot
 #   ./render.sh boost 64 GPU          # just the boost animation
 #
-# Shots: event | reco | rest | event-anim | reco-anim | rest-anim | boost
-#        stills (3 stills) | anims (4 animations) | all (everything)
+# Shots: event | reco | rest | planes | planes-angular | event-angular
+#        event-anim | reco-anim | rest-anim | planes-anim | boost
+#        stills | anims | all
 #
 set -euo pipefail
 
@@ -22,7 +23,8 @@ DEVICE="${3:-CPU}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE="tautau-blender"
 
-BLENDER_VERSION="${BLENDER_VERSION:-4.2.3}"
+# Blender >= 4.5 is required for the native light colour-temperature controls.
+BLENDER_VERSION="${BLENDER_VERSION:-4.5.10}"
 BLENDER_SERIES="$(echo "$BLENDER_VERSION" | cut -d. -f1,2)"
 TARBALL="$HERE/blender.tar.xz"
 
