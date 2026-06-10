@@ -22,6 +22,12 @@ from scipy.special import erfc
 import os
 from config import OUTPUT_DIR
 
+# Exact SM acoplanarity coefficient for the pi-pi channel:
+# dGamma/dphi ~ 1 + B cos(phi) with B = -pi^2/16 ~= -0.617
+# (C_nn = C_rr = 1 enter weighted by <sin theta>^2 = (pi/4)^2 per side).
+B_SM = -np.pi**2 / 16.0
+B_SM_LABEL = r'SM ($B=-\pi^2/16$)'
+
 __all__ = [
     'plot_spacetime_distributions',
     'plot_entanglement_vs_spacetime',
@@ -470,10 +476,18 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
     bc = 0.5 * (bin_edges[:-1] + bin_edges[1:])
     hw = np.diff(bin_edges) / 2
 
-    m12  = np.array([r['m12'] for r in binned_results])
+    # Display the bootstrap-bias-corrected m12 when available: the raw
+    # eigenvalue-sum estimator carries a positive noise bias ~78.5/N.
+    m12  = np.array([r.get('m12_bc', r['m12']) for r in binned_results])
     m12e = np.array([r['m12_err'] for r in binned_results])
-    conc  = np.array([r['concurrence'] for r in binned_results])
-    conce = np.array([r['concurrence_err'] for r in binned_results])
+    # Concurrence witness W (linear, unbiased; concurrence >= W) preferred
+    # over the physicalised-rho concurrence for binned displays.
+    conc  = np.array([r.get('witness_W', r['concurrence'])
+                      if not np.isnan(r.get('witness_W', np.nan))
+                      else r['concurrence'] for r in binned_results])
+    conce = np.array([r.get('witness_W_err', r['concurrence_err'])
+                      if not np.isnan(r.get('witness_W_err', np.nan))
+                      else r['concurrence_err'] for r in binned_results])
     nev   = np.array([r.get('n_events', 0) for r in binned_results])
     ok    = ~np.isnan(m12)
     ok_c  = ~np.isnan(conc)
@@ -518,11 +532,11 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
         ax.axvline(0, color=_C['light'], linewidth=0.3, zorder=0)
     _shadow_errorbar(ax, bc[ok_c], conc[ok_c], yerr=conce[ok_c], xerr=hw[ok_c],
                      color=_C['accent'], marker='s', ms=2.8)
-    _label_shadow(ax, 0.97, 0.92, 'Concurrence',
+    _label_shadow(ax, 0.97, 0.92, r'Witness $\mathcal{W}\leq\mathcal{C}$',
                   color=_C['data'], fontweight='bold')
-    _label_shadow(ax, 0.97, 0.78, r'SM ($\mathcal{C}=1$)',
+    _label_shadow(ax, 0.97, 0.78, r'SM ($\mathcal{W}=1$)',
                   fontsize=_S['annot_fs'], color=_C['sm'])
-    ax.set_ylabel(r'$\mathcal{C}$')
+    ax.set_ylabel(r'$\mathcal{W}$')
     ax.tick_params(labelbottom=False)
     ax.set_xlim(bin_edges[0], bin_edges[-1])
 
@@ -571,7 +585,7 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
 
     bc = 0.5 * (bin_edges_v[:-1] + bin_edges_v[1:])
     hw = np.diff(bin_edges_v) / 2
-    m12  = np.array([r['m12'] for r in binned_results_vs_v])
+    m12  = np.array([r.get('m12_bc', r['m12']) for r in binned_results_vs_v])
     m12e = np.array([r['m12_err'] for r in binned_results_vs_v])
     ok   = ~np.isnan(m12)
 
@@ -678,7 +692,7 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
         cerr = np.sqrt(np.maximum(c, 1))
         try:
             popt, pcov = curve_fit(_cosine_model, cbc, c,
-                                   p0=[np.mean(c), -0.5],
+                                   p0=[np.mean(c), B_SM],
                                    sigma=cerr, absolute_sigma=True)
             B_vals.append(popt[1])
             B_errs.append(np.sqrt(pcov[1, 1]))
@@ -688,10 +702,10 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
     B_errs = np.array(B_errs)
     ok_B = ~np.isnan(B_vals)
 
-    # --- m12 data ---
+    # --- m12 data (bias-corrected) ---
     bc_m = 0.5 * (bin_edges_v[:-1] + bin_edges_v[1:])
     hw_m = np.diff(bin_edges_v) / 2
-    m12  = np.array([r['m12'] for r in binned_results_vs_v])
+    m12  = np.array([r.get('m12_bc', r['m12']) for r in binned_results_vs_v])
     m12e = np.array([r['m12_err'] for r in binned_results_vs_v])
     ok_m = ~np.isnan(m12)
 
@@ -720,7 +734,7 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
             frac = np.where(v_fine <= v_psi, 1.0, 0.0)
 
         # B panel
-        ax_B.plot(v_fine, -0.5 * frac, color=hc,
+        ax_B.plot(v_fine, B_SM * frac, color=hc,
                   linewidth=_S['hypo_lw'], zorder=2)
         if v_psi <= x_hi:
             # Nudge the rightmost label a bit more to avoid clipping
@@ -746,10 +760,10 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
         _shadow_errorbar(ax_B, bc_v[ok_B], B_vals[ok_B], yerr=B_errs[ok_B],
                          xerr=hw_v[ok_B], color=_C['data'], marker='o',
                          ms=_S['data_ms_large'])
-    ax_B.axhline(-0.5, color=_C['sm'], linewidth=_S['ref_lw'],
+    ax_B.axhline(B_SM, color=_C['sm'], linewidth=_S['ref_lw'],
                  linestyle=_S['ref_ls_sm'], zorder=1)
     ax_B.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
-    ax_B.annotate(r'SM ($B=-0.5$)', xy=(x_hi, -0.5),
+    ax_B.annotate(B_SM_LABEL, xy=(x_hi, B_SM),
                   xytext=(-3, 2), textcoords='offset points',
                   fontsize=_S['annot_fs'], color=_C['sm'],
                   ha='right', va='bottom')
@@ -816,9 +830,12 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     sig0  = np.array([r['sigma_vs_0'] for r in vpsi_scan_results])
     sig1  = np.array([r['sigma_vs_1'] for r in vpsi_scan_results])
     nev   = np.array([r['n_events'] for r in vpsi_scan_results])
-    ok    = ~np.isnan(sig0) & (nev >= 10)
+    ok    = ~np.isnan(sig0) & (nev >= 6)
 
-    fig, ax = plt.subplots(figsize=(COL1, COL1 * 0.75))
+    fig, (ax, ax_n) = plt.subplots(
+        2, 1, figsize=(COL1, COL1 * 1.05),
+        gridspec_kw={'height_ratios': [3, 1.2], 'hspace': 0.08},
+        sharex=True)
 
     all_sig = np.concatenate([sig0[ok], sig1[ok]])
     ymax_sig = max(6, np.nanmax(all_sig) * 1.15) if len(all_sig) > 0 else 6
@@ -857,12 +874,12 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     if np.any(ok):
         n_ok = int(np.sum(ok))
         mid = max(0, n_ok // 2 - 1)  # midpoint index
-        ax.annotate(r'Reject $m_{12}=0$',
+        ax.annotate('Reject no correlation\n(optimal LR test)',
                     xy=(v_plot0[mid], s_plot0[mid]),
                     xytext=(0, 6), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['truth'],
                     ha='center', va='bottom')
-        ax.annotate(r'Reject $m_{12}\leq 1$',
+        ax.annotate(r'Reject CHSH $S\leq 2$',
                     xy=(v_plot1[mid], s_plot1[mid]),
                     xytext=(0, -6), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['reco'],
@@ -880,11 +897,32 @@ def plot_vpsi_exclusion(vpsi_scan_results):
         ax.annotate(r'$5\sigma$', xy=(v_psi[ok][-1], 5.0),
                     xytext=(4, -1), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['light'], va='top')
-    ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Rejection Significance [$\sigma$]')
     ax.set_xscale('log')
+    ax.tick_params(labelbottom=False)
 
-    _paper_bg(fig, ax)
+    # --- Bottom panel: surviving event counts + exact Pareto law ---
+    pos = nev > 0
+    ax_n.plot(v_psi[pos], nev[pos], 'o', color=_C['data'],
+              markersize=2.2, markeredgewidth=0, zorder=5)
+    if np.any(pos):
+        # Pareto prediction P(v_sig > v) = beta/v, anchored at the
+        # first scan point: N(v) = N(v1) * v1 / v.
+        v1, n1 = v_psi[pos][0], nev[pos][0]
+        v_fine = np.geomspace(v_psi[pos][0], max(v_psi[pos][-1], v1 * 2), 200)
+        ax_n.plot(v_fine, n1 * v1 / v_fine, color=_C['sm'],
+                  linewidth=_S['ref_lw'], linestyle='--', zorder=2)
+        ax_n.annotate(r'$N \propto 1/v_\psi$ (Pareto)',
+                      xy=(0.97, 0.85), xycoords='axes fraction',
+                      fontsize=_S['annot_fs'], color=_C['sm'],
+                      ha='right', va='top')
+    ax_n.set_yscale('log')
+    ax_n.set_xscale('log')
+    ax_n.set_ylabel(r'$N(v_{\mathrm{sig}}>v_\psi)$')
+    ax_n.set_xlabel(r'$v_\psi / c$')
+
+    _paper_bg(fig, [ax, ax_n])
+    fig.align_ylabels([ax, ax_n])
 
     _save(fig, "vpsi_exclusion")
 
@@ -972,7 +1010,7 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
     # Cosine fit
     try:
         popt, pcov = curve_fit(_cosine_model, bc, counts,
-                               p0=[np.mean(counts), -0.5],
+                               p0=[np.mean(counts), B_SM],
                                sigma=errs, absolute_sigma=True)
         A_fit, B_fit = popt
         B_err = np.sqrt(pcov[1, 1])
@@ -989,9 +1027,9 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
     # SM expectation
     phi_fine = np.linspace(-np.pi, np.pi, 200)
     norm = len(delta_phi_arr) * bw / (2 * np.pi)
-    ax.plot(phi_fine, norm * (1 - 0.5 * np.cos(phi_fine)),
+    ax.plot(phi_fine, norm * (1 + B_SM * np.cos(phi_fine)),
             color=_C['sm'], linewidth=0.4, linestyle='--', zorder=1)
-    _label_shadow(ax, 0.03, 0.85, r'SM ($B=-0.5$)',
+    _label_shadow(ax, 0.03, 0.85, B_SM_LABEL,
                   fontsize=_S['annot_fs'], color=_C['sm'], ha='left')
 
     ax.set_xlabel(r'Acoplanarity $\Delta\phi$')
@@ -1033,7 +1071,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
         cerr = np.sqrt(np.maximum(c, 1))
         try:
             popt, pcov = curve_fit(_cosine_model, cbc, c,
-                                   p0=[np.mean(c), -0.5],
+                                   p0=[np.mean(c), B_SM],
                                    sigma=cerr, absolute_sigma=True)
             B_vals.append(popt[1])
             B_errs.append(np.sqrt(pcov[1, 1]))
@@ -1064,9 +1102,9 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
                 sigma_v = sigma_v_frac * v_fine.clip(1e-6)
                 frac_ent = 0.5 * erfc(
                     (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
-                B_model = -0.5 * frac_ent
+                B_model = B_SM * frac_ent
             else:
-                B_model = np.where(v_fine <= v_psi, -0.5, 0.0)
+                B_model = np.where(v_fine <= v_psi, B_SM, 0.0)
             ax.plot(v_fine, B_model, color=hc,
                     linewidth=_S['hypo_lw'], zorder=2)
             # Label at the midpoint of the transition, offset right
@@ -1079,10 +1117,10 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
         _shadow_errorbar(ax, bc_v[ok], B_vals[ok], yerr=B_errs[ok],
                          xerr=hw_v[ok], color=_C['data'], marker='o',
                          ms=2.5)
-    ax.axhline(-0.5, color=_C['sm'], linewidth=_S['ref_lw'],
+    ax.axhline(B_SM, color=_C['sm'], linewidth=_S['ref_lw'],
                linestyle=_S['ref_ls_sm'], zorder=1)
     ax.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
-    _label_shadow(ax, 0.97, 0.08, r'SM ($B=-0.5$)',
+    _label_shadow(ax, 0.97, 0.08, B_SM_LABEL,
                   fontsize=_S['annot_fs'], color=_C['sm'])
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Cosine Coefficient $B$')
@@ -1244,15 +1282,22 @@ def print_summary(global_result, locality_sigma, entanglement_sigma,
 
     m12 = global_result['m12']
     print(f"\n  Horodecki parameter:   m12 = {m12:.4f} +/- {global_result['m12_err']:.4f}")
+    if 'm12_bc' in global_result:
+        print(f"  (bias-corrected):      m12 = {global_result['m12_bc']:.4f}")
     print(f"  SM prediction:         m12 = 2.0")
-    print(f"  Bell score:            2*sqrt(m12) = {global_result['bell_score']:.4f} "
-          f"+/- {global_result['bell_score_err']:.4f}")
-    print(f"  Concurrence:           C = {global_result['concurrence']:.4f} "
+    if 'chsh_S' in global_result:
+        print(f"  CHSH (fixed axes):     S = {global_result['chsh_S']:.4f} "
+              f"+/- {global_result['chsh_S_err']:.4f}")
+        print(f"  SM prediction:         S = 2*sqrt(2) = 2.8284 (Tsirelson)")
+    if 'witness_W' in global_result:
+        print(f"  Concurrence witness:   W = {global_result['witness_W']:.4f} "
+              f"+/- {global_result['witness_W_err']:.4f}  (concurrence >= W)")
+    print(f"  Concurrence (rho rec.): C = {global_result['concurrence']:.4f} "
           f"+/- {global_result['concurrence_err']:.4f}")
     print(f"  SM prediction:         C = 1.0")
 
-    print(f"\n  Reject locality (m12 <= 1):    {locality_sigma:.1f} sigma")
-    print(f"  Reject separability (C <= 0):  {entanglement_sigma:.1f} sigma")
+    print(f"\n  Reject local realism (CHSH S <= 2):    {locality_sigma:.1f} sigma")
+    print(f"  Reject separability (witness W <= 0):  {entanglement_sigma:.1f} sigma")
 
     n_total = n_spacelike + n_timelike
     print(f"\n  Spacetime classification:")
@@ -1260,14 +1305,16 @@ def print_summary(global_result, locality_sigma, entanglement_sigma,
     print(f"    Timelike:  {n_timelike} ({100*n_timelike/n_total:.1f}%)")
 
     if vpsi_scan_results is not None:
-        print(f"\n  v_psi exclusion scan:")
-        print(f"    {'v_psi/c':>10s} {'N_events':>10s} {'m12':>10s} "
-              f"{'sigma(m12>0)':>14s} {'sigma(m12>1)':>14s}")
+        print(f"\n  v_psi exclusion scan "
+              f"(LR test = optimal no-correlation test, permutation-calibrated):")
+        print(f"    {'v_psi/c':>10s} {'N_events':>10s} {'m12_bc':>10s} "
+              f"{'z(LR test)':>12s} {'z(CHSH S>2)':>12s}")
         for r in vpsi_scan_results:
-            if r['n_events'] >= 10:
+            if r['n_events'] >= 6:
+                m12_show = r.get('m12_bc', r['m12'])
                 print(f"    {r['v_psi']:10.1f} {r['n_events']:10d} "
-                      f"{r['m12']:10.3f} "
-                      f"{r['sigma_vs_0']:14.1f} {r['sigma_vs_1']:14.1f}")
+                      f"{m12_show:10.3f} "
+                      f"{r['sigma_vs_0']:12.1f} {r['sigma_vs_1']:12.1f}")
             else:
                 print(f"    {r['v_psi']:10.1f} {r['n_events']:10d}"
                       f"    (too few events)")

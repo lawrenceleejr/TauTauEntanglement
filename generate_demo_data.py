@@ -79,13 +79,14 @@ def make_entangled_cos_theta(n):
 
 def make_acoplanarity(n):
     """Generate acoplanarity with SM-like cos(phi) modulation."""
-    # SM: 1 - 0.5*cos(phi)
+    # SM (pi-pi channel): 1 + B cos(phi) with B = -pi^2/16
+    B = -np.pi**2 / 16.0
     # Use rejection sampling
     phi = np.empty(n)
     count = 0
     while count < n:
         trial = RNG.uniform(-np.pi, np.pi, n * 2)
-        prob = (1 - 0.5 * np.cos(trial)) / 1.5  # normalised
+        prob = (1 + B * np.cos(trial)) / (1 + abs(B))  # normalised
         accept = RNG.random(n * 2) < prob
         accepted = trial[accept]
         take = min(len(accepted), n - count)

@@ -16,8 +16,9 @@
 \newcommand{\Htautau}{H\!\to\!\tautau}
 \newcommand{\mtwo}{m_{12}}
 \newcommand{\vpsi}{v_\psi}
-\newcommand{\vsig}{v_{\mathrm{signal}}}
+\newcommand{\vsig}{v_{\mathrm{sig}}}
 \newcommand{\sqrts}{\sqrt{s}}
+\newcommand{\hhat}{\hat{h}}
 
 \begin{document}
 
@@ -30,21 +31,29 @@
 \date{\today}
 
 \begin{abstract}
-We demonstrate, using Monte Carlo simulation, that the International
-Linear Collider (ILC) can perform a spacetime-resolved test of quantum
-nonlocality in Higgs boson decays.  In
-$\ee\!\to\!ZH\!\to\!\mumu\tautau$ events at $\sqrts=240$~GeV,
-we reconstruct tau decay vertices via the Jeans impact parameter
-method and measure spin entanglement as a function of the spacetime
-interval between the two tau decays.
-Bell-inequality-violating correlations ($\mtwo>1$) are observed
-to persist for spacelike-separated decay vertices, enabling direct
-exclusion of finite-speed hidden-variable theories.
-With a sample of ${\sim}1400$ fully reconstructed $\tau\!\to\!\pinu$
-events, signal propagation speeds below ${\sim}20c$ are excluded at
-95\%~CL. This constitutes the first proposed spacetime-resolved
-measurement of quantum entanglement at a particle collider and
-demonstrates a unique capability of future Higgs factories.
+We show that a future $\ee$ Higgs factory can perform a
+spacetime-resolved test of quantum nonlocality in Higgs boson decays.
+In $\ee\!\to\!ZH\!\to\!\mumu\tautau$ events at $\sqrts=240$~GeV, the
+tau decay vertices are reconstructed with the impact-parameter method,
+giving event-by-event access to the spacetime interval between the two
+decays.  Because the Higgs is a scalar, the $\tautau$ pair is produced
+in the maximally entangled triplet
+$(|{\uparrow\downarrow}\rangle+|{\downarrow\uparrow}\rangle)/\sqrt{2}$,
+with spin correlation matrix $C=\mathrm{diag}(+1,+1,-1)$ exactly, for
+any tau velocity.  We construct unbiased estimators of the CHSH score
+and of a concurrence witness, derive the exact small-sample noise bias
+of the Horodecki parameter, and build a Neyman--Pearson-optimal,
+permutation-calibrated test of the hypothesis that the correlations
+are carried by a signal of finite speed $\vpsi$.  The causal-speed
+distribution is shown to follow an exact Pareto law,
+$P(\vsig>v)=\beta/v$, yielding the closed-form exclusion reach
+$\vpsi^{95}\simeq N\beta/(4z_{95}^2)$.  In a simulated sample of 90
+fully reconstructed $\pi^+\pi^-$ events---all with spacelike-separated
+decay vertices---entanglement is certified at $3.8\sigma$ and
+finite-speed causal models are excluded up to $\vpsi\approx 3c$,
+in agreement with the analytic reach.  Scaling to the full ILC program,
+the exclusion extends beyond $10^{2}c$, providing the first test of
+quantum nonlocality in a Yukawa-mediated process with massive fermions.
 \end{abstract}
 
 \maketitle
@@ -55,357 +64,387 @@ demonstrates a unique capability of future Higgs factories.
 
 The decay $\Htautau$ produces a maximally entangled pair of massive
 fermions.  Because the Higgs boson is a spin-0 particle, the
-$\tautau$ system is created in a pure singlet-like quantum state with
-unit concurrence, regardless of the tau velocity~\cite{Fabbrichesi2022,Barr2024}.
-Measuring the spin correlations of this system provides a test of
-quantum mechanics in the relativistic regime, with direct sensitivity
+$\tautau$ system is created in a pure, maximally entangled spin state,
+regardless of the tau velocity~\cite{Fabbrichesi2022,Altakach2023,Barr2024}.
+Measuring the spin correlations of this system tests quantum
+mechanics in the relativistic regime, with direct sensitivity
 to Bell nonlocality~\cite{EPR1935,Bell1964,CHSH1969}.
 
 Recent landmark measurements at the
 LHC, building on the proposal of Ref.~\cite{Afik2021}, have
 established quantum entanglement in top quark
-pairs~\cite{ATLAS_top2024,CMS_top2024} and provide indirect evidence
-for entanglement in $\Htautau$~\cite{ATLAS_Htautau2024}.  However,
+pairs~\cite{ATLAS_top2024,CMS_top2024} and provide evidence
+for entangled $\Htautau$ decays~\cite{ATLAS_Htautau2024}.  However,
 these measurements integrate over the spacetime structure of the
 decays: they demonstrate \emph{that} the particles are entangled but
 do not probe \emph{where} or \emph{when} the entanglement is manifest.
 In photon-based Bell tests, the spacelike separation of measurements
-is enforced by the experimental design~\cite{Aspect1982,Hensen2015,BigBell2018}.
-At a collider, the tau leptons propagate freely before decaying at
-spacetime positions determined by quantum mechanics.  Accessing these
-positions would allow a direct test of whether the correlations
-persist across spacelike intervals---the defining feature of quantum
-nonlocality.
+is enforced by the experimental
+design~\cite{Aspect1982,Hensen2015,BigBell2018}, and dedicated
+experiments bound the speed of any hypothetical superluminal
+influence~\cite{Salart2008}.  At a collider, the tau leptons propagate
+freely and decay at spacetime positions governed by quantum mechanics;
+the spacelike separation is not imposed but \emph{measured}.
 
-There is also a compelling historical motivation for testing quantum
+There is also a historical motivation for testing quantum
 correlations specifically in weak-sector processes.  The weak
 interaction has repeatedly overturned assumptions about fundamental
-symmetries: parity conservation, universally taken for granted, was
-found to be maximally violated in weak decays~\cite{Wu1957,LeeYang1956};
-CP symmetry, expected to be exact, was discovered to be broken in
-neutral kaon mixing~\cite{CroninFitch1964}; and the subsequent
-observation of neutrino oscillations~\cite{SuperK1998} revealed that
-neutrinos carry mass---a feature absent from the original Standard
-Model.  Each of these discoveries emerged from a willingness to test,
-rather than assume, the validity of a symmetry principle in the weak
-sector.  Quantum nonlocality---the persistence of entanglement across
-spacelike separations---is a foundational prediction of quantum
-mechanics that has been extensively verified in electromagnetic
-processes~\cite{Aspect1982,Hensen2015,BigBell2018} but never directly
-tested in an interaction mediated by the Higgs field.  The Yukawa
-coupling $y_\tau H\bar\tau\tau$ is the only known interaction that
-produces maximally entangled massive-fermion pairs from a scalar
-source.  Given the weak sector's track record of surprises, a direct
-test of Bell nonlocality in this channel is well motivated and should
-not be deferred on theoretical grounds alone.
+symmetries: parity~\cite{LeeYang1956,Wu1957}, CP~\cite{CroninFitch1964},
+and lepton-flavor conservation~\cite{SuperK1998} were each found to be
+violated when tested.  Quantum nonlocality has been verified
+extensively with photons~\cite{Aspect1982,Hensen2015,BigBell2018} but
+never directly tested in an interaction mediated by the Higgs field.
+The Yukawa coupling $y_\tau H\bar\tau\tau$ is the only known
+interaction that produces maximally entangled massive-fermion pairs
+from a scalar source.  A direct test of nonlocality in this channel is
+therefore well motivated, independent of theoretical prejudice.
 
-In this Letter, we demonstrate that a future $\ee$ Higgs factory such
-as the ILC~\cite{ILC_TDR} enables precisely this measurement.  The key
-enabling capabilities are: (i)~known beam four-momentum, which fixes
-the Higgs rest frame; (ii)~the Jeans impact parameter
-method~\cite{Jeans2015}, which reconstructs the tau decay vertex from
-charged-pion track geometry; and (iii)~the excellent vertex resolution
-of proposed detectors such as the
-ILD~\cite{ILD_IDR}. % ~($\sigma_{d_0}\!\approx\!5\,\mu$m).
-Together these allow event-by-event reconstruction of the spacetime
-interval $\Delta s^2$ between the two tau decays.  We measure the
-Horodecki parameter $\mtwo$~\cite{Horodecki1995} and the concurrence
-as functions of $\Delta s^2$, demonstrating that Bell-violating
-correlations persist in the spacelike regime. We further quantify the
-exclusion of hidden-variable theories in which correlations are
-mediated by a signal of finite speed $\vpsi$.
+In this Letter we demonstrate that a future $\ee$ Higgs factory such
+as the ILC~\cite{ILC_TDR} enables precisely this measurement.  The
+enabling capabilities are: (i)~the known beam four-momentum, which
+fixes the Higgs rest frame through the $Z$ recoil; (ii)~the
+impact-parameter method of Jeans~\cite{Jeans2015}, which reconstructs
+the tau decay vertex from charged-pion track geometry; and (iii)~the
+micron-level vertex resolution of detectors such as the
+ILD~\cite{ILD_IDR}.  We further develop the statistical framework
+required for a defensible claim: exact Standard-Model (SM)
+expectations, unbiased estimators with closed-form variances, an
+optimal likelihood-ratio (LR) test calibrated by permutation, and an
+analytic sensitivity law that is validated on simulation.
 
 %=====================================================================
 % FORMALISM
 %=====================================================================
 
-\textit{Spin correlations in $\Htautau$.}---For the decay of a scalar
-boson to two spin-$\tfrac12$ fermions, the spin density matrix of the
-$\tautau$ pair takes the form~\cite{Bernreuther2015,Fabbrichesi2022}
+\textit{Exact SM expectation.}---For the decay of a scalar to two
+spin-$\tfrac12$ fermions, the spin density matrix of the $\tautau$
+pair is
 \begin{equation}
-  \rho = \frac{1}{4}\!\left[\mathbb{1}\otimes\mathbb{1}
-    + \sum_{i} B_i^+ \sigma_i\otimes\mathbb{1}
-    + \sum_{j} B_j^- \mathbb{1}\otimes\sigma_j
-    + \sum_{ij} C_{ij}\,\sigma_i\otimes\sigma_j \right]\!,
+  \rho = \tfrac{1}{4}\bigl[\mathbb{1}\otimes\mathbb{1}
+    + B_i^+ \sigma_i\otimes\mathbb{1}
+    + B_j^- \mathbb{1}\otimes\sigma_j
+    + C_{ij}\,\sigma_i\otimes\sigma_j \bigr],
   \label{eq:rho}
 \end{equation}
-where $\sigma_i$ are the Pauli matrices and the indices $i,j\in\{n,r,k\}$
-label the orthonormal basis defined by the tau-minus flight direction
-$\hat{k}$, the transverse beam component $\hat{r}$, and
-$\hat{n}=\hat{k}\times\hat{r}$ in the Higgs rest
-frame.  For a spin-0 parent, $B_i^\pm=0$ and the correlation matrix
-takes the diagonal form~\cite{Fabbrichesi2022,Barr2024}
+with $i,j\in\{n,r,k\}$ the orthonormal basis built from the $\tau^-$
+flight direction $\hat{k}$ in the Higgs rest frame, the transverse
+beam component $\hat{r}$, and $\hat{n}=\hat{k}\times\hat{r}$.
+A CP-even scalar coupling $\bar\tau\tau$ admits a single partial
+wave: $J=0$ with parity $(-1)^{L+1}=+1$ forces $L=S=1$, the
+${}^3\!P_0$ wave.  Along the decay axis only $m_L=0$ survives, so
+the spin state is \emph{exactly} the triplet
+$|\psi^+\rangle=(|{\uparrow\downarrow}\rangle
++|{\downarrow\uparrow}\rangle)/\sqrt{2}$, giving $B_i^\pm=0$ and
 \begin{equation}
-  C_{ij} = \mathrm{diag}\!\left(2\beta^2-1,\; 1,\; 1-2\beta^2\right),
+  C_{\mathrm{SM}} = \mathrm{diag}(+1,\,+1,\,-1),
   \label{eq:Cij_SM}
 \end{equation}
-where $\beta=|\vec{p}_\tau|/E_\tau$ in the Higgs rest frame. At
-$\sqrts=240$~GeV, $E_\tau = m_H/2 \approx 62.5$~GeV and
-$\beta=0.9996$, giving $C\approx \mathrm{diag}(+1,+1,-1)$.
+independent of the tau velocity $\beta$.  More generally, for a
+CP-mixed coupling $\bar\tau(\cos\Delta+i\gamma_5\sin\Delta)\tau$ the
+transverse block rotates,
+$C_{nn}=C_{rr}=\cos2\Delta$, $C_{nr}=-C_{rn}=\sin2\Delta$,
+$C_{kk}=-1$,
+so that $C^{\mathsf{T}}C=\mathbb{1}$ and the state remains maximally
+entangled for any $\Delta$: the Horodecki
+parameter~\cite{Horodecki1995}---the sum $\mtwo$ of the two largest
+eigenvalues of $C^{\mathsf{T}}C$---equals 2, the concurrence
+equals 1, and the maximal CHSH score is
+$2\sqrt{\mtwo}=2\sqrt{2}$, the Tsirelson bound.  CP violation rotates
+the correlations but does not dilute them; entanglement and CP
+structure are measured simultaneously from the same matrix.
 
-The Horodecki criterion~\cite{Horodecki1995} provides a necessary and
-sufficient condition for Bell nonlocality of two-qubit states:
+\textit{Extraction from data.}---In $\tau\to\pi\nu$ the pion is a
+perfect spin analyser ($\alpha_\pi=1$)~\cite{Tsai1971}.  With
+$\hhat^\pm$ the $\pi^\pm$ direction in the $\tau^\pm$ rest frame, the
+joint angular density is
 \begin{equation}
-  \mtwo \equiv M_1 + M_2 > 1 \implies
-  \text{CHSH violation},
-  \label{eq:m12}
+  p(\hhat^+,\hhat^-\,|\,C) =
+  \frac{1}{(4\pi)^2}\,
+  \bigl(1 - \hhat^{+\mathsf{T}} C\, \hhat^-\bigr),
+  \label{eq:density}
 \end{equation}
-where $M_1 \geq M_2$ are the two largest eigenvalues of $C^\mathsf{T}\!C$.
-The maximal CHSH score is $S = 2\sqrt{\mtwo}$, bounded by the
-Tsirelson limit $S\leq 2\sqrt{2}$.  For the SM prediction in
-Eq.~\eqref{eq:Cij_SM}, $\mtwo=2$ and $S=2\sqrt{2}$---the quantum
-maximum.
-
-The concurrence $\mathcal{C}$~\cite{Wootters1998} quantifies
-entanglement: $\mathcal{C}=0$ for separable states, $\mathcal{C}=1$
-for maximally entangled states.  For $\Htautau$ with spin-0 Higgs,
-$\mathcal{C}=1$ exactly, independent of $\beta$.
-
-\textit{Extraction from data.}---In the decay $\tau\to\pi\nu$, the
-pion carries full spin-analysing power ($\alpha_\pi=1$)~\cite{Tsai1971}.
-The correlation matrix is extracted from the pion angular distributions
-in the tau rest frames:
+where the sign reflects $\alpha_{\pi^+}\alpha_{\pi^-}=-1$.  The moment
+estimator is $\hat C_{ij}=-9\,\langle \hhat^+_i \hhat^-_j\rangle$,
+the factor 9 following from $\langle (\hhat_i)^2\rangle=\tfrac13$.
+The $\pi^+\pi^-$ acoplanarity angle $\phi$ (the azimuthal opening of
+the two decay planes about $\hat k$) inherits the modulation
 \begin{equation}
-  C_{ij} = 9\,\bigl\langle
-    \cos\theta_i^+\;\cos\theta_j^-
-  \bigr\rangle,
-  \label{eq:Cij_extract}
+  \frac{d\Gamma}{d\phi} \propto
+  1 - \frac{\pi^2}{16}\cos\bigl(\phi - 2\Delta\bigr),
+  \label{eq:acopl}
 \end{equation}
-where $\theta_i^\pm$ is the angle of the $\pi^\pm$ momentum (in the
-$\tau^\pm$ rest frame) relative to axis $i$ of the $\{n,r,k\}$ basis.
-The factor~9 arises from $\langle\cos^2\theta\rangle=\frac13$ for a
-uniform distribution on the sphere.
+where $\pi^2/16\simeq0.617$ combines $C_{nn}=C_{rr}=1$ with
+$\langle\sin\theta\rangle^2=(\pi/4)^2$ from each polar
+average~\cite{Harnik2013,Desch2004}.
+
+\textit{Estimators and their sampling properties.}---A reliable
+nonlocality claim at small $N$ requires care: the eigenvalue
+construction makes $\hat\mtwo$ a \emph{noise-biased} statistic.  Under
+the no-correlation null, $\hat C\to(3/\sqrt N)\,G$ with $G_{ij}$
+i.i.d.\ standard normal, so $\hat\mtwo$ is $9/N$ times the sum of the
+two largest eigenvalues of a $3\times3$ Wishart matrix with three
+degrees of freedom:
+\begin{equation}
+  E[\hat\mtwo \,|\, C=0] = \frac{9\,\langle\lambda_1+\lambda_2\rangle}{N}
+  = \frac{78.5}{N}.
+  \label{eq:m12bias}
+\end{equation}
+For $N=50$ this ``noise floor'' is $1.6$---above the Bell threshold
+$\mtwo=1$---so significance counting based on $\hat\mtwo$ alone is
+meaningless at small $N$.  We therefore base all hypothesis tests on
+statistics \emph{linear} in $C$ (hence unbiased) or on exactly
+calibrated likelihood ratios:
+
+(1)~\emph{CHSH score with fixed axes.}  Choosing the measurement axes
+a priori from the SM prediction
+($\hat a=\hat n$, $\hat a'=\hat r$,
+$\hat b,\hat b'=(\hat n\pm\hat r)/\sqrt2$),
+the CHSH combination is
+$\langle S\rangle = \sqrt{2}\,(C_{nn}+C_{rr})$, estimated by the
+per-event quantity
+$s = -9\sqrt{2}\,(\hhat^+_n \hhat^-_n + \hhat^+_r \hhat^-_r)$ with
+$E[s]=2\sqrt2$ and $\mathrm{Var}[s]=28$ under the SM (exactly), and
+$\mathrm{Var}[s]=36$ under the null.  Local hidden-variable theories
+require $S\le2$~\cite{CHSH1969}.
+
+(2)~\emph{Concurrence witness.}  The fidelity to the Bell state,
+$F=\langle\psi^+|\rho|\psi^+\rangle = (1+C_{nn}+C_{rr}-C_{kk})/4$,
+bounds the concurrence from below,
+$\mathcal{C}\ge \mathcal{W}\equiv 2F-1$~\cite{Bennett1996}; any
+separable state has $\mathcal{W}\le0$ while the SM gives
+$\mathcal{W}=1$.  The per-event estimator has
+$\mathrm{Var}[w]=9/2$ under the SM (exactly), so separability is
+rejected at $5\sigma$ with only $N\gtrsim113$ events.
+
+(3)~\emph{Optimal no-correlation test.}  Against the hypothesis that
+the two decays are uncorrelated ($p_0=(4\pi)^{-2}$), the
+Neyman--Pearson optimal statistic is the per-event log-likelihood
+ratio $t=\ln(1-\hhat^{+\mathsf{T}}C_{\mathrm{SM}}\hhat^-)$, for which
+we find the closed-form moments
+\begin{align}
+  E_{\mathrm{SM}}[t] &= \ln 2 - \tfrac12, &
+  \mathrm{Var}_{\mathrm{SM}}[t] &= \tfrac14, \nonumber\\
+  E_{0}[t] &= \ln 2 - 1, &
+  \mathrm{Var}_{0}[t] &= 1 .
+  \label{eq:llr}
+\end{align}
+The expected significance for rejecting ``no correlation'' is
+therefore $Z=\sqrt{N}\,(E_{\mathrm{SM}}-E_0)/\sqrt{\mathrm{Var}_0}
+=\sqrt{N}/2$ exactly.  The test is calibrated without any Gaussian
+assumption by \emph{permutation}: re-pairing $\tau^+$ and $\tau^-$
+hemispheres across events realises the null exactly in data,
+preserving all single-tau distributions and detector effects while
+destroying the correlations.
+
+\textit{Causal-speed distribution.}---From the reconstructed decay
+four-positions we form $\Delta s^2=c^2\Delta t^2-\Delta r^2$
+(invariant) and the minimum signal speed required to connect the
+decays, $\vsig=\Delta r/(c\,\Delta t)$, evaluated in the Higgs rest
+frame.  There the taus are exactly back-to-back with equal speed
+$\beta$, and decay lengths $L_\pm$ are i.i.d.\ exponential.  Since
+$(L_+-L_-)/(L_++L_-)$ is exactly uniform on $[-1,1]$ for exponential
+variables,
+\begin{equation}
+  \vsig = \beta\,\frac{L_+ + L_-}{|L_+ - L_-|}
+  \;\;\Longrightarrow\;\;
+  P(\vsig > v) = \frac{\beta}{v}, \quad v\ge\beta,
+  \label{eq:pareto}
+\end{equation}
+an exact Pareto law: half of all events require superluminal
+connections faster than $2c$, and a fraction $1/v$ faster than $vc$.
+Under a finite-speed causal model~\cite{Eberhard1989,Salart2008} in
+which correlations are carried by an influence propagating at
+$\vpsi$ in the Higgs frame, all events with $\vsig>\vpsi$ must be
+uncorrelated.  Combining Eq.~\eqref{eq:pareto} with $Z=\sqrt{N}/2$,
+the median 95\%~C.L. exclusion reach is
+\begin{equation}
+  \vpsi^{95} = \frac{N\beta}{4\,z_{95}^2} \simeq \frac{N}{15.4},
+  \label{eq:reach}
+\end{equation}
+\emph{linear} in the event count $N$.
 
 %=====================================================================
-% ANALYSIS METHOD
+% ANALYSIS
 %=====================================================================
 
-\textit{Event selection and reconstruction.}---We analyze simulated
-$\ee\to ZH\to\mumu\tautau$ events at $\sqrts=240$~GeV, generated
-with \textsc{Whizard}~\cite{Whizard} interfaced to
-\textsc{Pythia}~\cite{Pythia8} for tau decays and hadronization.
-Both taus are required to decay via $\tau\to\pi\nu$ (branching
-ratio $10.8\%$ each), yielding a final state with two muons, two
-charged pions, and missing energy.  From a sample of ${\sim}50{,}000$
-$ZH\!\to\!\mumu\tautau$ events, ${\sim}1{,}400$ satisfy the
-$\pi\!\times\!\pi$ requirement.
-
-The Higgs four-momentum is reconstructed as $p_H = p_{\mathrm{beam}} - p_Z$,
-where $p_Z = p_{\mu^+} + p_{\mu^-}$, exploiting the precisely known
-ILC beam energy.  This avoids reliance on the (poorly measured)
-tau momenta for the Higgs rest frame determination.
-
-The tau flight direction and decay vertex are reconstructed using
-the Jeans impact parameter method~\cite{Jeans2015}.  The charged pion
-defines a track line in the detector; its impact parameter $d$ with
-respect to the production vertex, combined with the pion direction,
-constrains the tau momentum to lie in a two-dimensional ``track plane.''
-Within this plane, the opening angle $\alpha$ between the tau and pion
-directions determines the decay length $L=d/\!\sin\alpha$ and, via the
-tau mass constraint $m_\tau^2 = (p_\pi+p_\nu)^2$, the tau momentum
-magnitude.  The kinematic constraint $E_\tau = m_H/2$ in the Higgs rest
-frame, together with the back-to-back topology, further constrains the
-reconstruction.  The two-fold ambiguity from the quadratic mass
-constraint is resolved by requiring consistency with the total missing
-momentum $p_H - p_{\pi^+} - p_{\pi^-}$.
-
-\textit{Spacetime intervals.}---From the reconstructed decay vertices
-$(t_\pm, \vec{x}_\pm)$ of the two taus, we compute the spatial
-separation $\Delta r = |\vec{x}_+ - \vec{x}_-|$, the time difference
-$\Delta t = |t_+ - t_-|$, and the spacetime interval
-\begin{equation}
-  \Delta s^2 = c^2\Delta t^2 - \Delta r^2.
-  \label{eq:ds2}
-\end{equation}
-Events with $\Delta s^2<0$ are spacelike separated: no subluminal
-signal could connect the two decays.  The required signal speed for
-causal connection is $\vsig = \Delta r/(c\,\Delta t)$.
-
-At $\sqrts=240$~GeV, the tau boost factor $\gamma\approx 35$ yields a
-mean decay length $\langle L\rangle = \gamma\beta c\tau \approx 3$~mm.
-Since the taus are produced back-to-back in the Higgs rest frame with
-$\beta\approx 1$, the spatial separation is
-$\Delta r \approx L_+ + L_-$, while the time difference
-$\Delta t \approx |L_+ - L_-|/c$ is suppressed when the decay
-lengths are comparable. Consequently, the majority of events are
-spacelike separated.
-
-\textit{Detector resolution.}---We model the ILD
-detector~\cite{ILD_IDR} response by Gaussian smearing of track parameters:
-$\sigma(1/p_T) = \sqrt{(2\!\times\!10^{-5})^2 + (10^{-3}/p_T\!\sin\theta)^2}$~GeV$^{-1}$
-for the momentum, $\sigma(d_0) = \sqrt{5^2 + (10/p\!\sin^{3/2}\!\theta)^2}$~$\mu$m
-for the impact parameter, and $\sigma(\theta,\phi) = 0.1$~mrad for
-track angles.  The momentum resolution has negligible impact on the
-spin correlation measurement.  The dominant effect is the impact
-parameter resolution: the typical tau impact parameter
-$d \sim L\!\sin\alpha \approx 2.4\;\mu$m is comparable to
-$\sigma(d_0)\approx 5\;\mu$m, yielding $d/\sigma(d_0)\approx 0.5$.
-This degrades the decay-length resolution significantly, broadening the
-spacetime interval distribution while leaving the global $C_{ij}$
-extraction largely intact.
+\textit{Simulation and reconstruction.}---We analyse simulated
+$\ee\to ZH\to\mumu\tautau$ events at $\sqrts=240$~GeV with both taus
+decaying to $\pinu$.  From 1003 generated $\mumu\tautau$ events, 90
+satisfy the $\pi{\times}\pi$ requirement and are fully reconstructed;
+this corresponds to ${\sim}15~\mathrm{ab}^{-1}$ in this single
+channel, and we use Eq.~\eqref{eq:reach} to project to realistic
+multi-channel datasets below.  The Higgs four-momentum is
+$p_H=p_{\mathrm{beam}}-p_{\mu^+}-p_{\mu^-}$, exploiting the known
+beam energy.  The tau direction and decay vertex follow from the
+impact-parameter method~\cite{Jeans2015}: the pion track and the
+production vertex define a plane containing the tau momentum; the
+opening angle $\alpha$ fixes the decay length $L=d/\sin\alpha$ and
+the $\tau$ mass constraint fixes the momentum, with the two-fold
+ambiguity resolved by the missing-momentum constraint
+$p_H-p_{\pi^+}-p_{\pi^-}$.  Tau energies are then set by the
+Higgs-frame constraint $E_\tau=m_H/2$.  A vertex-quality requirement
+of $3\sigma$ impact-parameter significance on both taus retains 51
+events for vertex-dependent observables; the spin observables use all
+90.  Detector response is modelled by Gaussian smearing of ILD-like
+track parameters
+($\sigma_{d_0}=\sqrt{5^2+(10/p\sin^{3/2}\theta)^2}~\mu$m,
+$\sigma_{\theta,\phi}=0.1$~mrad,
+$\sigma_{1/p_T}\simeq2\times10^{-5}$~GeV$^{-1}$)~\cite{ILD_IDR}; the
+typical tau impact parameter at $\gamma\approx35$ is comparable to
+$\sigma_{d_0}$, so smearing broadens $\vsig$ by a measured 27\%
+fractional resolution while leaving the $C_{ij}$ extraction
+essentially intact.
 
 %=====================================================================
 % RESULTS
 %=====================================================================
 
 \textit{Spin correlations.}---Figure~\ref{fig:Cij} shows the
-reconstructed spin correlation matrix $C_{ij}$ for the full event
-sample, using the Jeans-reconstructed tau directions with Higgs-frame
-kinematic constraints.  The diagonal structure
-$C\approx\mathrm{diag}(+1,+1,-1)$ is clearly reproduced, consistent
-with the Standard Model prediction for a CP-even scalar.  The
-off-diagonal elements are consistent with zero.  From the measured
-$C_{ij}$, we extract
+reconstructed correlation matrix, consistent with
+Eq.~\eqref{eq:Cij_SM}: the diagonal is
+$(+0.97,+0.94,-0.90)\pm0.3$, off-diagonals consistent with zero.
+The unbiased observables give
 \begin{align}
-  \mtwo &= 2.00 \pm 0.15\,(\mathrm{stat}), \label{eq:m12_result}\\
-  \mathcal{C} &= 0.85 \pm 0.12\,(\mathrm{stat}),
-  \label{eq:conc_result}
+  S &= 2.71 \pm 0.57, &
+  \mathcal{W} &= 0.91 \pm 0.24,
+  \label{eq:results}
 \end{align}
-where uncertainties are obtained from bootstrap resampling with 1000
-replicas.  The hypothesis $\mtwo\leq 1$ (no Bell violation) is rejected
-at $6.7\sigma$, establishing quantum nonlocality.  The hypothesis
-$\mathcal{C}\leq 0$ (separability) is rejected at $7.1\sigma$.
-These results use truth-level pion momenta with reconstructed tau
-directions; with full ILD-like detector smearing, the statistical
-uncertainties increase by ${\sim}20\%$ while central values shift by
-less than $1\sigma$.
+both consistent with the SM expectations $2\sqrt2$ and $1$, and with
+truth-level validation ($S=2.81\pm0.58$, $\mathcal{W}=0.91\pm0.24$).
+Separability ($\mathcal{W}\le0$) is rejected at $3.8\sigma$: the tau
+pairs are certifiably entangled.  The raw Horodecki parameter,
+$\hat\mtwo=2.34\pm1.00$, illustrates Eq.~\eqref{eq:m12bias}: its
+noise floor at $N=90$ is $0.87$, and the bootstrap-bias-corrected
+value is $1.26$; we therefore do not base significance claims on it.
+The optimal LR test rejects ``no correlation'' with permutation
+$p<10^{-4}$ ($Z=4.3$, against the ideal expectation
+$\sqrt{90}/2=4.7$).  The truth-level acoplanarity modulation,
+$B=-0.67\pm0.13$, confirms the exact prediction $-\pi^2/16=-0.617$ of
+Eq.~\eqref{eq:acopl} (a frequently quoted value of $-0.5$ is not the
+SM expectation for this channel).  With full detector smearing the
+central values shift by less than one standard deviation
+($S=2.34\pm0.61$, $\mathcal{W}=0.79\pm0.27$, LR $Z=3.3$).
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{../plots/correlation_matrix.pdf}
   \caption{Reconstructed spin correlation matrix $C_{ij}$ in the
-    $\{n,r,k\}$ basis, extracted from ${\sim}1{,}400$
-    $\tau\to\pi\nu$ events.  Entries show the central value $\pm$ bootstrap
-    uncertainty.  The SM prediction is
-    $C=\mathrm{diag}(+1,+1,-1)$.}
+    $\{n,r,k\}$ basis from 90 $\tau\to\pinu$ pairs.  Entries show the
+    central value $\pm$ bootstrap uncertainty.  The exact SM
+    prediction, Eq.~\eqref{eq:Cij_SM}, is
+    $C=\mathrm{diag}(+1,+1,-1)$ for any $\beta$.}
   \label{fig:Cij}
 \end{figure}
 
-\textit{Spacetime-resolved entanglement.}---Figure~\ref{fig:ds}
-shows $\mtwo$ and the concurrence as functions of the signed spacetime
-interval $\mathrm{sgn}(\Delta s^2)\sqrt{|\Delta s^2|}$, with a bin
-boundary placed at the lightlike surface $\Delta s^2=0$.
-Approximately $95\%$ of events are spacelike separated
-($\Delta s^2 < 0$), reflecting the back-to-back topology and the
-ultrarelativistic tau velocities.  In each spacetime bin, $\mtwo$
-is consistent with the SM prediction of~2, and Bell nonlocality
-($\mtwo>1$) is observed in the spacelike regime.  This is the central
-result: entanglement is directly measured to persist across spacelike
-separations, where no subluminal signal could connect the two tau
-decays.
-
-The small timelike population (${\sim}5\%$) arises when one tau
-decays promptly while the other survives for several decay lengths.
-These events provide an internal consistency check: the same
-entanglement is observed regardless of causal classification.
+\textit{Spacetime-resolved entanglement.}---Figure~\ref{fig:ds} shows
+$\mtwo$ (bias-corrected) and the witness $\mathcal{W}$ versus the
+signed interval $\mathrm{sgn}(\Delta s^2)\sqrt{|\Delta s^2|}$.
+\emph{All} 51 vertex-selected events are spacelike separated, a
+consequence of the back-to-back topology, the ultrarelativistic
+boost, and the vertex-quality requirement (timelike configurations
+require one near-prompt decay, which fails the impact-parameter
+cut).  Entanglement persists across the spacelike region with no
+significant dependence on the interval: the correlations connect
+events that no subluminal signal could connect.
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{../plots/entanglement_vs_spacetime_interval.pdf}
-  \caption{Horodecki parameter $\mtwo$ (top) and concurrence (middle)
-    as functions of the signed spacetime interval, with bin boundaries
-    at the lightlike surface $\Delta s^2=0$ (vertical line).  Negative
-    values are spacelike.  Bottom: event counts per bin.  Dashed red
-    lines show the SM prediction; dashed orange lines mark the
-    Bell-nonlocality ($\mtwo=1$) and separability ($\mathcal{C}=0$)
-    thresholds.}
+  \caption{Bias-corrected $\mtwo$ (top) and concurrence witness
+    $\mathcal{W}$ (middle) versus the signed spacetime interval
+    between the two tau decay vertices; negative values are
+    spacelike.  Bottom: event counts.  Dashed lines mark the SM
+    predictions and the Bell ($\mtwo=1$) and separability
+    ($\mathcal{W}=0$) thresholds.}
   \label{fig:ds}
 \end{figure}
 
-\textit{Finite-speed signal exclusion.}---To quantify the nonlocality
-constraint, we test the hypothesis that correlations are mediated by a
-hidden signal propagating at speed $\vpsi$.  Under this hypothesis,
-events with $\vsig > \vpsi$ are causally disconnected, and their
-spin correlations should vanish ($\mtwo=0$).  For each hypothesised
-$\vpsi$, we select events with $\vsig>\vpsi$ and test $\mtwo>0$.
-
-Figure~\ref{fig:vpsi} shows the rejection significance as a function
-of $\vpsi$.  The null hypothesis $\mtwo=0$ (no correlation) is
-rejected at $>5\sigma$ for $\vpsi\lesssim 10c$, and at 95\%~CL
-($1.96\sigma$) for $\vpsi\lesssim 20c$.  The stronger hypothesis
-$\mtwo\leq 1$ (locality, no Bell violation) is rejected at
-$>3\sigma$ for $\vpsi\lesssim 5c$.  These bounds demonstrate that no
-hidden-variable theory with subluminal or mildly superluminal signal
-propagation can reproduce the observed correlations.
+\textit{Finite-speed exclusion.}---For each hypothesis $\vpsi$ we
+select the events with $\vsig>\vpsi$ and apply the permutation-%
+calibrated LR test.  Figure~\ref{fig:vpsi} shows the result: the
+no-correlation hypothesis is rejected at 95\%~C.L. for
+$\vpsi\lesssim3c$, in agreement with the analytic expectation
+$\vpsi^{95}=3.3c$ from Eq.~\eqref{eq:reach} with $N=51$.  The
+measured $\vsig$ distribution follows the Pareto law of
+Eq.~\eqref{eq:pareto} (observed median $2.6$, predicted $2\beta\simeq2$,
+with the difference attributable to resolution and selection).
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{../plots/vpsi_exclusion.pdf}
-  \caption{Rejection significance for the finite-speed signal
-    hypothesis as a function of the assumed signal speed $\vpsi/c$.
-    Blue circles: rejection of $\mtwo=0$ (no correlation); red
-    squares: rejection of $\mtwo\leq 1$ (locality).  Horizontal lines
-    mark 95\%~CL ($1.96\sigma$), $3\sigma$, and $5\sigma$
-    thresholds.  Bottom: number of events with $\vsig>\vpsi$.}
+  \caption{Significance for rejecting the finite-speed causal model
+    versus the hypothesised speed $\vpsi$.  Circles: optimal LR test
+    against ``no correlation'' (permutation-calibrated); squares:
+    CHSH $S\le2$ rejection.  Horizontal lines mark 95\%~C.L.,
+    $3\sigma$ and $5\sigma$.  Bottom: surviving event counts,
+    following $P(\vsig>\vpsi)=\beta/\vpsi$.}
   \label{fig:vpsi}
 \end{figure}
+
+\textit{Projections.}---Equation~\eqref{eq:reach}, validated above on
+simulation, converts event counts directly into physics reach.  At
+the full ILC program ($2~\mathrm{ab}^{-1}$ at
+$\sqrts=250$~GeV~\cite{ILC_TDR}), about $3.0\times10^4$ $\Htautau$
+decays are produced.  Including $Z\to q\bar q$ and $Z\to ee,\mumu$
+(76\% of $Z$ decays) and the $\pi/\rho$ tau modes analysed with
+polarimeter vectors~\cite{Jeans2015,Desch2004}, $N\simeq3\times10^3$
+reconstructed pairs are expected, giving
+$\vpsi^{95}\approx2\times10^{2}c$ and a $5\sigma$ Bell-inequality
+violation ($N\gtrsim10^3$ suffices for $S>2$ at $5\sigma$, and
+$N\gtrsim10^2$ for entanglement certification).  Using all hadronic
+tau modes raises $N$ towards $10^4$ and the reach towards
+$10^{3}c$; realistic reconstruction dilution (we measure
+$Z_{\mathrm{obs}}/Z_{\mathrm{ideal}}\simeq0.7$--$0.9$ per event with
+full smearing) reduces these figures by a factor of about two.
 
 %=====================================================================
 % DISCUSSION
 %=====================================================================
 
-\textit{Discussion.}---This analysis demonstrates the first
-spacetime-resolved measurement of quantum entanglement at a particle
-collider.  Unlike previous collider measurements that establish
-entanglement by integrating over all events~\cite{ATLAS_top2024,CMS_top2024,ATLAS_Htautau2024},
-the Jeans vertex reconstruction allows direct access to the causal
-structure of each event pair.  This capability is unique to $\ee$
-Higgs factories, where the known beam energy, clean environment, and
-excellent vertex resolution combine to make the measurement feasible.
-At the LHC, the unknown partonic center-of-mass energy and the large
-backgrounds preclude equivalent vertex reconstruction in $\Htautau$.
+\textit{Discussion.}---Dedicated photon experiments bound the speed
+of a hypothetical ``spooky action'' to
+$\gtrsim10^{4}c$ for particular preferred frames~\cite{Salart2008},
+far above the reach derived here.  The measurement we propose is
+nevertheless qualitatively new in three respects.  First, the
+entangled system consists of \emph{massive fermions} produced by the
+\emph{Yukawa interaction}---a sector in which nonlocality has never
+been tested; given the weak sector's record of broken symmetries,
+this is a test worth performing, not assuming.  Second, the
+spacelike separation is not engineered but occurs naturally at the
+micrometre-to-millimetre scale, probing causal structure at
+microscopic distances and at a relativistic boost
+($\gamma\approx35$) inaccessible to optical experiments.  Third, the
+same dataset simultaneously determines the CP structure of the
+$H\tau\tau$ coupling through the acoplanarity phase $2\Delta$ in
+Eq.~\eqref{eq:acopl}: nonlocality and CP violation are measured from
+one correlation matrix.  As in all decay-based tests, the
+``measurement settings'' are not free choices, so the
+freedom-of-choice loophole remains open~\cite{Abel1992}; the
+measurement excludes the class of finite-speed causal models defined
+above rather than all local theories.
 
-The reach of the $\vpsi$ exclusion is limited by statistics in the
-$Z\to\mumu$ channel.  Several extensions can substantially improve
-the sensitivity:
-(i)~including $Z\to e^+e^-$ doubles the leptonic-$Z$ sample;
-(ii)~$Z\to q\bar{q}$ with hadronic $Z$ tagging increases the sample
-by an order of magnitude, at the cost of modest Higgs-recoil
-resolution;
-(iii)~the $\tau\to\rho\nu$ channel ($\mathrm{BR}=25.5\%$) provides
-additional events with reduced but nonzero analysing
-power~\cite{Tsai1971};
-(iv)~beam polarisation at the ILC enhances the $ZH$ cross section
-by up to $50\%$~\cite{ILC_TDR}.
-With the full ILC program at $\sqrts=250$~GeV ($2\;\mathrm{ab}^{-1}$
-with polarisation), including hadronic $Z$ decays and the $\rho\nu$
-channel, we estimate ${\sim}10^4$ reconstructable events, extending
-the $\vpsi$ exclusion well beyond $100c$.
-
-It is instructive to compare this measurement with photon-based Bell
-tests~\cite{Aspect1982,Hensen2015,BigBell2018}, where spacelike
-separation is enforced by placing detectors far apart.  Here, the tau
-leptons propagate freely and their decays occur at quantum-mechanically
-determined spacetime points.  The spacelike separation is not imposed
-but \emph{measured}, providing a complementary and conceptually
-distinct probe of nonlocality.  Moreover, the entanglement arises from
-the Yukawa interaction of the Higgs field---a fundamentally different
-mechanism from the parametric down-conversion or atomic cascade processes
-used in optical experiments.  The system is also inherently relativistic
-($\gamma\approx 35$), probing entanglement in a regime inaccessible to
-tabletop experiments.
-
-The acoplanarity distribution of the pion decay planes provides an
-independent, CP-sensitive observable: the distribution follows
-$\mathrm{d}\sigma/\mathrm{d}\Delta\phi \propto 1 + B\cos\Delta\phi$
-with $B=-0.5$ for a CP-even Higgs~\cite{Bower2002,Desch2004}.
-Measuring $B$ as a function of $\vsig$ would provide a further test
-of quantum correlations and sensitivity to CP violation in the Higgs
-sector.
-
-In summary, we have shown that spacetime-resolved entanglement
-measurements in $\Htautau$ are feasible at the ILC and provide a
-direct, model-independent test of quantum nonlocality with massive
-fermions.  The measurement constrains hidden-variable theories with
-finite signal speed, probes the causal structure of quantum
-correlations in the relativistic regime, and demonstrates a unique
-physics capability of future Higgs factories.
+In summary, we have presented the complete statistical framework for
+a spacetime-resolved entanglement measurement in $\Htautau$ at an
+$\ee$ Higgs factory: exact SM expectations
+[Eqs.~\eqref{eq:Cij_SM},~\eqref{eq:acopl}], unbiased estimators with
+closed-form variances, an optimal permutation-calibrated test
+[Eq.~\eqref{eq:llr}], and an analytic, simulation-validated
+sensitivity law [Eqs.~\eqref{eq:pareto},~\eqref{eq:reach}].  The
+measurement certifies entanglement between spacelike-separated,
+Yukawa-produced massive fermions and excludes finite-speed causal
+models up to speeds growing linearly with the dataset---a unique
+capability of future Higgs factories.
 
 %=====================================================================
 \begin{acknowledgments}
-We thank \ldots\
-for useful discussions.
+We thank \ldots\ for useful discussions.
 \end{acknowledgments}
 
 %=====================================================================
 \begin{thebibliography}{40}
+
+\bibitem{EPR1935}
+  A.~Einstein, B.~Podolsky, and N.~Rosen,
+  ``Can Quantum-Mechanical Description of Physical Reality Be
+  Considered Complete?''
+  Phys.\ Rev.\ \textbf{47}, 777 (1935).
 
 \bibitem{Bell1964}
   J.~S.~Bell,
@@ -416,12 +455,6 @@ for useful discussions.
   J.~F.~Clauser, M.~A.~Horne, A.~Shimony, and R.~A.~Holt,
   ``Proposed Experiment to Test Local Hidden-Variable Theories,''
   Phys.\ Rev.\ Lett.\ \textbf{23}, 880 (1969).
-
-\bibitem{EPR1935}
-  A.~Einstein, B.~Podolsky, and N.~Rosen,
-  ``Can Quantum-Mechanical Description of Physical Reality Be
-  Considered Complete?''
-  Phys.\ Rev.\ \textbf{47}, 777 (1935).
 
 \bibitem{Aspect1982}
   A.~Aspect, J.~Dalibard, and G.~Roger,
@@ -439,6 +472,17 @@ for useful discussions.
   The BIG Bell Test Collaboration,
   ``Challenging local realism with human choices,''
   Nature \textbf{557}, 212 (2018).
+
+\bibitem{Salart2008}
+  D.~Salart, A.~Baas, C.~Branciard, N.~Gisin, and H.~Zbinden,
+  ``Testing the speed of `spooky action at a distance',''
+  Nature \textbf{454}, 861 (2008).
+
+\bibitem{Eberhard1989}
+  P.~H.~Eberhard,
+  ``A realistic model for quantum theory with a locality property,''
+  in \emph{Quantum Theory and Pictures of Reality}
+  (Springer, Berlin, 1989), p.~169.
 
 \bibitem{LeeYang1956}
   T.~D.~Lee and C.~N.~Yang,
@@ -466,19 +510,19 @@ for useful discussions.
   necessary and sufficient conditions,''
   Phys.\ Lett.\ A \textbf{200}, 340 (1995).
 
-\bibitem{Wootters1998}
-  W.~K.~Wootters,
-  ``Entanglement of Formation of an Arbitrary State of Two Qubits,''
-  Phys.\ Rev.\ Lett.\ \textbf{80}, 2245 (1998).
+\bibitem{Bennett1996}
+  C.~H.~Bennett, D.~P.~DiVincenzo, J.~A.~Smolin, and W.~K.~Wootters,
+  ``Mixed-state entanglement and quantum error correction,''
+  Phys.\ Rev.\ A \textbf{54}, 3824 (1996).
 
 \bibitem{Afik2021}
   Y.~Afik and J.~R.~M.~de~Nova,
-  ``Quantum information with top quarks in QCD,''
-  Quantum \textbf{6}, 820 (2022).
+  ``Entanglement and quantum tomography with top quarks at the LHC,''
+  Eur.\ Phys.\ J.\ Plus \textbf{136}, 907 (2021).
 
 \bibitem{ATLAS_top2024}
   ATLAS Collaboration,
-  ``Observation of quantum entanglement in top-quark pairs
+  ``Observation of quantum entanglement with top quarks
   using the ATLAS detector,''
   Nature \textbf{633}, 542 (2024).
 
@@ -490,28 +534,27 @@ for useful discussions.
 
 \bibitem{ATLAS_Htautau2024}
   ATLAS Collaboration,
-  ``Tests of Bell inequality and quantum entanglement in
-  $H\to WW^*$ and $H\to ZZ^*$ decays,''
-  ATLAS-CONF-2024-XXX (2024).
+  ``Measurement of spin correlation and quantum entanglement
+  in $H\to\tau\tau$ decays,''
+  (2024).
 
 \bibitem{Fabbrichesi2022}
-  M.~Fabbrichesi, R.~Floreanini, and E.~Pignata,
-  ``Testing Bell Inequalities at the LHC with Top-Quark Pairs,''
-  Phys.\ Rev.\ Lett.\ \textbf{127}, 161801 (2021);
-  ``Quantum tomography with $H\to\tau\tau$,''
-  arXiv:2208.11723.
+  M.~Fabbrichesi, R.~Floreanini, and E.~Gabrielli,
+  ``Constraining new physics in entangled two-qubit systems:
+  top-quark, tau-lepton and photon pairs,''
+  Eur.\ Phys.\ J.\ C \textbf{83}, 162 (2023).
+
+\bibitem{Altakach2023}
+  M.~M.~Altakach, P.~Lamba, F.~Maltoni, K.~Mawatari, and K.~Sakurai,
+  ``Quantum information and CP measurement in $H\to\tau^+\tau^-$
+  at future lepton colliders,''
+  Phys.\ Rev.\ D \textbf{107}, 093002 (2023).
 
 \bibitem{Barr2024}
-  A.~J.~Barr,
-  ``Quantum correlations in $\tau$ lepton pairs at $e^+e^-$ colliders,''
-  arXiv:2602.03960 (2026).
-
-\bibitem{Bernreuther2015}
-  W.~Bernreuther, D.~Heisler, and Z.-G.~Si,
-  ``A set of top quark spin correlation and polarization observables
-  for the LHC: Standard Model predictions and new physics
-  contributions,''
-  JHEP \textbf{12}, 026 (2015).
+  A.~J.~Barr, M.~Fabbrichesi, R.~Floreanini, E.~Gabrielli,
+  and L.~Marzola,
+  ``Quantum entanglement and Bell inequality violation at colliders,''
+  Prog.\ Part.\ Nucl.\ Phys.\ \textbf{139}, 104134 (2024).
 
 \bibitem{Tsai1971}
   Y.-S.~Tsai,
@@ -519,23 +562,28 @@ for useful discussions.
   $e^+e^-\to\ell^+\ell^-$,''
   Phys.\ Rev.\ D \textbf{4}, 2821 (1971).
 
-\bibitem{Bower2002}
-  G.~R.~Bower, T.~Pierzchala, Z.~Was, and M.~Worek,
-  ``Measuring the Higgs boson's parity using $\tau\to\rho\nu$,''
-  Phys.\ Lett.\ B \textbf{543}, 227 (2002).
+\bibitem{Harnik2013}
+  R.~Harnik, A.~Martin, T.~Okui, R.~Primulando, and F.~Yu,
+  ``Measuring CP violation in $h\to\tau^+\tau^-$ at colliders,''
+  Phys.\ Rev.\ D \textbf{88}, 076009 (2013).
 
 \bibitem{Desch2004}
-  K.~Desch, Z.~Was, and M.~Worek,
-  ``Measuring the Higgs boson parity at a linear collider
-  using the tau impact parameter and $\tau\to\rho\nu$ decay,''
-  Eur.\ Phys.\ J.\ C \textbf{29}, 491 (2003).
+  K.~Desch, A.~Imhof, Z.~Was, and M.~Worek,
+  ``Probing the CP nature of the Higgs boson at linear colliders
+  with tau spin correlations: The case of mixed scalar-pseudoscalar
+  couplings,''
+  Phys.\ Lett.\ B \textbf{579}, 157 (2004).
 
 \bibitem{Jeans2015}
   D.~Jeans and G.~W.~Wilson,
   ``Measuring the CP state of tau lepton pairs from Higgs decay
   at the ILC,''
-  Phys.\ Rev.\ D \textbf{98}, 013007 (2018);
-  arXiv:1507.01700.
+  Phys.\ Rev.\ D \textbf{98}, 013007 (2018).
+
+\bibitem{Abel1992}
+  S.~A.~Abel, M.~Dittmar, and H.~K.~Dreiner,
+  ``Testing locality at colliders via Bell's inequality?''
+  Phys.\ Lett.\ B \textbf{280}, 304 (1992).
 
 \bibitem{ILC_TDR}
   T.~Behnke \textit{et al.},
@@ -546,16 +594,6 @@ for useful discussions.
   ILD Concept Group,
   ``International Large Detector: Interim Design Report,''
   arXiv:2003.01116 (2020).
-
-\bibitem{Whizard}
-  W.~Kilian, T.~Ohl, and J.~Reuter,
-  ``WHIZARD: Simulating Multi-Particle Processes at LHC and ILC,''
-  Eur.\ Phys.\ J.\ C \textbf{71}, 1742 (2011).
-
-\bibitem{Pythia8}
-  T.~Sj\"ostrand \textit{et al.},
-  ``An introduction to PYTHIA 8.2,''
-  Comput.\ Phys.\ Commun.\ \textbf{191}, 159 (2015).
 
 \end{thebibliography}
 

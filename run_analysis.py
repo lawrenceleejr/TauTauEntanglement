@@ -40,6 +40,10 @@ from spin_analysis import compute_spin_observables, extract_correlation_matrix
 from entanglement import (
     bootstrap_entanglement, locality_rejection_sigma,
     entanglement_rejection_sigma, scan_vpsi,
+    permutation_test, m12_null_expectation,
+    expected_significance_no_correlation, expected_vpsi_reach,
+    SM_CORRELATION_MATRIX, M12_SM, CHSH_SM, CONCURRENCE_SM,
+    ACOPLANARITY_B_SM,
 )
 # Plotting imports deferred to _run_plots() for fast --replot startup
 
@@ -48,7 +52,9 @@ def _build_lightlike_binning(signed_ds_arr, n_spacelike_bins):
     """Build bin edges for signed ds with a lightlike boundary at 0.
 
     Returns edges with the boundary at ds=0 (lightlike), one bin for
-    timelike events (ds > 0), and n_spacelike_bins bins for spacelike.
+    timelike events (ds > 0), and up to n_spacelike_bins quantile-based
+    bins for spacelike events.  The bin count adapts to the sample size
+    so that each spacelike bin holds >~15 events.
     """
     ds_finite = signed_ds_arr[np.isfinite(signed_ds_arr)]
     spacelike = ds_finite[ds_finite < 0]
@@ -58,9 +64,15 @@ def _build_lightlike_binning(signed_ds_arr, n_spacelike_bins):
         # All timelike — uniform binning
         return np.linspace(0, np.percentile(timelike, 98), n_spacelike_bins + 2)
 
-    # Spacelike bins: equal-width from the 2nd percentile to 0
-    sl_lo = np.percentile(spacelike, 2)
-    sl_edges = np.linspace(sl_lo, 0, n_spacelike_bins + 1)
+    # Adapt bin count to statistics: >= ~15 events per spacelike bin
+    n_sl = max(2, min(n_spacelike_bins, len(spacelike) // 15))
+
+    # Quantile-based spacelike edges (equal occupancy), ending at 0.
+    # The lowest edge sits at the 2nd percentile to keep reconstruction
+    # outliers from stretching the axis.
+    qs = np.linspace(2, 100, n_sl + 1)
+    sl_edges = np.percentile(spacelike, qs)
+    sl_edges[-1] = 0.0
 
     # One timelike bin: 0 to 98th percentile (or reasonable max)
     if len(timelike) > 0:
@@ -171,19 +183,25 @@ def process_events(filepath, max_events=None, smear=False):
     reco_good_vtx = [r for r, p in zip(reco_good, ip_pass) if p]
     events_good_vtx = [e for e, p in zip(events_good, ip_pass) if p]
     reco_intervals = [compute_reco_intervals(r) for r in reco_good_vtx]
-    v_signal_reco = np.array([iv['v_signal_c'] for iv in reco_intervals])
+    # PRIMARY scan variable: causal signal speed in the HIGGS REST FRAME,
+    # where the back-to-back geometry gives the exact Pareto tail
+    # P(v_signal > v) = beta/v (see spacetime.py and the paper).
+    v_signal_reco = np.array([iv['v_signal_c_hf'] for iv in reco_intervals])
     N_vtx = len(reco_good_vtx)
     n_spacelike_reco = sum(1 for iv in reco_intervals if iv['is_spacelike'])
     n_timelike_reco = N_vtx - n_spacelike_reco
     print(f"  Reco:  {n_spacelike_reco} spacelike, {n_timelike_reco} timelike "
           f"({N_vtx} events after IP cut)")
     if N_vtx > 0:
-        print(f"  Reco  v_signal/c: median={np.median(v_signal_reco):.1f}, "
+        print(f"  Reco  v_signal/c (Higgs frame): "
+              f"median={np.median(v_signal_reco):.1f}, "
               f"mean={np.mean(np.clip(v_signal_reco, 0, 1e6)):.1f}")
+        print(f"  Pareto-law check (P(v>v0)=beta/v0 predicts median = 2 beta):"
+              f" observed median = {np.median(v_signal_reco):.2f}")
 
     # VALIDATION ONLY: truth vertices (same IP-cut subset for matched comparison)
     truth_intervals = [compute_truth_intervals(evt) for evt in events_good_vtx]
-    v_signal_truth = np.array([iv['v_signal_c'] for iv in truth_intervals])
+    v_signal_truth = np.array([iv['v_signal_c_hf'] for iv in truth_intervals])
     n_spacelike_truth = sum(1 for iv in truth_intervals if iv['is_spacelike'])
     n_timelike_truth = N_vtx - n_spacelike_truth
     print(f"  Truth: {n_spacelike_truth} spacelike, {n_timelike_truth} timelike "
@@ -241,31 +259,52 @@ def process_events(filepath, max_events=None, smear=False):
     print("\n[Phase 5] Computing entanglement observables...")
 
     # PRIMARY: reco-based measurement
+    N_spin = len(cos_theta_plus_reco)
+    print("  SM expectations (exact, see entanglement.py):")
+    print(f"    C = diag(+1, +1, -1), m12 = {M12_SM}, "
+          f"CHSH S = {CHSH_SM:.4f}, concurrence = {CONCURRENCE_SM}, "
+          f"acoplanarity B = {ACOPLANARITY_B_SM:.4f}")
+    print(f"    m12 noise floor for N={N_spin} UNCORRELATED taus: "
+          f"E[m12_hat|C=0] = {m12_null_expectation(N_spin):.3f}")
     print("  Measurement (reco tau momenta + kinematic constraints):")
     global_reco = bootstrap_entanglement(
         cos_theta_plus_reco, cos_theta_minus_reco, n_bootstrap=N_BOOTSTRAP)
-    print(f"    m12 = {global_reco['m12']:.4f} +/- {global_reco['m12_err']:.4f}")
-    print(f"    Concurrence = {global_reco['concurrence']:.4f} "
+    print(f"    m12 (raw)        = {global_reco['m12']:.4f} +/- {global_reco['m12_err']:.4f}")
+    print(f"    m12 (bias-corr.) = {global_reco['m12_bc']:.4f} +/- {global_reco['m12_err']:.4f}")
+    print(f"    CHSH S (fixed axes, unbiased) = {global_reco['chsh_S']:.4f} "
+          f"+/- {global_reco['chsh_S_err']:.4f}")
+    print(f"    Concurrence witness W = {global_reco['witness_W']:.4f} "
+          f"+/- {global_reco['witness_W_err']:.4f}   (concurrence >= W)")
+    print(f"    Concurrence (rho reconstruction) = {global_reco['concurrence']:.4f} "
           f"+/- {global_reco['concurrence_err']:.4f}")
-    print(f"    Bell score = {global_reco['bell_score']:.4f} "
-          f"+/- {global_reco['bell_score_err']:.4f}")
+
+    # Permutation-calibrated no-correlation test (Neyman-Pearson optimal LLR)
+    perm_global = permutation_test(cos_theta_plus_reco, cos_theta_minus_reco,
+                                   statistic='llr', n_perm=10000)
+    print(f"    LR test vs no-correlation: p = {perm_global['p_value']:.2e} "
+          f"(z = {perm_global['z_score']:.1f}; "
+          f"expected sqrt(N)/2 = {expected_significance_no_correlation(N_spin):.1f})")
 
     # VALIDATION: truth-based
     print("  Validation (truth tau momenta):")
     global_truth = bootstrap_entanglement(
         cos_theta_plus_truth, cos_theta_minus_truth, n_bootstrap=N_BOOTSTRAP)
     print(f"    m12 = {global_truth['m12']:.4f} +/- {global_truth['m12_err']:.4f}")
-    print(f"    Concurrence = {global_truth['concurrence']:.4f} "
-          f"+/- {global_truth['concurrence_err']:.4f}")
+    print(f"    CHSH S = {global_truth['chsh_S']:.4f} +/- {global_truth['chsh_S_err']:.4f}")
+    print(f"    Concurrence witness W = {global_truth['witness_W']:.4f} "
+          f"+/- {global_truth['witness_W_err']:.4f}")
 
-    # Significance from the RECO measurement
-    loc_sigma = locality_rejection_sigma(
-        global_reco['m12'], global_reco['m12_err'])
-    ent_sigma = entanglement_rejection_sigma(
-        global_reco['concurrence'], global_reco['concurrence_err'])
+    # Significance from the RECO measurement.
+    # Bell / local realism: the CHSH score with fixed a-priori axes is a
+    # LINEAR function of C_ij, hence an unbiased estimator with Gaussian
+    # errors -- unlike m12, whose eigenvalue structure inflates under noise.
+    loc_sigma = global_reco['chsh_z_bell']
+    ent_sigma = global_reco['witness_z_sep']
 
-    print(f"\n  Reject locality (m12 <= 1):    {loc_sigma:.1f} sigma")
-    print(f"  Reject separability (C <= 0):  {ent_sigma:.1f} sigma")
+    print(f"\n  Reject local realism (CHSH S <= 2):     {loc_sigma:.1f} sigma")
+    print(f"  Reject separability (witness W <= 0):   {ent_sigma:.1f} sigma")
+    print(f"  [legacy m12-based locality significance: "
+          f"{locality_rejection_sigma(global_reco['m12'], global_reco['m12_err']):.1f} sigma]")
 
     # C_ij comparison: reco vs truth
     print("\n  C_ij comparison (reco vs truth):")
@@ -301,15 +340,15 @@ def process_events(filepath, max_events=None, smear=False):
     binned_ds = _bin_entanglement(cos_theta_plus_reco_vtx, cos_theta_minus_reco_vtx,
                                    signed_ds_reco, ds_edges, N_BOOTSTRAP)
 
-    # --- Binned m12 vs v_signal ---
+    # --- Binned m12 vs v_signal (bin count adapted to statistics) ---
     v_finite = v_arr[np.isfinite(v_arr)]
+    n_v_bins = max(2, min(N_BINS_SIGNAL_SPEED, len(v_finite) // 15))
     if len(v_finite) > 0 and np.min(v_finite) > 0:
         v_lo = max(np.percentile(v_finite, 2), 0.5)
         v_hi = np.percentile(v_finite, 98)
-        v_edges = np.logspace(np.log10(v_lo), np.log10(v_hi),
-                               N_BINS_SIGNAL_SPEED + 1)
+        v_edges = np.logspace(np.log10(v_lo), np.log10(v_hi), n_v_bins + 1)
     else:
-        v_edges = np.logspace(0, 3, N_BINS_SIGNAL_SPEED + 1)
+        v_edges = np.logspace(0, 3, n_v_bins + 1)
 
     binned_v = _bin_entanglement(cos_theta_plus_reco_vtx, cos_theta_minus_reco_vtx,
                                   v_arr, v_edges, N_BOOTSTRAP)
@@ -323,11 +362,20 @@ def process_events(filepath, max_events=None, smear=False):
         V_PSI_SCAN, n_bootstrap=N_BOOTSTRAP)
 
     for r in vpsi_results:
-        if r['n_events'] >= 10:
+        if r['n_events'] >= 6:
             print(f"  v_psi = {r['v_psi']:6.1f}c : N={r['n_events']:5d}, "
-                  f"m12={r['m12']:.3f}+/-{r['m12_err']:.3f}, "
-                  f"reject m12=0 at {r['sigma_vs_0']:.1f}sig, "
-                  f"reject m12<=1 at {r['sigma_vs_1']:.1f}sig")
+                  f"m12_bc={r['m12_bc']:.3f}+/-{r['m12_err']:.3f} "
+                  f"(noise floor {r['m12_null_exp']:.2f}), "
+                  f"LR test p={r['p_llr']:.3g} (z={r['z_llr']:.1f}), "
+                  f"CHSH S={r['chsh_S']:.2f}+/-{r['chsh_S_err']:.2f} "
+                  f"(S>2 at {r['sigma_vs_1']:.1f}sig)")
+
+    # Analytic sensitivity projection: P(v_sig > v) = beta/v (Pareto) and
+    # Z = sqrt(N)/2 per the exact LLR moments => v95 = N beta / (4 z95^2).
+    N_scan = len(v_arr)
+    v95_analytic = expected_vpsi_reach(N_scan, z_threshold=1.96)
+    print(f"\n  Analytic expected 95% CL reach with N={N_scan}: "
+          f"v_psi ~ {v95_analytic:.1f}c  (v95 = N beta / (4 x 1.96^2))")
 
     # ------------------------------------------------------------------
     # Luminosity estimation
@@ -517,9 +565,24 @@ def _run_plots(pd):
             'n_spacelike': pd['n_spacelike_reco'],
             'n_timelike': pd['n_timelike_reco'],
         },
+        'sm_expectation': {
+            'C': [[1, 0, 0], [0, 1, 0], [0, 0, -1]],
+            'm12': 2.0,
+            'chsh_S': float(2.0 * np.sqrt(2.0)),
+            'concurrence': 1.0,
+            'acoplanarity_B': float(-np.pi**2 / 16.0),
+        },
         'reco': {
             'm12': float(global_reco['m12']),
             'm12_err': float(global_reco['m12_err']),
+            'm12_bias_corrected': float(global_reco['m12_bc']),
+            'm12_null_expectation': float(global_reco['m12_null_exp']),
+            'chsh_S': float(global_reco['chsh_S']),
+            'chsh_S_err': float(global_reco['chsh_S_err']),
+            'chsh_z_bell': float(global_reco['chsh_z_bell']),
+            'witness_W': float(global_reco['witness_W']),
+            'witness_W_err': float(global_reco['witness_W_err']),
+            'witness_z_sep': float(global_reco['witness_z_sep']),
             'concurrence': float(global_reco['concurrence']),
             'concurrence_err': float(global_reco['concurrence_err']),
             'bell_score': float(global_reco['bell_score']),
@@ -530,6 +593,10 @@ def _run_plots(pd):
         'truth': {
             'm12': float(global_truth['m12']),
             'm12_err': float(global_truth['m12_err']),
+            'chsh_S': float(global_truth['chsh_S']),
+            'chsh_S_err': float(global_truth['chsh_S_err']),
+            'witness_W': float(global_truth['witness_W']),
+            'witness_W_err': float(global_truth['witness_W_err']),
             'concurrence': float(global_truth['concurrence']),
             'concurrence_err': float(global_truth['concurrence_err']),
             'C': global_truth['C'].tolist(),

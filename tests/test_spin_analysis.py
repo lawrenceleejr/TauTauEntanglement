@@ -73,15 +73,29 @@ class TestCorrelationMatrix:
         assert np.all(np.abs(B_minus) < 0.05)
 
     def test_perfect_correlation(self):
-        """If cos+ = cos- exactly, C_ii = 9 * <cos^2> = 3 for uniform."""
+        """If cos+ = cos- exactly, C_ii = -9 * <cos^2> = -3 for uniform.
+
+        The extraction uses C_ij = -9 <cos+ cos->, the minus sign coming
+        from the tau+ analysing power alpha+ = -1 (alpha+ alpha- = -1).
+        """
         rng = np.random.default_rng(42)
         N = 100000
         cos_vals = 2 * rng.random((N, 3)) - 1
         C, _, _ = extract_correlation_matrix(cos_vals, cos_vals)
 
-        # <x^2> for Uniform(-1,1) = 1/3, so C_ii = 9 * 1/3 = 3
+        # <x^2> for Uniform(-1,1) = 1/3, so C_ii = -9 * 1/3 = -3
         for i in range(3):
-            assert abs(C[i, i] - 3.0) < 0.1
+            assert abs(C[i, i] + 3.0) < 0.1
+
+    def test_sm_closure(self):
+        """Events sampled from the exact SM density close on C = diag(1,1,-1)."""
+        from entanglement import sample_sm_pairs
+        rng = np.random.default_rng(7)
+        h_plus, h_minus = sample_sm_pairs(200000, rng=rng)
+        C, B_plus, B_minus = extract_correlation_matrix(h_plus, h_minus)
+        np.testing.assert_allclose(C, np.diag([1.0, 1.0, -1.0]), atol=0.05)
+        assert np.all(np.abs(B_plus) < 0.05)
+        assert np.all(np.abs(B_minus) < 0.05)
 
     def test_empty_input(self):
         """Empty arrays should return zeros."""

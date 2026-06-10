@@ -8,20 +8,36 @@ decay vertices.
 
 ## Physics overview
 
-Tau pairs from H -> tau+tau- are produced in a maximally entangled spin
-singlet state. This analysis measures the Horodecki entanglement witness
-(m12) and concurrence as a function of the spacetime interval between the
-two tau decay points, testing whether entanglement persists across
-spacelike separations and scanning hypothetical signal-speed thresholds
-for locality violation.
+A CP-even Higgs decays to tau pairs through the unique 3P0 partial wave,
+so the tau spins are produced in the maximally entangled triplet
+(|ud> + |du>)/sqrt(2) along the decay axis. The spin correlation matrix
+is **exactly** C = diag(+1, +1, -1) in the {n, r, k} basis, for any tau
+velocity. The pi-pi acoplanarity follows 1 + B cos(phi) with
+B = -pi^2/16 ~ -0.617 (exact). This analysis measures the spin
+correlations as a function of the spacetime interval between the two tau
+decay points, testing whether entanglement persists across spacelike
+separations and scanning hypothetical signal-speed thresholds for
+finite-speed causal models.
 
-Key observables:
+Key observables (see `entanglement.py` for derivations):
 
+- **CHSH score S** (fixed a-priori axes) -- linear in C, hence an
+  unbiased estimator with exact per-event variance (28 under the SM);
+  S > 2 excludes local hidden-variable models, SM gives S = 2 sqrt(2).
+- **Concurrence witness W = (C_nn + C_rr - C_kk - 1)/2** -- lower bound
+  on the concurrence via the fully-entangled fraction (Bennett et al.);
+  W > 0 certifies entanglement, SM gives W = 1.
 - **m12 (Horodecki parameter)** -- largest two eigenvalues of C^T C
-  summed; m12 > 1 implies Bell nonlocality.
-- **Concurrence** -- 0 = separable, 1 = maximally entangled.
-- **Signal speed** -- spatial separation / time interval between decay
-  vertices; used to probe causal structure.
+  summed; m12 > 1 implies Bell nonlocality. NOTE: the moment estimator
+  is noise-biased, E[m12_hat | C=0] = 78.5/N; only bias-corrected and
+  calibrated values are meaningful at small N.
+- **Optimal LR test** -- per-event log-likelihood ratio
+  t = ln(1 - h+.C_SM.h-) with exact moments (E_SM = ln2 - 1/2,
+  Var_SM = 1/4; E_0 = ln2 - 1, Var_0 = 1), calibrated by permuting the
+  tau+/tau- pairing (an exact realisation of the no-correlation null).
+- **Signal speed v_sig** -- evaluated in the Higgs rest frame, where it
+  obeys the exact Pareto law P(v_sig > v) = beta/v, giving the analytic
+  exclusion reach v95 = N beta / (4 z95^2).
 
 ## Installation
 
