@@ -69,7 +69,9 @@ symmetrically upward.
   with a proper **φ** symbol, and the per-τ opening angle with **α**.
 - **Satin-matte materials**, **cinematic shallow DOF** (9-blade bokeh), slow
   ease-in-out camera moves, **motion blur** on all animations.
-- Cycles 4K, **tiled to exactly two tiles per still** (`tile_size = 2160`).
+- Cycles 4K, rendered as a **single tile** (auto-tiling off) so Cycles never
+  spills its accumulation buffer to a temp `.exr` — that disk round-trip fails
+  on some systems (notably macOS) with "Error writing tile to file".
 - One consistent palette (τ⁻ teal, τ⁺ orange, μ blue, Higgs/vertex gold,
   ν pale grey, reconstruction magenta, angles warm amber); subjects composed
   on the left/right third for slide backgrounds.

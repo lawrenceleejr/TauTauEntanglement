@@ -1149,9 +1149,13 @@ def setup_render(samples):
     scn.render.image_settings.file_format = 'PNG'
     scn.render.image_settings.color_mode = 'RGBA'
 
-    # exactly two tiles for a 3840x2160 frame
-    scn.cycles.use_auto_tile = True
-    scn.cycles.tile_size = 2160
+    # Render the whole 4K frame as a SINGLE tile.  Multi-tile rendering makes
+    # Cycles spill its accumulation buffer to a temporary .exr on disk, which
+    # fails on some systems (notably macOS, where the temp dir can be cleaned
+    # mid-render): "Error writing tile to file".  The scene peaks at ~3 GB, so
+    # one tile fits comfortably in memory/VRAM and avoids the disk round-trip.
+    scn.cycles.use_auto_tile = False
+    scn.cycles.tile_size = 4096
 
     try:
         scn.view_settings.view_transform = 'AgX'
