@@ -625,7 +625,7 @@ def rest_acoplanarity_deg():
 
 
 def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
-                     show_L=False, title=True):
+                     show_L=False, title=True, particle_labels=True):
     """The Higgs decay in its own rest frame (no muons -- they only set the
     boost).  Layers:
 
@@ -638,6 +638,10 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                   PCAs, the impact-parameter segments d, right-angle markers
                   and the opening angles alpha.
     show_L      : the decay-length constraint labels L = |d| / sin(alpha).
+    particle_labels : per-particle text (tau/pi/nu symbols + the PV tag).
+                  Turn OFF for the down-the-axis view, where everything on
+                  the tau axis projects onto the centre point and the labels
+                  would pile up there.
     """
     clear("Rest")
     origin = Vector((0, 0, 0))
@@ -655,10 +659,11 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                         "Rest", "rs_pv")
         billboard_label("Higgs rest frame", origin + Vector((0, 0, 1.4)),
                         0.5, "Rest", "rs_title")
-    else:
-        # zoomed frames: a short PV tag, tucked up-left of the vertex cluster
-        billboard_label("PV", origin - rest_axis() * 1.3
-                        + Vector((0, 0, 0.75)), 0.42, "Rest", "rs_pv")
+    elif particle_labels:
+        # zoomed frames: a short PV tag, tucked down-left of the vertex
+        # cluster (below the tau+ flight, clear of the phi label above)
+        billboard_label("PV", origin - rest_axis() * 1.6
+                        + Vector((0, 0, -0.95)), 0.42, "Rest", "rs_pv")
 
     sym = {"tau_minus": ("τ⁻", "π⁻"), "tau_plus": ("τ⁺", "π⁺")}
     sup = {"tau_minus": "⁻", "tau_plus": "⁺"}
@@ -673,10 +678,14 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
         m_tp = matte_material("tau_plus", PALETTE["tau_plus"], roughness=0.5)
         dashed_line(origin, origin + k * 8.0, 0.025, m_tm, "axis_m", "Rest")
         dashed_line(origin, origin - k * 8.0, 0.025, m_tp, "axis_p", "Rest")
-        billboard_label("τ⁻", origin + k * 8.6, 0.5, "Rest", "rs_tau_minus")
-        billboard_label("τ⁺", origin - k * 8.6, 0.5, "Rest", "rs_tau_plus")
+        if particle_labels:
+            billboard_label("τ⁻", origin + k * 8.6, 0.5, "Rest",
+                            "rs_tau_minus")
+            billboard_label("τ⁺", origin - k * 8.6, 0.5, "Rest",
+                            "rs_tau_plus")
     for label in ("tau_minus", "tau_plus"):
         g = rest_geo(label)
+        q = common_qhat(label)
         s = vside[label]
         m_tau = matte_material(label, PALETTE[TAUCOL[label]], roughness=0.5)
         m_pi = matte_material("pi_" + label, PALETTE[PIONCOL[label]],
@@ -686,22 +695,32 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
             cylinder_between(origin, g["dv"], 0.06, m_tau,
                              label + "_flight", "Rest")
             sphere(g["dv"], 0.13, m_vtx, label + "_dv", "Rest")
-            billboard_label(sym[label][0],
-                            g["dv"] * 0.72 + Vector((0, 0, 1.0 * s)), 0.5,
-                            "Rest", "rs_" + label)
             arrow(g["dv"], g["pdir"], 5.0, 0.04, m_pi, label + "_pion", "Rest")
-            billboard_label(sym[label][1],
-                            g["dv"] + g["pdir"] * 5.5, 0.5, "Rest",
-                            "rs_pi_" + label)
-            dashed_line(g["dv"], g["dv"] + g["nudir"] * 3.0, 0.028, m_nu,
-                        label + "_nu", "Rest")
-            billboard_label("ν", g["dv"] + g["nudir"] * 3.5, 0.42, "Rest",
-                            "rs_nu_" + label)
+            dashed_line(g["dv"], g["dv"] + g["nudir"] * 5.2, 0.028, m_nu,
+                        label + "_nu", "Rest", n_dashes=22)
+            if particle_labels:
+                # mid-flight, so both tau tags stay inside even the zoomed
+                # vertex-region framing
+                billboard_label(sym[label][0],
+                                g["dv"] * 0.55 + Vector((0, 0, 1.0 * s)), 0.5,
+                                "Rest", "rs_" + label)
+                # pi label lifted off the arrow shaft toward the plane
+                # opening; nu label mid-line on the opposite side.  Both are
+                # kept INBOARD of the arrow tip: the tau- tip sits right at
+                # the 3/4-camera's frame edge
+                billboard_label(sym[label][1],
+                                g["dv"] + g["pdir"] * 3.6 + q * 0.75, 0.5,
+                                "Rest", "rs_pi_" + label)
+                billboard_label("ν",
+                                g["dv"] + g["nudir"] * 3.2 - q * 0.6, 0.42,
+                                "Rest", "rs_nu_" + label)
         else:
             # angular-only: pion direction straight from the PV
             arrow(origin, g["pdir"], 6.0, 0.045, m_pi, label + "_pion", "Rest")
-            billboard_label(sym[label][1], origin + g["pdir"] * 6.5, 0.5,
-                            "Rest", "rs_pi_" + label)
+            if particle_labels:
+                billboard_label(sym[label][1],
+                                origin + g["pdir"] * 6.0 + q * 0.7, 0.5,
+                                "Rest", "rs_pi_" + label)
 
         if show_ip:
             # extend the pion track back past its PCA so the impact parameter
@@ -781,9 +800,13 @@ def build_rest_decay_planes(labels=True, acop=True):
             cylinder_between(verts[i], verts[(i + 1) % 4], 0.018, m_rim,
                              "rpe_%s_%d" % (label, i), "Rest", caps=False)
         if labels:
+            # toward the plane's outer end, lifted in WORLD-Z above the rim:
+            # an offset along w can point toward the camera and projects to
+            # nothing, while +Z always reads as screen-up in these views
             billboard_label("%s decay plane"
                             % {"tau_minus": "τ⁻", "tau_plus": "τ⁺"}[label],
-                            k * (side * span * 0.62) + w * (b1 + 0.5),
+                            k * (side * span * 0.8) + w * b1
+                            + Vector((0, 0, 1.1)),
                             0.42, "Rest", "rs_plane_" + label)
 
     if acop:
@@ -818,16 +841,19 @@ def build_event(displaced=True, show_muons=True):
     m_mu = matte_material("muon", PALETTE["muon"], roughness=0.5)
     m_nu = matte_material("neutrino", PALETTE["neutrino"], roughness=0.8, alpha=0.4)
 
-    # beam (horizontal, along +/-X)
+    # beam (horizontal, along +/-X); label on the quiet LEFT end -- the right
+    # end is where the tau- pion / neutrino lines exit the frame
     cylinder_between(Vector(PV) - BEAM_DIR * 9, Vector(PV) + BEAM_DIR * 9,
                      0.03, m_beam, "beam", "Lab", caps=False)
-    billboard_label("e⁺ e⁻ beam", Vector(PV) + BEAM_DIR * 9.6, 0.5,
-                    "Lab", "lbl_beam")
+    billboard_label("e⁺ e⁻ beam", Vector(PV) - BEAM_DIR * 9.7, 0.5,
+                    "Lab", "lbl_beam", align='RIGHT')
 
-    # production / Higgs decay vertex
+    # production / Higgs decay vertex; label in the empty lower-right
+    # quadrant (mu+ exits lower-LEFT and would cross a centred label)
     sphere(PV, 0.22, m_higgs, "pv", "Lab")
     billboard_label("H, Z production" if show_muons else "Higgs decay",
-                    Vector(PV) + Vector((0.0, 0.0, -0.95)), 0.5, "Lab", "lbl_pv")
+                    Vector(PV) + Vector((1.3, 0.0, -1.0)), 0.5, "Lab",
+                    "lbl_pv", align='LEFT')
 
     # Z -> mu mu  (the tag that fixes the Higgs 4-momentum)
     if show_muons:
@@ -856,15 +882,18 @@ def build_event(displaced=True, show_muons=True):
             pion_start = dv
             arrow(pion_start, pdir, 5.5, 0.045, m_pi, label + "_pion", "Lab")
             ndir = p3(t["neutrino_p4_reco"]).normalized()
-            dashed_line(dv, dv + ndir * 3.0, 0.03, m_nu, label + "_nu", "Lab")
-            billboard_label("ν", dv + ndir * 3.5, 0.45, "Lab",
-                            "lbl_nu_" + label)
+            dashed_line(dv, dv + ndir * 5.5, 0.03, m_nu, label + "_nu", "Lab",
+                        n_dashes=22)
+            # nu label mid-line, dropped below it (the line ends near the
+            # pi label / frame corner, so the end position would collide)
+            billboard_label("ν", dv + ndir * 4.5 + Vector((0, 0, -0.6)),
+                            0.45, "Lab", "lbl_nu_" + label)
         else:
             # unresolved displacement: pion direction straight from the PV
             arrow(PV, pdir, 6.5, 0.05, m_pi, label + "_pion", "Lab")
 
         billboard_label(sym[label][1], Vector(PV) + pdir *
-                        (6.9 if not displaced else (dv.length + 5.9)),
+                        (6.9 if not displaced else (dv.length + 5.3)),
                         0.55, "Lab", "lbl_pi_" + label)
 
 
@@ -885,12 +914,15 @@ def build_measurable():
 
     cylinder_between(Vector(PV) - BEAM_DIR * 9, Vector(PV) + BEAM_DIR * 9,
                      0.025, m_beam, "beam", "Lab", caps=False)
-    billboard_label("e⁺ e⁻ beam", Vector(PV) + BEAM_DIR * 9.6, 0.5,
-                    "Lab", "lbl_beam")
+    billboard_label("e⁺ e⁻ beam", Vector(PV) - BEAM_DIR * 9.7, 0.5,
+                    "Lab", "lbl_beam", align='RIGHT')
 
     sphere(PV, 0.22, m_pv, "pv", "Lab")
-    billboard_label("primary vertex", Vector(PV) - BEAM_DIR * 1.6
-                    + Vector((0, 0, -0.5)), 0.46, "Lab", "lbl_pv")
+    # anchored left of the vertex reading outward, clear of the mu+ track
+    # (which exits lower-left through a centred label position)
+    billboard_label("primary vertex", Vector(PV) - BEAM_DIR * 2.4
+                    + Vector((0, 0, -0.8)), 0.46, "Lab", "lbl_pv",
+                    align='RIGHT')
 
     for key, p4, msym in (("mu_plus", lab["mu_plus_p4"], "μ⁺"),
                           ("mu_minus", lab["mu_minus_p4"], "μ⁻")):
@@ -900,7 +932,9 @@ def build_measurable():
 
     sym = {"tau_minus": ("τ⁻", "π⁻"), "tau_plus": ("τ⁺", "π⁺")}
     sup = {"tau_minus": "⁻", "tau_plus": "⁺"}
-    dside = {"tau_minus": 1.4, "tau_plus": -1.7}   # split the two d labels
+    # split the two d labels vertically; tau+ low enough that the back-
+    # extension of its pion track (lowest point z ~ -1.8) cannot cross it
+    dside = {"tau_minus": 1.4, "tau_plus": -2.4}
     for label in ("tau_minus", "tau_plus"):
         t = DATA["taus"][label]
         m_pi = matte_material("pi_" + label, PALETTE[PIONCOL[label]],
@@ -913,7 +947,8 @@ def build_measurable():
         # --- inferred (ghosts): tau flight, decay vertex, neutrino ---
         dashed_line(PV, dv, 0.03, m_ghost, label + "_flight", "Lab")
         sphere(dv, 0.12, m_ghost, label + "_dv", "Lab")
-        dashed_line(dv, dv + ndir * 3.0, 0.025, m_ghost, label + "_nu", "Lab")
+        dashed_line(dv, dv + ndir * 5.5, 0.025, m_ghost, label + "_nu", "Lab",
+                    n_dashes=22)
 
         # --- measured: the pion track (a line) + its impact parameter ---
         s_dv = (dv - pca).dot(pdir)
@@ -933,8 +968,11 @@ def build_measurable():
     g = DATA["taus"]["tau_plus"]
     dv = bu(g["decay_vertex_reco_um"])
     ndir = p3(g["neutrino_p4_reco"]).normalized()
+    # anchored at the nu line's end reading LEFT, so the wide text cannot
+    # cross the (diagonal) measured pi+ track to its right
     billboard_label("ν, τ flight, decay point:  inferred, not measured",
-                    dv + ndir * 4.0, 0.42, "Lab", "lbl_inferred")
+                    dv + ndir * 6.3 + Vector((-1.2, 0, -0.4)), 0.42,
+                    "Lab", "lbl_inferred", align='RIGHT')
 
 
 def build_measure_muons():
@@ -954,11 +992,12 @@ def build_measure_muons():
 
     cylinder_between(Vector(PV) - BEAM_DIR * 9, Vector(PV) + BEAM_DIR * 9,
                      0.025, m_beam, "beam", "Lab", caps=False)
-    billboard_label("e⁺ e⁻ beam", Vector(PV) + BEAM_DIR * 9.6, 0.5,
-                    "Lab", "lbl_beam")
+    billboard_label("e⁺ e⁻ beam", Vector(PV) - BEAM_DIR * 9.7, 0.5,
+                    "Lab", "lbl_beam", align='RIGHT')
     sphere(PV, 0.22, m_pv, "pv", "Lab")
-    billboard_label("primary vertex", Vector(PV) - BEAM_DIR * 1.6
-                    + Vector((0, 0, -0.55)), 0.46, "Lab", "lbl_pv")
+    billboard_label("primary vertex", Vector(PV) - BEAM_DIR * 2.4
+                    + Vector((0, 0, -0.8)), 0.46, "Lab", "lbl_pv",
+                    align='RIGHT')
 
     # bright muons -- the measurement
     for key, p4, msym in (("mu_plus", lab["mu_plus_p4"], "μ⁺"),
@@ -966,14 +1005,18 @@ def build_measure_muons():
         d = p3(p4).normalized()
         arrow(PV, d, 6.5, 0.055, m_mu, key, "Lab")
         billboard_label(msym, Vector(PV) + d * 7.0, 0.6, "Lab", "lbl_" + key)
+    # past the mu+ arrow tip (the Z direction is nearly parallel to mu+, so
+    # anywhere along it the label would be crossed by the bright track)
     billboard_label("Z → μ⁺μ⁻  (measured)",
-                    Vector(PV) + p3(lab["p_Z"]).normalized() * 3.0
-                    + Vector((0, 0, 1.0)), 0.48, "Lab", "lbl_z")
+                    Vector(PV) + Vector((-5.1, 0, -5.75)), 0.48,
+                    "Lab", "lbl_z")
 
-    # the reconstructed Higgs momentum (recoil against the Z)
+    # the reconstructed Higgs momentum (recoil against the Z); label lifted
+    # off the arrow axis so the arrowhead doesn't point into the text
     pH = p3(lab["p_H"]).normalized()
     arrow(PV, pH, 5.0, 0.06, m_higgs, "pH", "Lab")
-    billboard_label("Higgs  (p_H = p_beam − p_Z)", Vector(PV) + pH * 5.6,
+    billboard_label("Higgs  (p_H = p_beam − p_Z)",
+                    Vector(PV) + pH * 5.6 + Vector((0, 0, 0.7)),
                     0.48, "Lab", "lbl_pH")
 
     # ghosted tau side (the decay we will study, after the boost)
@@ -1079,12 +1122,17 @@ def build_rest(show_muons=False):
         p = rv(p3(t["tau_p4_reco"]))
         L = p.length * pscale
         arrow(origin, p.normalized(), L, 0.06, m_tau, "rest_" + label, "Rest")
-        zoff = 0.7 if label == "tau_minus" else -0.7
+        # labels anchored just past each arrow tip but reading back INWARD
+        # (tau- below its arrow, tau+ above), so neither runs off the frame
+        # edge nor collides with the nearby mu labels
+        zoff, anch = ((-0.95, 'RIGHT') if label == "tau_minus"
+                      else (0.95, 'LEFT'))
         billboard_label("%s   |p| ≈ M_H/2" % sym[label],
-                        origin + p.normalized() * (L + 0.9)
+                        origin + p.normalized() * (L + 0.6)
                         + Vector((0, 0, zoff)), 0.42, "Rest",
-                        "restl_" + label)
-    billboard_label("taus emitted back-to-back", origin + Vector((0, 0, -1.3)),
+                        "restl_" + label, align=anch)
+    billboard_label("taus emitted back-to-back",
+                    origin + Vector((1.6, 0, -2.0)),
                     0.42, "Rest", "restl_b2b")
 
     # the measured Z -> mu mu that defines the boost (lab directions, shown
@@ -1095,7 +1143,9 @@ def build_rest(show_muons=False):
                               ("mu_minus", DATA["lab"]["mu_minus_p4"], "μ⁻")):
             d = rv(p3(p4).normalized())
             arrow(origin, d, 3.6, 0.04, m_mu, "rest_" + key, "Rest")
-            billboard_label(msym, origin + d * 4.1, 0.42, "Rest", "restl_" + key)
+            zoff = 0.45 if d.z >= 0 else -0.45
+            billboard_label(msym, origin + d * 4.3 + Vector((0, 0, zoff)),
+                            0.42, "Rest", "restl_" + key)
         billboard_label("Z → μ⁺μ⁻ (measured)", origin + Vector((0, 0, 2.0)),
                         0.42, "Rest", "restl_z")
 
@@ -1406,7 +1456,8 @@ def shot_planes(animated=False):
 
 def shot_planes_axial(animated=False):
     """The same decay planes viewed down the tau axis: the 'clock face'."""
-    build_rest_scene(displaced=False, show_planes=True, title=False)
+    build_rest_scene(displaced=False, show_planes=True, title=False,
+                     particle_labels=False)
     set_visibility(lab=False, reco=False, rest=True)
     cam = _cam_rest_axial(animated)
     render_animation(cam, "06_decay_planes_axial.mp4") if animated \
@@ -1569,6 +1620,11 @@ def shot_steps():
     render_still(_cam_rest_acop(False), "06_acoplanarity")
 
     # 7. Same planes, looking down the tau axis: one angle, unmistakably.
+    #    Rebuilt without the per-particle labels: on-axis text all projects
+    #    onto the centre point in this view and would pile up there.
+    build_rest_scene(displaced=False, show_planes=True, title=False,
+                     particle_labels=False)
+    set_visibility(lab=False, reco=False, rest=True)
     render_still(_cam_rest_axial(False), "07_acoplanarity_axial")
 
     # 8. Zoom in: the impact parameters, sitting inside the decay planes.
