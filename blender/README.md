@@ -28,20 +28,22 @@ physics labels, so the sequence can be narrated however you like.
 | Frame | Diagram |
 |---|---|
 | `00_lab_event` | The lab event: μ⁺μ⁻ from the Z and τ⁺τ⁻ from the Higgs (beam horizontal) |
-| `01_what_is_measured` | What a detector **actually measures**: the four charged tracks, the primary vertex and the pion impact parameters — solid/bright; the τ flight paths, decay vertices and neutrinos are **inferred** and drawn as faint ghosts |
-| `02_boost_to_rest_frame` | Boost into the Higgs rest frame, defined by the measured Z→μ⁺μ⁻ (muons shown); τ's back-to-back, `|p| ≈ M_H/2` |
-| `03_higgs_rest_frame` | Muons removed — the Higgs decay in its own frame: τ's fly to their (boosted) decay vertices and decay to π ν |
-| `04_acoplanarity` | The two translucent decay planes, hinged on the common τ axis, with the **single** acoplanarity angle φ between them |
-| `05_acoplanarity_axial` | The same planes viewed down the τ axis: the classic "clock face" — one angle, unmistakably |
-| `06_impact_parameters` | **Zoom in** on the vertex region: each measured π track *misses* the PV by its impact parameter d (right-angle markers) |
-| `07_decay_locations` | The payoff: d and the opening angle α pin down where each τ decayed — `L = |d|/sin α` for both τ's |
+| `01_what_is_measured` | What a detector **actually measures**: the four charged tracks, the primary vertex and the pion impact parameters (solid/bright); the τ flights, decay vertices and neutrinos are **inferred** (faint ghosts) |
+| `02_measure_the_muons` | Highlight the Z→μ⁺μ⁻ measurement and the Higgs recoil `p_H = p_beam − p_Z` (tau side ghosted) — "we measure the muons, which fixes the Higgs momentum…" |
+| `03_boost_to_rest_frame` | "…and that lets us boost into the Higgs rest frame": τ's back-to-back, `|p| ≈ M_H/2` (muons still shown) |
+| `04_higgs_rest_frame` | Muons removed — the Higgs decay in its own frame |
+| `05_decay_planes` | Each τ decay spans a **plane**, shown with the real (displaced) decays sitting inside the two translucent planes |
+| `06_acoplanarity` | The **single** acoplanarity angle φ between the two planes (3/4 "book" view) |
+| `07_acoplanarity_axial` | The same planes viewed down the τ axis — the "clock face", one angle unmistakably |
+| `08_impact_parameters` | **Zoom in**: each pion's impact parameter d, sitting inside its decay plane |
+| `09_decay_locations` | The payoff: d and the opening angle α pin down where each τ decayed — `L = |d|/sin α`, planes shown |
 
-A standalone `--shot measurable` renders the "what is measured" frame (08) on
-its own.
+Standalone `--shot measurable` and `--shot measure-muons` render those
+lab-frame slides on their own.
 
 Physics conventions match the analysis (`spin_analysis.py`): the common axis
 k̂ is the τ⁻ direction in the Higgs frame, both pions' azimuths are measured
-about it, and the displayed φ is exactly the analysis acoplanarity.  The
+about it, and the displayed φ is exactly the analysis acoplanarity.  Labels are **generic** (no specific numbers) so the figures are a stand-in for any event, while still being this real event's geometry.  The
 rest-frame impact parameters, opening angles and decay lengths are obtained by
 Lorentz-boosting the reconstructed decay 4-positions into the Higgs frame
 (`extract_event.py`); the geometric identity `L = |d|/sin α` holds exactly in
@@ -80,14 +82,14 @@ event, and renders:
 ```bash
 cd blender
 ./render.sh                       # all stills + storyboard + boost animation
-./render.sh steps 160             # the 8-frame step-by-step storyboard
+./render.sh steps 160             # the 10-frame step-by-step storyboard
 ./render.sh stills 160            # the standalone still frames
 ./render.sh anims 96 GPU          # the animations, on the GPU
 ./render.sh planes 192            # a single still
 ```
 
 Shots: `event`, `reco`, `rest`, `planes`, `planes-axial`, `event-angular`
-(stills) · `steps` (the 8-frame storyboard) · `event-anim`, `reco-anim`,
+(stills, plus `measure-muons`) · `steps` (the 10-frame storyboard) · `event-anim`, `reco-anim`,
 `rest-anim`, `planes-anim`, `boost`, `zoom` (animations) · `stills`, `anims`,
 `all`.
 

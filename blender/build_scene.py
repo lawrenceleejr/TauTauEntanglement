@@ -722,8 +722,8 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                              label + "_ra_b", "Rest", caps=False)
             # d labels: kicked out along each arm and split vertically so the
             # two never collide near the PV
-            billboard_label("d%s = %.0f µm" % (sup[label], g["d_um"]),
-                            g["dv"] * 0.28 + Vector((0, 0, 1.05 * s)), 0.4,
+            billboard_label("d%s" % sup[label],
+                            g["dv"] * 0.28 + Vector((0, 0, 1.05 * s)), 0.42,
                             "Rest", "rs_d_" + label)
 
         if show_L:
@@ -737,16 +737,19 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                                 g["dv"] + Vector(mid_a) * 1.35, 0.4,
                                 "Rest", "rs_a_" + label)
             # L hugs the flight, vertically split from the d label
-            billboard_label("L%s = |d%s| / sin α%s = %.0f µm"
-                            % (sup[label], sup[label], sup[label], g["L_um"]),
+            billboard_label("L%s = |d%s| / sin α%s"
+                            % (sup[label], sup[label], sup[label]),
                             g["dv"] * 0.62 + Vector((0, 0, -1.15 * s)), 0.4,
                             "Rest", "rs_L_" + label)
 
     if show_planes:
-        build_rest_decay_planes()
+        # when the impact-parameter geometry is also drawn, show the planes as
+        # clean translucent surfaces only (their labels/phi arc would clash
+        # with the d / alpha / L labels)
+        build_rest_decay_planes(labels=not show_ip, acop=not show_ip)
 
 
-def build_rest_decay_planes():
+def build_rest_decay_planes(labels=True, acop=True):
     """The two decay half-planes, BOTH hinged on the common back-to-back tau
     axis (the analysis's k-hat), each opened toward its pion's transverse
     direction.  Their dihedral angle about the axis is the SINGLE
@@ -777,19 +780,21 @@ def build_rest_decay_planes():
         for i in range(4):
             cylinder_between(verts[i], verts[(i + 1) % 4], 0.018, m_rim,
                              "rpe_%s_%d" % (label, i), "Rest", caps=False)
-        billboard_label("%s decay plane"
-                        % {"tau_minus": "τ⁻", "tau_plus": "τ⁺"}[label],
-                        k * (side * span * 0.62) + w * (b1 + 0.5),
-                        0.42, "Rest", "rs_plane_" + label)
+        if labels:
+            billboard_label("%s decay plane"
+                            % {"tau_minus": "τ⁻", "tau_plus": "τ⁺"}[label],
+                            k * (side * span * 0.62) + w * (b1 + 0.5),
+                            0.42, "Rest", "rs_plane_" + label)
 
-    # ONE angle between the two half-planes, around the common axis.
-    # A small arc tucked at the hinge reads as a single dihedral angle.
-    mid = draw_angle_arc((0, 0, 0), common_qhat("tau_minus"),
-                         common_qhat("tau_plus"), radius=0.65,
-                         mat=m_ang, name="acop", collection="Rest", tube=0.03)
-    if mid is not None:
-        billboard_label("φ = %.0f°  (acoplanarity)" % rest_acoplanarity_deg(),
-                        Vector(mid) * 1.45, 0.46, "Rest", "rs_acop")
+    if acop:
+        # ONE angle between the two half-planes, around the common axis.
+        # A small arc tucked at the hinge reads as a single dihedral angle.
+        mid = draw_angle_arc((0, 0, 0), common_qhat("tau_minus"),
+                             common_qhat("tau_plus"), radius=0.65, mat=m_ang,
+                             name="acop", collection="Rest", tube=0.03)
+        if mid is not None:
+            billboard_label("φ  (acoplanarity)",
+                            Vector(mid) * 1.45, 0.46, "Rest", "rs_acop")
 
 
 # ===========================================================================
@@ -920,9 +925,8 @@ def build_measurable():
         cylinder_between(PV, pca, 0.04, m_reco, label + "_d", "Lab")
         sphere(pca, 0.07, m_reco, label + "_pca", "Lab")
         # the two d labels split vertically so they never collide near the PV
-        billboard_label("d%s = %.0f µm  (measured)"
-                        % (sup[label], t["impact_param_mag_um"]),
-                        Vector(PV) + Vector((0, 0, dside[label])), 0.4,
+        billboard_label("d%s  (measured)" % sup[label],
+                        Vector(PV) + Vector((0, 0, dside[label])), 0.42,
                         "Lab", "lbl_d_" + label)
 
     # one label crediting the ghosts as inferred, near a neutrino
@@ -931,6 +935,54 @@ def build_measurable():
     ndir = p3(g["neutrino_p4_reco"]).normalized()
     billboard_label("ν, τ flight, decay point:  inferred, not measured",
                     dv + ndir * 4.0, 0.42, "Lab", "lbl_inferred")
+
+
+def build_measure_muons():
+    """Highlight the Z -> mu+ mu- measurement that fixes the Higgs 4-momentum.
+    The muons are drawn bright; the Higgs recoil p_H = p_beam - p_Z is shown
+    as a gold arrow; the tau side (the Higgs decay we are after) is ghosted so
+    the slide reads 'measure the muons -> we know the Higgs -> boost into its
+    rest frame'."""
+    clear("Lab")
+    lab = DATA["lab"]
+    m_pv = matte_material("vertex", PALETTE["vertex"], roughness=0.4)
+    m_beam = matte_material("beam", PALETTE["beam"], roughness=0.7)
+    m_mu = matte_material("muon", PALETTE["muon"], roughness=0.5)
+    m_higgs = matte_material("higgs", PALETTE["higgs"], roughness=0.45)
+    m_ghost = matte_material("ghost", (0.62, 0.64, 0.68, 1.0),
+                             roughness=0.85, alpha=0.16)
+
+    cylinder_between(Vector(PV) - BEAM_DIR * 9, Vector(PV) + BEAM_DIR * 9,
+                     0.025, m_beam, "beam", "Lab", caps=False)
+    billboard_label("e⁺ e⁻ beam", Vector(PV) + BEAM_DIR * 9.6, 0.5,
+                    "Lab", "lbl_beam")
+    sphere(PV, 0.22, m_pv, "pv", "Lab")
+    billboard_label("primary vertex", Vector(PV) - BEAM_DIR * 1.6
+                    + Vector((0, 0, -0.55)), 0.46, "Lab", "lbl_pv")
+
+    # bright muons -- the measurement
+    for key, p4, msym in (("mu_plus", lab["mu_plus_p4"], "μ⁺"),
+                          ("mu_minus", lab["mu_minus_p4"], "μ⁻")):
+        d = p3(p4).normalized()
+        arrow(PV, d, 6.5, 0.055, m_mu, key, "Lab")
+        billboard_label(msym, Vector(PV) + d * 7.0, 0.6, "Lab", "lbl_" + key)
+    billboard_label("Z → μ⁺μ⁻  (measured)",
+                    Vector(PV) + p3(lab["p_Z"]).normalized() * 3.0
+                    + Vector((0, 0, 1.0)), 0.48, "Lab", "lbl_z")
+
+    # the reconstructed Higgs momentum (recoil against the Z)
+    pH = p3(lab["p_H"]).normalized()
+    arrow(PV, pH, 5.0, 0.06, m_higgs, "pH", "Lab")
+    billboard_label("Higgs  (p_H = p_beam − p_Z)", Vector(PV) + pH * 5.6,
+                    0.48, "Lab", "lbl_pH")
+
+    # ghosted tau side (the decay we will study, after the boost)
+    for label in ("tau_minus", "tau_plus"):
+        t = DATA["taus"][label]
+        pdir = rdir(t["pion_dir"])
+        dv = bu(t["decay_vertex_reco_um"])
+        dashed_line(PV, dv, 0.03, m_ghost, label + "_flight", "Lab")
+        dashed_line(dv, dv + pdir * 5.0, 0.028, m_ghost, label + "_pi", "Lab")
 
 
 # ===========================================================================
@@ -996,20 +1048,16 @@ def build_reco(label="tau_plus"):
                      caps=False)
 
     # labels (placed along the in-plane axes pdir/dhat for predictable layout)
-    d_um = t["impact_param_mag_um"]
-    a_mrad = t["alpha_rad"] * 1e3
-    L_um = t["decay_length_reco_um"]
     billboard_label("PV", Vector(PV) - dhat * 0.8, 0.42, "Reco", "rl_pv")
     billboard_label("τ decay vertex", dv - pdir * 1.4 + dhat * 1.0, 0.42,
                     "Reco", "rl_dv")
-    billboard_label("impact parameter  d = %.0f µm" % d_um,
+    billboard_label("impact parameter  d",
                     pca - pdir * 0.3 + dhat * 1.1, 0.4, "Reco", "rl_d")
     billboard_label("π track (measured)",
                     (pca + dv) * 0.5 + dhat * 0.55, 0.42, "Reco", "rl_pi")
-    billboard_label("L = |d| / sin α = %.0f µm" % L_um,
+    billboard_label("L = |d| / sin α",
                     (Vector(PV) + dv) * 0.5 - dhat * 0.9, 0.4, "Reco", "rl_L")
-    billboard_label("α = %.0f mrad" % a_mrad,
-                    dv - taudir * 1.7 - dhat * 0.4, 0.4, "Reco", "rl_a")
+    billboard_label("α", dv - taudir * 1.7 - dhat * 0.4, 0.4, "Reco", "rl_a")
     return pdir, dhat
 
 
@@ -1032,7 +1080,7 @@ def build_rest(show_muons=False):
         L = p.length * pscale
         arrow(origin, p.normalized(), L, 0.06, m_tau, "rest_" + label, "Rest")
         zoff = 0.7 if label == "tau_minus" else -0.7
-        billboard_label("%s   |p| = %.0f GeV ≈ M_H/2" % (sym[label], p.length),
+        billboard_label("%s   |p| ≈ M_H/2" % sym[label],
                         origin + p.normalized() * (L + 0.9)
                         + Vector((0, 0, zoff)), 0.42, "Rest",
                         "restl_" + label)
@@ -1165,19 +1213,19 @@ def render_animation(cam, filename):
 # ===========================================================================
 #  Cameras per shot  (beam horizontal; subjects to one side for slides)
 # ===========================================================================
-def _cam_event(animated, focus=(0, 1.4, 2.2)):
-    # front-ish view from -Y so the beam (X) stays horizontal; subject RIGHT.
-    # looking a touch upward drops the horizon into the lower third.
+def _cam_event(animated, focus=(0, 0.8, 0.8)):
+    # front view from -Y so the beam (X) stays horizontal; pulled back and
+    # centred so the whole vertical spray (mu+ down, tau/pi up) stays in frame.
     look = focus
-    start = (0, -31, 6.0)
+    start = (0, -36, 5.0)
     cam = add_camera("cam_event", location=start, look_at=look, up=(0, 0, 1),
-                     lens=40, shift_x=-0.28, fstop=2.6, focus_at=(0, 0, 1.0))
+                     lens=35, shift_x=-0.16, fstop=2.8, focus_at=(0, 0, 0.8))
     if animated:
         f0, f1 = _frame_range()
         # gentle truck + rise, kept in the X=0 plane so the beam stays level
-        moves = [(f0, (0, -31, 5.0)), (round((f0 + f1) / 2), (0, -29, 6.5)),
-                 (f1, (0, -28, 8.0))]
-        animate_camera(cam, moves, look, up=(0, 0, 1), focus_at=(0, 0, 1.0))
+        moves = [(f0, (0, -36, 4.0)), (round((f0 + f1) / 2), (0, -34, 5.5)),
+                 (f1, (0, -33, 7.0))]
+        animate_camera(cam, moves, look, up=(0, 0, 1), focus_at=(0, 0, 0.8))
     face_labels_to_camera(cam)
     return cam
 
@@ -1242,6 +1290,23 @@ def _cam_rest_wide(animated):
         f0, f1 = _frame_range()
         animate_camera(cam, _arc_moves(f0, f1, look, start, sweep_deg=14,
                                        push_in=0.93, lift=1.0), look,
+                       up=(0, 0, 1), focus_at=(0, 0, 0))
+    face_labels_to_camera(cam)
+    return cam
+
+
+def _cam_rest_3q(animated):
+    """Oblique 3/4 establishing view: elevated and off the axis so both decay
+    arms are visible AND the decay planes read clearly as 3-D surfaces."""
+    look = (-1.5, 0, 1.0)
+    start = (8.0, -22.0, 12.0)
+    cam = add_camera("cam_rest_3q", location=start, look_at=look,
+                     up=(0, 0, 1), lens=40, shift_x=-0.08, fstop=4.0,
+                     focus_at=(0, 0, 0))
+    if animated:
+        f0, f1 = _frame_range()
+        animate_camera(cam, _arc_moves(f0, f1, look, start, sweep_deg=14,
+                                       push_in=0.93, lift=0.6), look,
                        up=(0, 0, 1), focus_at=(0, 0, 0))
     face_labels_to_camera(cam)
     return cam
@@ -1363,6 +1428,15 @@ def shot_measurable(animated=False):
         else render_still(cam, "08_what_is_measured")
 
 
+def shot_measure_muons(animated=False):
+    """Highlight the Z -> mu mu measurement that fixes the Higgs 4-momentum."""
+    build_measure_muons()
+    set_visibility(lab=True, reco=False, rest=False)
+    cam = _cam_event(animated)
+    render_animation(cam, "09_measure_the_muons.mp4") if animated \
+        else render_still(cam, "09_measure_the_muons")
+
+
 def shot_zoom():
     """Animated dolly from the wide rest-frame decay view down into the
     vertex region where the impact parameters live (motion blur on)."""
@@ -1428,20 +1502,23 @@ def shot_boost():
 
 
 def shot_steps():
-    """The pedagogical storyboard, in narrative order:
+    """The pedagogical storyboard, in narrative slide order:
 
       0. the lab event: mu+ mu- (Z) and tau+ tau- (Higgs)
-      1. what a detector actually measures: the four tracks + the PV + the
-         pion impact parameters (the rest is inferred)
-      2. boost into the Higgs rest frame, defined by the measured Z -> mu mu
-      3. muons dropped -- the Higgs decay in its own frame
-      4. the two decay planes hinged on the tau axis + the single angle phi
-      5. the same, viewed down the tau axis (the 'clock face' view)
-      6. zoom in: the impact parameters of the two pion tracks
-      7. the payoff: d and alpha pin down where each tau decayed
+      1. what a detector actually measures (tracks + PV + impact parameters)
+      2. HIGHLIGHT the muons: 'we measure the muons from the Z decay, which
+         fixes the Higgs 4-momentum...'
+      3. '...and that lets us boost into the Higgs rest frame'
+      --- from here on, muons removed; everything is in the Higgs rest frame ---
+      4. the Higgs decay in its own frame
+      5. the two decay planes hinged on the tau axis + the single angle phi
+      6. the same, viewed down the tau axis (the 'clock face' view)
+      7. zoom in: the impact parameters of the two pion tracks
+      8. the payoff: d and alpha pin down where each tau decayed
 
-    No step captions: each frame carries only its physics labels, free for
-    the user to narrate."""
+    No step captions and no specific numbers: each frame is a clean, generic
+    stand-in carrying only symbolic physics labels, free for the user to
+    narrate."""
     # 0. The lab event: the Z (mu mu) and the Higgs (tau tau).
     build_event(displaced=True, show_muons=True)
     set_visibility(lab=True, reco=False, rest=False)
@@ -1456,36 +1533,51 @@ def shot_steps():
     face_labels_to_camera(cam)
     render_still(cam, "01_what_is_measured")
 
-    # 2. Boost into the Higgs rest frame, using the measured Z -> mu mu.
+    # 2. Highlight the muons: the Z -> mu mu measurement fixes the Higgs.
+    build_measure_muons()
+    set_visibility(lab=True, reco=False, rest=False)
+    cam = _cam_event(False)
+    face_labels_to_camera(cam)
+    render_still(cam, "02_measure_the_muons")
+
+    # 3. Boost into the Higgs rest frame (muons still shown).
     build_rest(show_muons=True)
     set_visibility(lab=False, reco=False, rest=True)
     cam = _cam_rest(False)
     face_labels_to_camera(cam)
-    render_still(cam, "02_boost_to_rest_frame")
+    render_still(cam, "03_boost_to_rest_frame")
 
-    # 3. Muons removed: the Higgs decay in its own rest frame.
+    # 4. Muons removed: the Higgs decay in its own rest frame.
     build_rest_scene(displaced=True)
     set_visibility(lab=False, reco=False, rest=True)
-    render_still(_cam_rest_wide(False), "03_higgs_rest_frame")
+    render_still(_cam_rest_wide(False), "04_higgs_rest_frame")
 
-    # 4. The decay planes + the single acoplanarity angle.  Angular-only
-    #    (pions from the PV) so each pion lies exactly in its plane.
+    # 5. Each tau decay spans a plane -- shown with the real (displaced)
+    #    decays sitting inside the two translucent decay planes.
+    build_rest_scene(displaced=True, show_planes=True, title=False)
+    set_visibility(lab=False, reco=False, rest=True)
+    render_still(_cam_rest_3q(False), "05_decay_planes")
+
+    # 6. The single acoplanarity angle phi between the planes (angular-only,
+    #    so each pion lies exactly in its plane).
     build_rest_scene(displaced=False, show_planes=True, title=False)
     set_visibility(lab=False, reco=False, rest=True)
-    render_still(_cam_rest_acop(False), "04_acoplanarity")
+    render_still(_cam_rest_acop(False), "06_acoplanarity")
 
-    # 5. Same scene, looking down the tau axis: one angle, unmistakably.
-    render_still(_cam_rest_axial(False), "05_acoplanarity_axial")
+    # 7. Same planes, looking down the tau axis: one angle, unmistakably.
+    render_still(_cam_rest_axial(False), "07_acoplanarity_axial")
 
-    # 6. Zoom in: the impact parameters.
-    build_rest_scene(displaced=True, show_ip=True, title=False)
+    # 8. Zoom in: the impact parameters, sitting inside the decay planes.
+    build_rest_scene(displaced=True, show_ip=True, show_planes=True,
+                     title=False)
     set_visibility(lab=False, reco=False, rest=True)
-    render_still(_cam_rest_zoom(False), "06_impact_parameters")
+    render_still(_cam_rest_zoom(False), "08_impact_parameters")
 
-    # 7. The constraint: d and alpha fix the decay locations.
-    build_rest_scene(displaced=True, show_ip=True, show_L=True, title=False)
+    # 9. The constraint: d and alpha fix the decay locations (with planes).
+    build_rest_scene(displaced=True, show_ip=True, show_L=True,
+                     show_planes=True, title=False)
     set_visibility(lab=False, reco=False, rest=True)
-    render_still(_cam_rest_wide(False), "07_decay_locations")
+    render_still(_cam_rest_3q(False), "09_decay_locations")
 
 
 # ===========================================================================
@@ -1501,7 +1593,8 @@ def main():
     s = ARGS["shot"]
     stills = {"event": shot_event, "reco": shot_reco, "rest": shot_rest,
               "planes": shot_planes, "planes-axial": shot_planes_axial,
-              "event-angular": shot_event_angular, "measurable": shot_measurable}
+              "event-angular": shot_event_angular, "measurable": shot_measurable,
+              "measure-muons": shot_measure_muons}
     anims = {"event-anim": shot_event, "reco-anim": shot_reco,
              "rest-anim": shot_rest, "planes-anim": shot_planes,
              "boost": shot_boost, "zoom": shot_zoom}
