@@ -20,23 +20,28 @@ The shots tell the story in several beats:
 
 ### The step-by-step storyboard (`--shot steps`)
 
-One captioned frame per step of the method (caption + equation pinned to a
-steady upper-left "slide title"; the single-tau steps build up the same hero
-view of the τ⁺ one element at a time):
+A clean diagram per step of the method, in narrative order.  **No step-number
+captions** — each frame carries only its physics labels, so the sequence can be
+reordered and narrated however you like.  The flow: first boost into the Higgs
+rest frame from the measured Z→μμ; then drop the muons (we're now just looking
+at the Higgs); then build up the impact-parameter reconstruction of one τ, one
+element at a time.
 
-| Frame | Step |
+| Frame | Diagram |
 |---|---|
-| `step_00_event` | The event: `e⁺e⁻ → ZH → μ⁺μ⁻ τ⁺τ⁻` |
-| `step_01_higgs_tag` | Tag the Higgs with Z→μμ: `p_H = p_beam − p_Z` |
-| `step_02_impact_parameter` | The π track misses the PV by the impact parameter **d** |
-| `step_03_track_plane` | `p_τ` lies in the plane span(π̂, d̂) |
-| `step_04_alpha` | Parameterise the τ direction: `τ̂ = cos α·π̂ + sin α·d̂` |
-| `step_05_mass_constraint` | The τ-mass constraint `m_τ² = (p_π+p_ν)²` locks `|p_τ|` |
-| `step_06_decay_length` | Decay length from geometry: `L = |d|/sin α` |
-| `step_07_decay_vertex` | Decay vertex `x = PV + L·τ̂` and proper time `t = L/βc` |
-| `step_08_missing_momentum` | Resolve the ambiguity: `p_ν₁+p_ν₂ = p_H − p_π₁ − p_π₂` |
-| `step_09_decay_planes` | Both τ's done → decay planes and the acoplanarity angle **φ** |
-| `step_10_rest_frame` | Boost to the Higgs rest frame: τ's back-to-back, `|p| ≈ M_H/2` |
+| `01_higgs_rest_frame` | Boost into the Higgs rest frame from the measured Z→μ⁺μ⁻; τ's back-to-back, `|p| ≈ M_H/2` (muons shown) |
+| `02_higgs_to_tautau` | Muons dropped — just the Higgs → τ⁺τ⁻ |
+| `03_impact_parameter` | The measured π track misses the PV by the impact parameter **d** |
+| `04_track_plane` | `p_τ` lies in the track plane span(π̂, d̂) |
+| `05_alpha` | Parameterise the τ direction: `τ̂ = cos α·π̂ + sin α·d̂` |
+| `06_mass_constraint` | The τ-mass constraint `m_τ² = (p_π+p_ν)²` locks `|p_τ|` |
+| `07_decay_length` | Decay length from geometry: `L = |d|/sin α` |
+| `08_decay_vertex` | Decay vertex `x = PV + L·τ̂` and proper time `t = L/βc` |
+| `09_missing_momentum` | Resolve the ambiguity: `p_ν₁+p_ν₂ = p_H − p_π₁ − p_π₂` |
+| `10_decay_planes` | Both τ's done → decay planes and the acoplanarity angle **φ** |
+
+The single-τ frames (03–08) build up the *same* hero view of the τ⁺ track plane
+element by element.
 
 ## Look & feel
 

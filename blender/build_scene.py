@@ -260,8 +260,8 @@ def cylinder_between(p0, p1, radius, mat, name, collection, caps=True):
 
 def arrow(p0, direction, length, shaft_r, mat, name, collection):
     direction = Vector(direction).normalized()
-    head_len = min(length * 0.28, shaft_r * 9.0)
-    shaft_len = max(length - head_len, length * 0.4)
+    head_len = min(length * 0.3, shaft_r * 9.0)
+    shaft_len = length - head_len           # shaft always meets the head base
     p_shaft_end = Vector(p0) + direction * shaft_len
     p_tip = Vector(p0) + direction * length
     cylinder_between(p0, p_shaft_end, shaft_r, mat, name + "_shaft",
@@ -610,7 +610,7 @@ def build_acoplanarity(n_minus, n_plus):
 # ===========================================================================
 #  Lab-frame event  (displaced and angular-only variants)
 # ===========================================================================
-def build_event(displaced=True, show_planes=False):
+def build_event(displaced=True, show_planes=False, show_muons=True):
     """Build the lab event into the 'Lab' collection.
 
     displaced  : if True, taus fly to resolved decay vertices and the pions
@@ -634,15 +634,17 @@ def build_event(displaced=True, show_planes=False):
 
     # production / Higgs decay vertex
     sphere(PV, 0.22, m_higgs, "pv", "Lab")
-    billboard_label("H, Z production", Vector(PV) + Vector((0.0, 0.0, -0.95)),
-                    0.5, "Lab", "lbl_pv")
+    billboard_label("H, Z production" if show_muons else "Higgs decay",
+                    Vector(PV) + Vector((0.0, 0.0, -0.95)), 0.5, "Lab", "lbl_pv")
 
     # Z -> mu mu  (the tag that fixes the Higgs 4-momentum)
-    for key, p4, sym in (("mu_plus", lab["mu_plus_p4"], "μ⁺"),
-                         ("mu_minus", lab["mu_minus_p4"], "μ⁻")):
-        d = p3(p4).normalized()
-        arrow(PV, d, 6.0, 0.045, m_mu, key, "Lab")
-        billboard_label(sym, Vector(PV) + d * 6.5, 0.55, "Lab", "lbl_" + key)
+    if show_muons:
+        for key, p4, msym in (("mu_plus", lab["mu_plus_p4"], "μ⁺"),
+                              ("mu_minus", lab["mu_minus_p4"], "μ⁻")):
+            d = p3(p4).normalized()
+            arrow(PV, d, 6.0, 0.045, m_mu, key, "Lab")
+            billboard_label(msym, Vector(PV) + d * 6.5, 0.55, "Lab",
+                            "lbl_" + key)
 
     sym = {"tau_minus": ("τ⁻", "π⁻"),
            "tau_plus":  ("τ⁺", "π⁺")}
@@ -709,9 +711,10 @@ def build_reco(label="tau_plus"):
     sphere(dv, 0.12, m_vtx, "dv", "Reco")
     cylinder_between(PV, dv, 0.045, m_tau, "tau", "Reco")
 
-    pion_back = dv - pdir * 4.0
-    pion_fwd = dv + pdir * 6.5
-    cylinder_between(pion_back, pion_fwd, 0.03, m_pi, "pion_track", "Reco")
+    # extend the track back past the PCA (near the PV) so d meets the line
+    s_pca = (pca - dv).dot(pdir)
+    cylinder_between(dv + pdir * (s_pca - 1.8), dv + pdir * 6.5, 0.03, m_pi,
+                     "pion_track", "Reco")
 
     cylinder_between(PV, pca, 0.045, m_reco, "d", "Reco")
     sphere(pca, 0.09, m_reco, "pca", "Reco")
@@ -767,7 +770,7 @@ def build_reco(label="tau_plus"):
 # ===========================================================================
 #  Higgs rest frame (taus back-to-back)
 # ===========================================================================
-def build_rest():
+def build_rest(show_muons=False):
     clear("Rest")
     m_higgs = matte_material("higgs", PALETTE["higgs"], roughness=0.45)
     origin = Vector((0, 0, 0))
@@ -787,6 +790,18 @@ def build_rest():
                         "restl_" + label)
     billboard_label("taus emitted back-to-back", origin + Vector((0, 0, -1.3)),
                     0.42, "Rest", "restl_b2b")
+
+    # the measured Z -> mu mu that defines the boost (lab directions, shown
+    # faint so they read as "the tag we used", then dropped in later diagrams)
+    if show_muons:
+        m_mu = matte_material("muon", PALETTE["muon"], roughness=0.5)
+        for key, p4, msym in (("mu_plus", DATA["lab"]["mu_plus_p4"], "μ⁺"),
+                              ("mu_minus", DATA["lab"]["mu_minus_p4"], "μ⁻")):
+            d = p3(p4).normalized()
+            arrow(origin, d, 3.6, 0.04, m_mu, "rest_" + key, "Rest")
+            billboard_label(msym, origin + d * 4.1, 0.42, "Rest", "restl_" + key)
+        billboard_label("Z → μ⁺μ⁻ (measured)", origin + Vector((0, 0, 2.0)),
+                        0.42, "Rest", "restl_z")
 
 
 # ===========================================================================
@@ -842,7 +857,10 @@ def build_reco_stage(level, label="tau_plus"):
     # always: production vertex + the measured pion track (a line in space)
     sphere(PV, 0.14, m_higgs, "pv", "Reco")
     billboard_label("PV", Vector(PV) - dhat * 0.8, 0.42, "Reco", "rl_pv")
-    cylinder_between(dv - pdir * 4.0, dv + pdir * 6.5, 0.03, m_pi,
+    # draw the track so it covers the PCA (near the PV) through the decay
+    # vertex and beyond -- otherwise the impact parameter d points off the line
+    s_pca = (pca - dv).dot(pdir)
+    cylinder_between(dv + pdir * (s_pca - 1.8), dv + pdir * 6.5, 0.03, m_pi,
                      "pion_track", "Reco")
     billboard_label("π track (measured)", (pca + dv) * 0.5 + dhat * 0.55, 0.4,
                     "Reco", "rl_pi")
@@ -1222,86 +1240,54 @@ def shot_boost():
 
 
 def shot_steps():
-    """A numbered pedagogical storyboard: one rendered frame per reconstruction
-    step, captioned with the idea and its equation."""
-    # event-level intro / tag / closure use the wide event view
+    """A pedagogical storyboard of the reconstruction, in narrative order:
+    first the boost into the Higgs rest frame (from the measured Z->mu mu),
+    then -- with the muons dropped -- the impact-parameter reconstruction of
+    the taus.  No step-number captions: each frame is a clean diagram carrying
+    only its physics labels, free for the user to narrate."""
     def event_cam():
         return _cam_event(False)
 
-    # --- Step 0: the event ---
-    build_event(displaced=True, show_planes=False)
+    # 1. Boost into the Higgs rest frame, using the measured Z -> mu mu.
+    build_rest(show_muons=True)
+    set_visibility(lab=False, reco=False, rest=True)
+    cam = _cam_rest(False)
+    face_labels_to_camera(cam)
+    render_still(cam, "01_higgs_rest_frame")
+
+    # 2. Drop the muons -- now just the Higgs -> tau+ tau-.
+    build_event(displaced=True, show_planes=False, show_muons=False)
     set_visibility(lab=True, reco=False, rest=False)
     cam = event_cam()
-    screen_caption(cam, ["Step 0", "The event",
-                         "e⁺e⁻ → Z H → μ⁺μ⁻ τ⁺τ⁻"], "Lab")
     face_labels_to_camera(cam)
-    render_still(cam, "step_00_event")
+    render_still(cam, "02_higgs_to_tautau")
 
-    # --- Step 1: tag the Higgs with Z -> mu mu ---
-    build_event(displaced=True, show_planes=False)
-    build_higgs_recoil()
-    set_visibility(lab=True, reco=False, rest=False)
-    cam = event_cam()
-    screen_caption(cam, ["Step 1", "Tag the Higgs",
-                         "Z → μ⁺μ⁻   ⇒   p_H = p_beam − p_Z"], "Lab")
-    face_labels_to_camera(cam)
-    render_still(cam, "step_01_higgs_tag")
-
-    # --- Steps 2-7: the single-tau geometry, one element at a time ---
-    step_text = {
-        2: ["Step 2", "The π track & impact parameter",
-            "the measured track misses the PV by d"],
-        3: ["Step 3", "The track plane",
-            "p_τ lies in the plane span( π̂ , d̂ )"],
-        4: ["Step 4", "Parameterise the τ direction",
-            "τ̂ = cos α · π̂ + sin α · d̂"],
-        5: ["Step 5", "τ-mass constraint fixes |p_τ|",
-            "m_τ² = (p_π + p_ν)²"],
-        6: ["Step 6", "Decay length from geometry",
-            "L = |d| / sin α"],
-        7: ["Step 7", "Decay vertex & proper time",
-            "x_dec = PV + L·τ̂ ,   t = L / βc"],
-    }
+    # 3-8. The impact-parameter reconstruction of one tau, element by element.
+    names = {2: "03_impact_parameter", 3: "04_track_plane", 4: "05_alpha",
+             5: "06_mass_constraint", 6: "07_decay_length", 7: "08_decay_vertex"}
     cam = reco_hero_camera()
     for level in range(2, 8):
         build_reco_stage(level)
         set_visibility(lab=False, reco=True, rest=False)
-        screen_caption(cam, step_text[level], "Reco")
         face_labels_to_camera(cam)
-        render_still(cam, "step_%02d_%s" % (level, {
-            2: "impact_parameter", 3: "track_plane", 4: "alpha",
-            5: "mass_constraint", 6: "decay_length", 7: "decay_vertex"}[level]))
+        render_still(cam, names[level])
 
-    # --- Step 8: resolve the two-fold ambiguity with missing momentum ---
-    build_event(displaced=True, show_planes=False)
+    # 9. Resolve the two-fold ambiguity with the total missing momentum.
+    build_event(displaced=True, show_planes=False, show_muons=False)
     build_missing_momentum()
     set_visibility(lab=True, reco=False, rest=False)
     cam = event_cam()
-    screen_caption(cam, ["Step 8", "Resolve the ambiguity",
-                         "p_ν₁ + p_ν₂ = p_H − p_π₁ − p_π₂"], "Lab")
     face_labels_to_camera(cam)
-    render_still(cam, "step_08_missing_momentum")
+    render_still(cam, "09_missing_momentum")
 
-    # --- Step 9: both taus done -> decay planes & acoplanarity ---
-    build_event(displaced=True, show_planes=True)
+    # 10. Both taus done -> decay planes and the acoplanarity angle.
+    build_event(displaced=True, show_planes=True, show_muons=False)
     set_visibility(lab=True, reco=False, rest=False)
-    # subject to the RIGHT (negative shift) so the caption corner stays clear
     cam = add_camera("cam_step_planes", location=(10, -19, 12),
                      look_at=(0, 0.3, 0.6), up=(0, 0, 1), lens=46,
                      shift_x=-0.24, fstop=3.2, focus_at=(0, 0, 0))
-    screen_caption(cam, ["Step 9", "Decay planes & acoplanarity",
-                         "angle φ between the two τ decay planes"], "Lab")
     face_labels_to_camera(cam)
-    render_still(cam, "step_09_decay_planes")
-
-    # --- Step 10: the payoff -- boost to the Higgs rest frame ---
-    build_rest()
-    set_visibility(lab=False, reco=False, rest=True)
-    cam = _cam_rest(False)
-    screen_caption(cam, ["Step 10", "Boost to the Higgs rest frame",
-                         "τ's back-to-back,  |p| ≈ M_H / 2"], "Rest")
-    face_labels_to_camera(cam)
-    render_still(cam, "step_10_rest_frame")
+    render_still(cam, "10_decay_planes")
 
 
 # ===========================================================================
