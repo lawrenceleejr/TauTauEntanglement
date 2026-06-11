@@ -1435,7 +1435,12 @@ def render_animation(cam, filename):
     scn.render.resolution_percentage = 100
     scn.render.use_motion_blur = True
     scn.render.motion_blur_shutter = 0.5
-    scn.cycles.motion_blur_position = 'CENTER'
+    # Cycles read motion_blur_position from scene.cycles up to 4.x and from
+    # scene.render in 5.x; set it on every owner that exposes it (harmless on
+    # the one the active version ignores).
+    for owner in (scn.render, scn.cycles):
+        if hasattr(owner, "motion_blur_position"):
+            owner.motion_blur_position = 'CENTER'
     scn.render.image_settings.file_format = 'FFMPEG'
     scn.render.ffmpeg.format = 'MPEG4'
     scn.render.ffmpeg.codec = 'H264'
