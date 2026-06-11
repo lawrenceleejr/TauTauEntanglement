@@ -37,6 +37,8 @@ import bpy
 import json
 import math
 import os
+import shutil
+import subprocess
 import sys
 from mathutils import Vector, Matrix
 
@@ -1475,16 +1477,50 @@ def render_animation(cam, filename):
         scn.render.filepath = os.path.join(OUT, filename)
         print(f"  -> rendering animation {filename}")
     else:
-        # Encode the sequence later, e.g.:
-        #   ffmpeg -framerate 24 -i output/<stem>/<stem>_%04d.png <stem>.mp4
+        # Blender uses its own compiled-in FFmpeg, not the system binary, so a
+        # build without it can't write video directly.  Render a numbered PNG
+        # sequence into output/<stem>/ and, if a system ffmpeg is on PATH,
+        # encode it to output/<stem>.mp4 ourselves.
         stem = os.path.splitext(filename)[0]
         seq_dir = os.path.join(OUT, stem)
         os.makedirs(seq_dir, exist_ok=True)
         scn.render.image_settings.file_format = 'PNG'
         scn.render.image_settings.color_mode = 'RGBA'
-        scn.render.filepath = os.path.join(seq_dir, stem + "_")
-        print(f"  -> FFmpeg unavailable; rendering PNG sequence into {seq_dir}/")
+        scn.render.filepath = os.path.join(seq_dir, stem + "_####")
+        print(f"  -> Blender has no FFmpeg; rendering PNG sequence into "
+              f"{seq_dir}/")
+        bpy.ops.render.render(animation=True)
+        _encode_with_system_ffmpeg(seq_dir, stem, filename)
+        return
     bpy.ops.render.render(animation=True)
+
+
+def _encode_with_system_ffmpeg(seq_dir, stem, filename):
+    """Assemble the rendered PNG sequence into output/<filename> using the
+    system ffmpeg, if available.  Leaves the frames in place either way."""
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        print("  -> system 'ffmpeg' not found on PATH; leaving the PNG "
+              f"sequence in {seq_dir}/ (encode it yourself).")
+        return
+    pattern = os.path.join(seq_dir, stem + "_%04d.png")
+    out_mp4 = os.path.join(OUT, filename)
+    fps = bpy.context.scene.render.fps
+    cmd = [ffmpeg, "-y",
+           "-framerate", str(fps),
+           "-start_number", str(ARGS["frame_start"]),
+           "-i", pattern,
+           "-c:v", "libx264", "-pix_fmt", "yuv420p",
+           "-crf", "16", "-movflags", "+faststart",
+           out_mp4]
+    print(f"  -> encoding {out_mp4} with system ffmpeg")
+    try:
+        subprocess.run(cmd, check=True,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        print(f"  -> wrote {out_mp4}")
+    except (subprocess.CalledProcessError, OSError) as e:
+        print(f"  -> ffmpeg encode failed ({e}); the PNG frames remain in "
+              f"{seq_dir}/")
 
 
 # ===========================================================================
