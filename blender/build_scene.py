@@ -624,6 +624,30 @@ def add_camera(name, location, look_at, lens=50, shift_x=0.0, shift_y=0.0,
     return cam
 
 
+def _action_fcurves(action):
+    """Yield an action's F-curves across Blender versions.  Legacy actions
+    (<= 4.x) expose ``action.fcurves`` directly; slotted actions (4.4+/5.x)
+    keep them under layers -> strips -> channelbags."""
+    fcurves = getattr(action, "fcurves", None)
+    if fcurves:
+        for fc in fcurves:
+            yield fc
+        return
+    for layer in getattr(action, "layers", []):
+        for strip in layer.strips:
+            for cbag in getattr(strip, "channelbags", []):
+                for fc in cbag.fcurves:
+                    yield fc
+
+
+def _ease_action(action):
+    """Make every keyframe of an action ease in/out with bezier handles."""
+    for fc in _action_fcurves(action):
+        for kp in fc.keyframe_points:
+            kp.interpolation = 'BEZIER'
+            kp.easing = 'EASE_IN_OUT'
+
+
 def animate_camera(cam, moves, look_at, up=None, focus_at=None):
     focus = Vector(focus_at) if focus_at is not None else Vector(look_at)
     for frame, loc in moves:
@@ -637,10 +661,7 @@ def animate_camera(cam, moves, look_at, up=None, focus_at=None):
     for holder in (cam, cam.data.dof.id_data):
         ad = holder.animation_data
         if ad and ad.action:
-            for fc in ad.action.fcurves:
-                for kp in fc.keyframe_points:
-                    kp.interpolation = 'BEZIER'
-                    kp.easing = 'EASE_IN_OUT'
+            _ease_action(ad.action)
 
 
 def _arc_moves(f0, f1, center, start, sweep_deg, push_in=0.92, lift=0.6):
@@ -1712,10 +1733,7 @@ def shot_boost():
 
     for o in col("Rest").objects:
         if o.animation_data and o.animation_data.action:
-            for fc in o.animation_data.action.fcurves:
-                for kp in fc.keyframe_points:
-                    kp.interpolation = 'BEZIER'
-                    kp.easing = 'EASE_IN_OUT'
+            _ease_action(o.animation_data.action)
 
     look, start = (0, 0, 0), (0, -22, 5.0)
     cam = add_camera("cam_boost", location=start, look_at=look, up=(0, 0, 1),
