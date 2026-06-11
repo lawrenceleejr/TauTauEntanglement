@@ -187,8 +187,12 @@ def matte_material(name, rgba, roughness=0.6, alpha=None, emission=0.0):
     use_alpha = alpha if alpha is not None else a
     if use_alpha < 1.0:
         bsdf.inputs["Alpha"].default_value = use_alpha
-        mat.blend_method = 'BLEND'
-        mat.show_transparent_back = False
+        # blend_method / show_transparent_back are EEVEE-only and were dropped
+        # in newer Blenders; Cycles honours the Alpha input regardless.
+        if hasattr(mat, "blend_method"):
+            mat.blend_method = 'BLEND'
+        if hasattr(mat, "show_transparent_back"):
+            mat.show_transparent_back = False
     _MATS[key] = mat
     return mat
 
@@ -213,9 +217,13 @@ def glass_panel_material(name, rgba, alpha=0.14):
         bsdf.inputs["Emission Color"].default_value = (r, g, b, 1.0)
         bsdf.inputs["Emission Strength"].default_value = 0.18
     bsdf.inputs["Alpha"].default_value = alpha
-    mat.blend_method = 'BLEND'
-    mat.show_transparent_back = True
-    mat.use_backface_culling = False
+    # EEVEE-only knobs, gone in newer Blenders; harmless to skip under Cycles.
+    if hasattr(mat, "blend_method"):
+        mat.blend_method = 'BLEND'
+    if hasattr(mat, "show_transparent_back"):
+        mat.show_transparent_back = True
+    if hasattr(mat, "use_backface_culling"):
+        mat.use_backface_culling = False
     _MATS[key] = mat
     return mat
 
@@ -1385,15 +1393,25 @@ def setup_render(samples):
     # fails on some systems (notably macOS, where the temp dir can be cleaned
     # mid-render): "Error writing tile to file".  The scene peaks at ~3 GB, so
     # one tile fits comfortably in memory/VRAM and avoids the disk round-trip.
-    scn.cycles.use_auto_tile = False
-    scn.cycles.tile_size = 4096
+    if hasattr(scn.cycles, "use_auto_tile"):
+        scn.cycles.use_auto_tile = False
+    if hasattr(scn.cycles, "tile_size"):
+        scn.cycles.tile_size = 4096
 
-    try:
-        scn.view_settings.view_transform = 'AgX'
-        scn.view_settings.look = 'AgX - Medium High Contrast'
-    except Exception:
-        scn.view_settings.view_transform = 'Filmic'
-        scn.view_settings.look = 'None'
+    # Prefer AgX (default since 4.0); fall back quietly if a name differs in a
+    # given build rather than forcing 'Filmic', which newer Blenders may drop.
+    for vt in ('AgX', 'Filmic', 'Standard'):
+        try:
+            scn.view_settings.view_transform = vt
+            break
+        except Exception:
+            continue
+    for lk in ('AgX - Medium High Contrast', 'None'):
+        try:
+            scn.view_settings.look = lk
+            break
+        except Exception:
+            continue
 
     scn.render.film_transparent = False   # the warm dome is the backdrop
     scn.render.fps = ARGS["fps"]
@@ -1441,12 +1459,27 @@ def render_animation(cam, filename):
     for owner in (scn.render, scn.cycles):
         if hasattr(owner, "motion_blur_position"):
             owner.motion_blur_position = 'CENTER'
-    scn.render.image_settings.file_format = 'FFMPEG'
-    scn.render.ffmpeg.format = 'MPEG4'
-    scn.render.ffmpeg.codec = 'H264'
-    scn.render.ffmpeg.constant_rate_factor = 'HIGH'
-    scn.render.filepath = os.path.join(OUT, filename)
-    print(f"  -> rendering animation {filename}")
+    fmts = scn.render.image_settings.bl_rna.properties[
+        "file_format"].enum_items.keys()
+    if "FFMPEG" in fmts:
+        scn.render.image_settings.file_format = 'FFMPEG'
+        scn.render.ffmpeg.format = 'MPEG4'
+        scn.render.ffmpeg.codec = 'H264'
+        scn.render.ffmpeg.constant_rate_factor = 'HIGH'
+        scn.render.filepath = os.path.join(OUT, filename)
+        print(f"  -> rendering animation {filename}")
+    else:
+        # This Blender was built without FFmpeg (some macOS 5.x builds), so a
+        # single .mp4 isn't possible -- render a numbered PNG sequence instead
+        # into output/<stem>/.  Encode it later, e.g.:
+        #   ffmpeg -framerate 24 -i output/<stem>/<stem>_%04d.png <stem>.mp4
+        stem = os.path.splitext(filename)[0]
+        seq_dir = os.path.join(OUT, stem)
+        os.makedirs(seq_dir, exist_ok=True)
+        scn.render.image_settings.file_format = 'PNG'
+        scn.render.image_settings.color_mode = 'RGBA'
+        scn.render.filepath = os.path.join(seq_dir, stem + "_")
+        print(f"  -> FFmpeg unavailable; rendering PNG sequence into {seq_dir}/")
     bpy.ops.render.render(animation=True)
 
 
