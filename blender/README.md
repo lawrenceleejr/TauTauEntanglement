@@ -78,8 +78,8 @@ symmetrically upward.
 
 ## Running it
 
-`render.sh` fetches Blender on the host, builds the image, regenerates the
-event, and renders:
+By default `render.sh` fetches Blender on the host, builds a Docker image, and
+renders inside it (the committed `data/event.json` is used as-is):
 
 ```bash
 cd blender
@@ -95,9 +95,27 @@ Shots: `event`, `reco`, `rest`, `planes`, `planes-axial`, `event-angular`
 `rest-anim`, `planes-anim`, `boost`, `zoom` (animations) · `stills`, `anims`,
 `all`.
 
+### Running without Docker (`--host`)
+
+Pass `--host` to skip Docker and render with a Blender already installed on
+this machine — handy on a Mac, where Docker can't reach the GPU and Blender's
+own Metal backend can:
+
+```bash
+./render.sh steps 200 GPU --host
+```
+
+The flag may appear anywhere on the command line. The script looks for Blender
+on `PATH` and at the standard macOS location
+(`/Applications/Blender.app/Contents/MacOS/Blender`); override with
+`BLENDER_BIN=/path/to/blender`. Blender ≥ 4.5 is required (native light
+temperature). The bundled `fonts/label.ttf` is picked up automatically.
+
 ### GPU rendering (for the finals)
 
-Pass `GPU` as the third argument (needs the NVIDIA container runtime), or:
+Pass `GPU` as the third argument. Inside Docker this needs the NVIDIA container
+runtime (Linux only); with `--host` it uses whatever backend Blender finds
+(OPTIX → CUDA → HIP → METAL → ONEAPI). You can also drive Blender directly:
 
 ```bash
 docker run --rm --gpus all -v "$PWD/blender":/work tautau-blender \
