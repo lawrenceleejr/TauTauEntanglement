@@ -1459,19 +1459,23 @@ def render_animation(cam, filename):
     for owner in (scn.render, scn.cycles):
         if hasattr(owner, "motion_blur_position"):
             owner.motion_blur_position = 'CENTER'
-    fmts = scn.render.image_settings.bl_rna.properties[
-        "file_format"].enum_items.keys()
-    if "FFMPEG" in fmts:
+    # Try to produce a single .mp4.  The static RNA enum lists 'FFMPEG' even in
+    # builds without FFmpeg, and only the *assignment* fails there, so probe by
+    # actually setting it.  If that throws, fall back to a numbered PNG
+    # sequence (some macOS 5.x builds ship without FFmpeg).
+    have_ffmpeg = True
+    try:
         scn.render.image_settings.file_format = 'FFMPEG'
+    except (TypeError, RuntimeError):
+        have_ffmpeg = False
+    if have_ffmpeg:
         scn.render.ffmpeg.format = 'MPEG4'
         scn.render.ffmpeg.codec = 'H264'
         scn.render.ffmpeg.constant_rate_factor = 'HIGH'
         scn.render.filepath = os.path.join(OUT, filename)
         print(f"  -> rendering animation {filename}")
     else:
-        # This Blender was built without FFmpeg (some macOS 5.x builds), so a
-        # single .mp4 isn't possible -- render a numbered PNG sequence instead
-        # into output/<stem>/.  Encode it later, e.g.:
+        # Encode the sequence later, e.g.:
         #   ffmpeg -framerate 24 -i output/<stem>/<stem>_%04d.png <stem>.mp4
         stem = os.path.splitext(filename)[0]
         seq_dir = os.path.join(OUT, stem)
