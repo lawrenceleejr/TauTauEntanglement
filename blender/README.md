@@ -44,12 +44,20 @@ lab-frame slides on their own.
 Physics conventions match the analysis (`spin_analysis.py`): the common axis
 k̂ is the τ⁻ direction in the Higgs frame, both pions' azimuths are measured
 about it, and the displayed φ is exactly the analysis acoplanarity.  Labels are **generic** (no specific numbers) so the figures are a stand-in for any event, while still being this real event's geometry.  The
-rest-frame impact parameters, opening angles and decay lengths are obtained by
-Lorentz-boosting the reconstructed decay 4-positions into the Higgs frame
-(`extract_event.py`); the geometric identity `L = |d|/sin α` holds exactly in
-that frame too.  The displayed rest-frame space is rotated so the τ axis is
-world-X (horizontal in frame, level horizon) and the decay planes open
-symmetrically upward.
+rest-frame opening angles α and decay lengths L are the reconstructed values
+(Lorentz-boosted into the Higgs frame by `extract_event.py`).  The displayed
+rest-frame space is rotated so the τ axis is world-X (horizontal in frame,
+level horizon) and the decay planes open symmetrically upward.
+
+In the Higgs rest frame the two τ's are **exactly back-to-back** with equal
+momenta (|p| = M_H/2) — that is an exact consequence of momentum conservation,
+so the diagram draws it that way rather than advertising the small residual
+from reconstructing the two τ's independently.  Each τ's decay is then laid out
+on the common axis at its reconstructed L and α, with the pion in the plane
+spanned by that axis and its azimuth q̂; so each **decay plane has an edge along
+the τ momentum and entirely contains that τ's pion vector**, and the right
+triangle giving `L = |d|/sin α` holds by construction.  Labels render with real
+sub/superscripts (e.g. M_H, p_H = p_beam − p_Z), not ASCII underscores.
 
 ## Look & feel
 

@@ -337,7 +337,18 @@ def draw_angle_arc(apex, dir_a, dir_b, radius, mat, name, collection,
 
 
 def billboard_label(body, loc, size, collection, name="lbl", align='CENTER'):
-    """A flat, modern-font text label that turns to face the active camera."""
+    """A flat, modern-font text label that turns to face the active camera.
+
+    Understands a light TeX-ish markup so labels read like real maths rather
+    than ASCII: ``_`` starts a subscript and ``^`` a superscript, each taking
+    the following alphanumeric run or a ``{...}`` group ("p_H", "M_{H}/2",
+    "x^2").  When such markup is present the label is composed from several
+    sized + offset text pieces (see math_label); otherwise it is a single
+    flat text object.
+    """
+    if ("_" in body or "^" in body) and any(
+            seg[1] != 'n' for seg in _parse_math(body)):
+        return math_label(body, loc, size, collection, name, align)
     cu = bpy.data.curves.new(name, type='FONT')
     if LABEL_FONT is not None:
         cu.font = LABEL_FONT
@@ -351,6 +362,95 @@ def billboard_label(body, loc, size, collection, name="lbl", align='CENTER'):
     col(collection).objects.link(o)
     o.location = loc
     return o
+
+
+def _parse_math(text):
+    """Split a label into runs: list of (substring, kind) with kind in
+    {'n' normal, 'sub' subscript, 'sup' superscript}.  ``_x``/``^x`` take the
+    next alphanumeric run; ``_{...}``/``^{...}`` take the braced group."""
+    segs = []
+    buf = ""
+    i, n = 0, len(text)
+    while i < n:
+        ch = text[i]
+        if ch in "_^" and i + 1 < n:
+            if buf:
+                segs.append((buf, 'n'))
+                buf = ""
+            kind = 'sub' if ch == '_' else 'sup'
+            i += 1
+            if text[i] == '{':
+                j = text.find('}', i + 1)
+                if j == -1:
+                    j = n
+                tok = text[i + 1:j]
+                i = j + 1
+            else:
+                j = i
+                while j < n and text[j].isalnum():
+                    j += 1
+                if j == i:           # a lone symbol after the marker
+                    j = i + 1
+                tok = text[i:j]
+                i = j
+            segs.append((tok, kind))
+        else:
+            buf += ch
+            i += 1
+    if buf:
+        segs.append((buf, 'n'))
+    return segs
+
+
+def math_label(text, loc, size, collection, name="lbl", align='CENTER'):
+    """A billboard label with real sub/superscripts.  Each run becomes its own
+    text piece, sub/superscripts at 0.62x size and vertically offset; all
+    pieces are parented to a single anchor empty so they screen-align as one
+    unit (face_labels_to_camera constrains the anchor, the pieces inherit)."""
+    segs = _parse_math(text)
+    mat = matte_material("text", PALETTE["text"], roughness=0.6, emission=5.0)
+    sub_scale = 0.62
+    pieces = []
+    for idx, (s, kind) in enumerate(segs):
+        if s == "":
+            continue
+        cu = bpy.data.curves.new(name, type='FONT')
+        if LABEL_FONT is not None:
+            cu.font = LABEL_FONT
+        cu.body = s
+        cu.size = size * (sub_scale if kind != 'n' else 1.0)
+        cu.align_x = 'LEFT'
+        cu.align_y = 'CENTER'
+        o = bpy.data.objects.new("%s_%d" % (name, idx), cu)
+        o.data.materials.append(mat)
+        col(collection).objects.link(o)
+        o["mathchild"] = 1
+        pieces.append((o, kind))
+
+    # widths are only known once the text data is evaluated
+    bpy.context.view_layer.update()
+
+    x = 0.0
+    kern = size * 0.04
+    placed = []
+    for o, kind in pieces:
+        w = o.dimensions.x
+        dy = {'sub': -0.20 * size, 'sup': 0.30 * size}.get(kind, 0.0)
+        placed.append((o, x, dy))
+        x += w + (kern if kind != 'n' else 0.0)
+    total = x
+    x0 = {'CENTER': -total / 2.0, 'RIGHT': -total}.get(align, 0.0)
+
+    anchor = bpy.data.objects.new(name + "_anchor", None)
+    anchor["mathlabel"] = 1
+    anchor.empty_display_size = 0.01
+    col(collection).objects.link(anchor)
+    anchor.location = loc
+    for o, x, dy in placed:
+        o.parent = anchor
+        o.matrix_parent_inverse = Matrix.Identity(4)
+        o.location = Vector((x0 + x, dy, 0.0))
+    return anchor
 
 
 def screen_caption(cam, lines, collection, size=0.34, frac_x=-0.62,
@@ -374,9 +474,17 @@ def screen_caption(cam, lines, collection, size=0.34, frac_x=-0.62,
 
 
 def face_labels_to_camera(cam):
-    """Screen-align every text label with the camera (matches roll & moves)."""
+    """Screen-align every text label with the camera (matches roll & moves).
+
+    Plain labels are FONT objects and are constrained directly.  Composed
+    maths labels are an anchor empty (tagged 'mathlabel') with FONT children
+    (tagged 'mathchild'); only the anchor is constrained -- the children
+    inherit its rotation, which is what keeps a subscript glued beside its
+    base as the camera moves."""
     for o in bpy.data.objects:
-        if o.type != 'FONT':
+        if o.get("mathchild"):
+            continue
+        if o.type != 'FONT' and not o.get("mathlabel"):
             continue
         for c in list(o.constraints):
             o.constraints.remove(c)
@@ -586,22 +694,6 @@ def rv(v):
     return _rest_M() @ Vector(v)
 
 
-def rest_geo(label):
-    """Axis-aligned rest-frame decay geometry for one tau (reco)."""
-    rf = DATA["taus"][label]["rest_frame"]
-    return {
-        "dv":    rv(bu(rf["decay_vertex_um"])),
-        "kdir":  rv(rdir(rf["tau_dir"])),
-        "pdir":  rv(rdir(rf["pion_dir"])),
-        "pca":   rv(bu(rf["pca_um"])),
-        "nudir": rv(p3(rf["neutrino_p4_reco"]).normalized()),
-        "L_bu":  rf["decay_length_um"] * UM_TO_BU,
-        "L_um":  rf["decay_length_um"],
-        "d_um":  rf["impact_param_um"],
-        "alpha": rf["alpha_rad"],
-    }
-
-
 def rest_axis():
     """The common tau axis in display coordinates: exactly world-X."""
     return Vector((1, 0, 0))
@@ -611,11 +703,60 @@ def common_qhat(label):
     """Unit transverse component of this tau's pion direction w.r.t. the
     COMMON axis.  This is the azimuthal reference the analysis itself uses
     (spin_analysis projects both pions onto the {n, r} plane normal to
-    k-hat), so the angle between the two q-hats IS the acoplanarity."""
+    k-hat), so the angle between the two q-hats IS the acoplanarity.  Taken
+    straight from the boosted reco pion direction, so it is independent of
+    the (idealised) decay geometry built in rest_geo."""
     k = rest_axis()
-    p = rest_geo(label)["pdir"]
+    p = rv(rdir(DATA["taus"][label]["rest_frame"]["pion_dir"]))
     q = p - p.dot(k) * k
     return q.normalized()
+
+
+def rest_geo(label):
+    """Idealised rest-frame decay geometry for one tau, drawn on the common
+    axis.
+
+    In the Higgs rest frame the two taus are EXACTLY back-to-back -- the
+    independently reconstructed momenta only fail to cancel because of
+    reconstruction error, which we don't want the diagram to advertise.  So
+    we put each tau's flight exactly on the common axis (tau- along +X, tau+
+    along -X), at its reconstructed decay length, and place the pion in the
+    plane spanned by that axis and the pion's azimuth q-hat, opened by the
+    reconstructed opening angle alpha.  The neutrino balances the transverse
+    momentum (p_nu = p_tau - p_pi, from the reco magnitudes), so it lies in
+    the same plane on the far side of the axis.  The impact-parameter foot is
+    then the exact perpendicular from the PV to the pion line, so the right
+    triangle and L = |d| / sin(alpha) hold by construction."""
+    rf = DATA["taus"][label]["rest_frame"]
+    sign = 1.0 if label == "tau_minus" else -1.0
+    axis = rest_axis() * sign
+    L_bu = rf["decay_length_um"] * UM_TO_BU
+    alpha = rf["alpha_rad"]
+    dv = axis * L_bu
+    q = common_qhat(label)
+    pdir = (axis * math.cos(alpha) + q * math.sin(alpha)).normalized()
+
+    # neutrino direction from momentum conservation (p_nu = p_tau - p_pi)
+    ptau_mag = Vector(rf["tau_p4_reco"][1:4]).length
+    ppi_mag = Vector(rf["pion_p4"][1:4]).length
+    nuv = axis * ptau_mag - pdir * ppi_mag
+    nudir = nuv.normalized() if nuv.length > 1e-9 else Vector(axis)
+
+    # impact-parameter foot: perpendicular from the PV (origin) to the pion
+    # line through dv (gives |d| = L sin(alpha) exactly)
+    pca = dv + pdir * (-dv.dot(pdir))
+
+    return {
+        "dv":    dv,
+        "kdir":  axis,
+        "pdir":  pdir,
+        "pca":   pca,
+        "nudir": nudir,
+        "L_bu":  L_bu,
+        "L_um":  rf["decay_length_um"],
+        "d_um":  rf["impact_param_um"],
+        "alpha": alpha,
+    }
 
 
 def rest_acoplanarity_deg():
@@ -750,9 +891,10 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                             "Rest", "rs_d_" + label)
 
         if show_L:
-            # opening angle alpha at the decay vertex (the arc + the L formula
-            # name it; no separate numeric label, to keep the frame readable)
-            mid_a = draw_angle_arc(g["dv"], g["pdir"], -g["kdir"], radius=0.9,
+            # opening angle alpha at the decay vertex: the interior angle of
+            # the PV-dv-pca right triangle, between the tau line back to the PV
+            # (-kdir) and the pion line back to its closest approach (-pdir)
+            mid_a = draw_angle_arc(g["dv"], -g["kdir"], -g["pdir"], radius=0.9,
                                    mat=m_ang, name=label + "_alpha",
                                    collection="Rest", tube=0.022)
             if mid_a is not None:
@@ -787,11 +929,20 @@ def build_rest_decay_planes(labels=True, acop=True):
         m_rim = matte_material("rrim_" + label, color, roughness=0.5,
                                emission=2.5)
         w = common_qhat(label)
-        # hinge runs along the common axis, on this tau's side
+        # the hinge edge (b = 0) runs ALONG this tau's momentum: from the PV
+        # out through the decay vertex.  side picks which way along the common
+        # axis this tau flies.
         side = 1.0 if g["pdir"].dot(k) >= 0 else -1.0
-        span = g["L_bu"] + 3.2
+        alpha = g["alpha"]
+        # the plane must ENTIRELY CONTAIN the drawn pion vector.  The pion is
+        # drawn either from the decay vertex (displaced view, length ~5) or
+        # from the PV (angular-only view, length ~6); cover the larger reach
+        # plus a margin, in both the axial (a) and transverse (b) directions.
+        a_reach = max(g["L_bu"] + 5.0 * math.cos(alpha), 6.0 * math.cos(alpha))
+        b_reach = 6.0 * math.sin(alpha)
+        span = a_reach + 1.4
+        b1 = max(3.0, b_reach + 1.0)        # opening: toward the pion
         a0, a1 = (-0.8, span) if side > 0 else (-span, 0.8)
-        b1 = 3.4                            # opening: toward the pion
         verts = [k * a + w * b for (a, b) in
                  [(a0, 0.0), (a1, 0.0), (a1, b1), (a0, b1)]]
         mesh = bpy.data.meshes.new("rplane_" + label)
@@ -1120,12 +1271,17 @@ def build_rest(show_muons=False):
                     "Rest", "restl_h")
     pscale = 3.8 / 60.0
     sym = {"tau_minus": "τ⁻", "tau_plus": "τ⁺"}
+    # In the Higgs rest frame the taus are EXACTLY back-to-back with equal
+    # momenta (|p| = M_H/2); the independent reconstructions differ only by
+    # reco error, so draw them along the common axis with a single magnitude.
+    mags = [rv(p3(DATA["taus"][l]["rest_frame"]["tau_p4_reco"])).length
+            for l in ("tau_minus", "tau_plus")]
+    L = (sum(mags) / 2.0) * pscale
     for label in ("tau_minus", "tau_plus"):
-        t = DATA["taus"][label]["rest_frame"]
         m_tau = matte_material(label, PALETTE[TAUCOL[label]], roughness=0.5)
-        p = rv(p3(t["tau_p4_reco"]))
-        L = p.length * pscale
-        arrow(origin, p.normalized(), L, 0.06, m_tau, "rest_" + label, "Rest")
+        pdir = rest_axis() * (1.0 if label == "tau_minus" else -1.0)
+        arrow(origin, pdir, L, 0.06, m_tau, "rest_" + label, "Rest")
+        p = pdir
         # labels anchored just past each arrow tip but reading back INWARD
         # (tau- below its arrow, tau+ above), so neither runs off the frame
         # edge nor collides with the nearby mu labels
@@ -1527,10 +1683,20 @@ def shot_boost():
                     origin + Vector((0, 0, 1.3)), 0.5, "Rest", "bl_title")
     pscale = 5.0 / 60.0
     f0, f1 = _frame_range()
+    # the animation lands on the EXACT back-to-back rest configuration: a
+    # single common axis (bisecting the two reco directions) and one shared
+    # magnitude, so the two arrows finish perfectly antiparallel.
+    pr = {l: p3(DATA["taus"][l]["rest_frame"]["tau_p4_reco"])
+          for l in ("tau_minus", "tau_plus")}
+    rest_mag = (pr["tau_minus"].length + pr["tau_plus"].length) / 2.0
+    rest_ax = (pr["tau_minus"].normalized()
+               - pr["tau_plus"].normalized()).normalized()
+    p_rest_of = {"tau_minus": rest_ax * rest_mag,
+                 "tau_plus": -rest_ax * rest_mag}
     for label in ("tau_minus", "tau_plus"):
         m_tau = matte_material(label, PALETTE[TAUCOL[label]], roughness=0.5)
         p_lab = p3(DATA["taus"][label]["tau_p4_reco"])
-        p_rest = p3(DATA["taus"][label]["rest_frame"]["tau_p4_reco"])
+        p_rest = p_rest_of[label]
         arr = make_unit_arrow_x(0.07, m_tau, "boost_" + label, "Rest")
         arr.location = origin
         arr.rotation_mode = 'QUATERNION'
@@ -1599,8 +1765,10 @@ def shot_steps():
     face_labels_to_camera(cam)
     render_still(cam, "02_measure_the_muons")
 
-    # 3. Boost into the Higgs rest frame (muons still shown).
-    build_rest(show_muons=True)
+    # 3. Boost into the Higgs rest frame.  The muons did their job in frame 2
+    #    (they fixed the Higgs momentum); this is a rest-frame view, so they
+    #    are gone -- just the two taus, now exactly back-to-back.
+    build_rest(show_muons=False)
     set_visibility(lab=False, reco=False, rest=True)
     cam = _cam_rest(False)
     face_labels_to_camera(cam)
