@@ -49,9 +49,9 @@ distribution is shown to follow an exact Pareto law,
 $P(\vsig>v)=\beta/v$, yielding the closed-form exclusion reach
 $\vpsi^{95}\simeq N\beta/(4z_{95}^2)$.  In a simulated sample of 90
 fully reconstructed $\pi^+\pi^-$ events---all with spacelike-separated
-decay vertices---entanglement is certified at $3.7\sigma$ and
-finite-speed causal models are excluded up to $\vpsi\approx 3c$,
-in agreement with the analytic reach.  Scaling to the full ILC program,
+decay vertices---entanglement is certified at $3.8\sigma$ and
+finite-speed causal models are excluded up to $\vpsi\approx 5c$,
+consistent with the analytic reach.  Scaling to the full ILC program,
 the exclusion extends beyond $10^{2}c$, providing the first test of
 quantum nonlocality in a Yukawa-mediated process with massive fermions.
 \end{abstract}
@@ -284,16 +284,17 @@ opening angle $\alpha$ fixes the decay length $L=d/\sin\alpha$ and
 the $\tau$ mass constraint fixes the momentum, with the two-fold
 ambiguity resolved by the missing-momentum constraint
 $p_H-p_{\pi^+}-p_{\pi^-}$.  Tau energies are then set by the
-Higgs-frame constraint $E_\tau=m_H/2$.  A vertex-quality requirement
-of $3\sigma$ impact-parameter significance on both taus retains 51
-events for vertex-dependent observables; the spin observables use all
-90.  Detector response is modelled by Gaussian smearing of ILD-like
+Higgs-frame constraint $E_\tau=m_H/2$.  Vertex-quality requirements
+of $3\sigma$ impact-parameter significance and a fiducial decay
+length $L<100$~mm on both taus (the impact-parameter geometry is only
+valid for decays inside the vertexing volume) retain 49 events for
+vertex-dependent observables; the spin observables use all 90.  Detector response is modelled by Gaussian smearing of ILD-like
 track parameters
 ($\sigma_{d_0}=\sqrt{5^2+(10/p\sin^{3/2}\theta)^2}~\mu$m,
 $\sigma_{\theta,\phi}=0.1$~mrad,
 $\sigma_{1/p_T}\simeq2\times10^{-5}$~GeV$^{-1}$)~\cite{ILD_IDR}; the
 typical tau impact parameter at $\gamma\approx35$ is comparable to
-$\sigma_{d_0}$, so smearing broadens $\vsig$ by a measured 27\%
+$\sigma_{d_0}$, so smearing broadens $\vsig$ by a measured 16\%
 fractional resolution while leaving the $C_{ij}$ extraction
 essentially intact.
 
@@ -304,20 +305,22 @@ essentially intact.
 \textit{Spin correlations.}---Figure~\ref{fig:Cij} shows the
 reconstructed correlation matrix, consistent with
 Eq.~\eqref{eq:Cij_SM}: the diagonal is
-$(+0.97,+0.94,-0.90)\pm0.3$, off-diagonals consistent with zero.
+$(+1.01,+0.98,-0.88)\pm0.3$, off-diagonals consistent with zero.
 The unbiased observables give
 \begin{align}
-  S &= 2.71 \pm 0.57, &
-  \mathcal{W} &= 0.91 \pm 0.24,
+  S &= 2.81 \pm 0.58, &
+  \mathcal{W} &= 0.94 \pm 0.24,
   \label{eq:results}
 \end{align}
 both consistent with the SM expectations $2\sqrt2$ and $1$, and with
-truth-level validation ($S=2.81\pm0.58$, $\mathcal{W}=0.91\pm0.24$).
-Separability ($\mathcal{W}\le0$) is rejected at $3.7\sigma$: the tau
+truth-level validation ($S=2.81\pm0.58$, $\mathcal{W}=0.91\pm0.24$):
+after the audit-driven refinement of the direction-scan granularity the
+reconstruction adds no measurable dilution in the tracking-limited
+baseline.  Separability ($\mathcal{W}\le0$) is rejected at $3.8\sigma$: the tau
 pairs are certifiably entangled.  The raw Horodecki parameter,
-$\hat\mtwo=2.34\pm1.00$, illustrates Eq.~\eqref{eq:m12bias}: its
+$\hat\mtwo=2.57\pm1.03$, illustrates Eq.~\eqref{eq:m12bias}: its
 noise floor at $N=90$ is $0.87$, and the bootstrap-bias-corrected
-value is $1.26$; we therefore do not base significance claims on it.
+value is $1.54$; we therefore do not base significance claims on it.
 The optimal LR test rejects ``no correlation'' with permutation
 $p<10^{-4}$ ($Z=4.3$, against the ideal expectation
 $\sqrt{90}/2=4.7$).  The acoplanarity modulation,
@@ -326,7 +329,7 @@ reconstruction, confirms the exact prediction $-\pi^2/16=-0.617$ of
 Eq.~\eqref{eq:acopl} (a frequently quoted value of $-0.5$ is not the
 SM expectation for this channel).  With full detector smearing the
 central values shift by less than one standard deviation
-($S=2.34\pm0.61$, $\mathcal{W}=0.79\pm0.27$, LR $Z=3.3$).
+($S=2.44\pm0.62$, $\mathcal{W}=0.81\pm0.27$, LR $Z=3.3$).
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{../plots/correlation_matrix.pdf}
@@ -341,7 +344,7 @@ central values shift by less than one standard deviation
 \textit{Spacetime-resolved entanglement.}---Figure~\ref{fig:ds} shows
 $\mtwo$ (bias-corrected) and the witness $\mathcal{W}$ versus the
 signed interval $\mathrm{sgn}(\Delta s^2)\sqrt{|\Delta s^2|}$.
-\emph{All} 51 vertex-selected events are spacelike separated, a
+\emph{All} 49 vertex-selected events are spacelike separated, a
 consequence of the back-to-back topology, the ultrarelativistic
 boost, and the vertex-quality requirement (timelike configurations
 require one near-prompt decay, which fails the impact-parameter
@@ -368,13 +371,15 @@ not decoherence.
 \textit{Finite-speed exclusion.}---For each hypothesis $\vpsi$ we
 select the events with $\vsig>\vpsi$ and apply the permutation-%
 calibrated LR test.  Figure~\ref{fig:vpsi} shows the result: the
-no-correlation hypothesis is rejected at 95\%~C.L. for
-$\vpsi\lesssim3c$, in agreement with the analytic expectation
-$\vpsi^{95}=3.3c$ from Eq.~\eqref{eq:reach} with $N=51$.  The
-surviving event counts follow the Pareto law of Eq.~\eqref{eq:pareto}
-(Fig.~\ref{fig:vpsi}, bottom; observed median $\vsig=2.6$, predicted
-$2\beta\simeq2$, with the difference attributable to resolution and
-selection).
+no-correlation hypothesis is rejected at 95\%~C.L. out to
+$\vpsi\approx5c$ (the last populated point, at $10c$ with six events,
+also exceeds the threshold), consistent within the expected
+fluctuations with the median analytic reach $\vpsi^{95}=3.2c$ from
+Eq.~\eqref{eq:reach} with $N=49$.  The surviving event counts follow
+the Pareto law of Eq.~\eqref{eq:pareto} (Fig.~\ref{fig:vpsi}, bottom;
+observed median $\vsig=3.0$, predicted $2\beta\simeq2$, with the
+difference attributable to resolution and the vertex-quality
+selection, which preferentially removes low-$\vsig$ configurations).
 
 \begin{figure}[t]
   \includegraphics[width=\columnwidth]{../plots/vpsi_exclusion.pdf}

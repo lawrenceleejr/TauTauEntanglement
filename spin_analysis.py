@@ -5,26 +5,27 @@ For tau -> pi nu, the pion direction in the tau rest frame is a perfect
 spin analyser (analysing power = 1). The spin correlation matrix C_ij
 is extracted from the angular distributions:
 
-  C_ij = 9 * <cos(theta_i^+) * cos(theta_j^-)>
+  C_ij = -9 * <cos(theta_i^+) * cos(theta_j^-)>
 
 where theta_i^pm is the angle of the pi^pm momentum (in the tau^pm rest
 frame) projected onto axis i of the {n, r, k} basis defined in the
 tau-pair rest frame (= Higgs rest frame for H -> tau tau).
 
-Sign convention: we use the convention from arXiv:2602.03960 where
-the distribution is
+Sign convention: with analysing powers alpha_- = +1 (tau- -> pi- nu:
+pion preferentially along the tau- spin) and alpha_+ = -1 (CP), the
+joint distribution is
   (1/sigma) d^2 sigma / d(cos theta_i^+) d(cos theta_j^-) =
-      (1/4)(1 + C_ij cos theta_i^+ cos theta_j^-)
+      (1/4)(1 - C_ij cos theta_i^+ cos theta_j^-)
 
-This gives C_ij = 9 * <cos theta_i^+ cos theta_j^->
+This gives C_ij = -9 * <cos theta_i^+ cos theta_j^->
 
 For pi-nu mode with unit analysing power, the factor 9 comes from:
   <cos^2 theta> = 1/3 for a uniform distribution on the sphere.
 
 The single-tau polarisation B_i is extracted from:
-  B_i^- = -3 * <cos theta_i^->
-  B_i^+ = +3 * <cos theta_i^+>
-(sign from the tau+/tau- convention in arXiv:2602.03960)
+  B_i^- = +3 * <cos theta_i^->     (alpha_- = +1: pion along tau- spin)
+  B_i^+ = -3 * <cos theta_i^+>     (alpha_+ = -1, from CP)
+Both vanish for a spin-0 parent; they serve as null diagnostics here.
 """
 import numpy as np
 from config import P_BEAM_MINUS, P_BEAM_TOTAL, M_TAU
@@ -281,8 +282,10 @@ def extract_correlation_matrix(cos_theta_plus_arr, cos_theta_minus_arr):
             C[i, j] = -9.0 * np.mean(cos_theta_plus_arr[:, i] *
                                        cos_theta_minus_arr[:, j])
 
-    # Single-tau polarisations
+    # Single-tau polarisations.  With alpha_- = +1 and alpha_+ = -1
+    # (dGamma ~ 1 + alpha s.h), <h_i^-> = +B_i^-/3 and <h_i^+> = -B_i^+/3.
+    # For H -> tautau both vanish (spin-0 parent); these are diagnostics.
     B_plus = -3.0 * np.mean(cos_theta_plus_arr, axis=0)
-    B_minus = -3.0 * np.mean(cos_theta_minus_arr, axis=0)
+    B_minus = +3.0 * np.mean(cos_theta_minus_arr, axis=0)
 
     return C, B_plus, B_minus

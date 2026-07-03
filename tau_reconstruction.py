@@ -192,10 +192,15 @@ def _solve_tau_momentum(p_vis, tau_direction):
     return solutions
 
 
-# Pre-compute the alpha scan grid once at module load
+# Pre-compute the alpha scan grid once at module load.
+# The physical tau-pion opening angle at E_tau ~ m_H/2 peaks around
+# 20-60 mrad (median ~40 mrad), so the linear region must be FINE there:
+# 0.5 mrad spacing keeps the grid-discretisation error on the tau
+# direction (~0.25 mrad) well below detector effects.  The log section
+# covers the rare very-small-angle configurations.
 _ALPHA_VALUES = np.concatenate([
-    np.logspace(-5, -2, 200),    # 1e-5 to 0.01: dense at small angles
-    np.linspace(0.01, 0.5, 100), # 0.01 to 0.5: linear at larger angles
+    np.logspace(-5, -2, 150),      # 1e-5 to 0.01: dense at small angles
+    np.linspace(0.01, 0.5, 981),   # 0.01 to 0.5: 0.5 mrad spacing
 ])
 _COS_ALPHA = np.cos(_ALPHA_VALUES)
 _SIN_ALPHA = np.sin(_ALPHA_VALUES)

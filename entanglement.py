@@ -24,22 +24,24 @@ HOW WE BUILD THE SPIN CORRELATION MATRIX C_ij
 ----------------------------------------------
 C_ij is a 3x3 matrix extracted from the angular distributions:
 
-  C_ij = 9 * <cos_theta_i^+  *  cos_theta_j^->      (average over events)
+  C_ij = -9 * <cos_theta_i^+  *  cos_theta_j^->     (average over events;
+         the minus sign is the analysing-power product alpha+ alpha- = -1)
 
-  B_i^+ = +3 * <cos_theta_i^+>      (tau+ polarisation)
-  B_i^- = -3 * <cos_theta_i^->      (tau- polarisation)
+  B_i^+ = -3 * <cos_theta_i^+>      (tau+ polarisation, alpha_+ = -1)
+  B_i^- = +3 * <cos_theta_i^->      (tau- polarisation, alpha_- = +1)
 
 The factor 9 arises because for tau -> pi nu (unit analysing power),
 the angular distribution is:
   (1/sigma) d^2sigma / d(cos_i+) d(cos_j-)  =  (1/4)(1 + C_ij cos_i+ cos_j-)
-and <cos^2> = 1/3 for a uniform distribution, so C_ij = 9 * <cos_i+ cos_j->.
+and <cos^2> = 1/3 for a uniform distribution, so C_ij = -9 * <cos_i+ cos_j->
+(with the alpha+ alpha- = -1 sign and density 1 - C_ij cos_i+ cos_j-).
 
-For H -> tau+tau- (SM, CP-even), the prediction in the helicity basis is:
-  C = diag(2*beta^2 - 1,  1,  1 - 2*beta^2)
-    ~ diag(+1, +1, -1)     for beta ~ 1
+For H -> tau+tau- (SM, CP-even), the prediction in the helicity basis is
+EXACT and velocity-independent (3P0 partial wave; see below):
+  C = diag(+1, +1, -1)     for any beta
 
-where beta = |p_tau|/E_tau.  The diagonal structure means: the tau spins
-are anti-correlated along k (helicity axis), and correlated transversely.
+The diagonal structure means: the tau spins are anti-correlated along k
+(helicity axis), and correlated transversely.
 
 WHAT THE ENTANGLEMENT QUANTITIES MEAN
 --------------------------------------

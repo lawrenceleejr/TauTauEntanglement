@@ -423,7 +423,7 @@ def plot_spacetime_distributions(truth_intervals, reco_intervals, suffix=""):
     e, v = _hist_vals(v_r, 0, v_max, nbins=60)
     _step_hist(ax, e, v, color=_C['reco'], linestyle='--')
     ax.axvline(1.0, color=_C['accent'], linewidth=0.5, zorder=0)
-    ax.set_xlabel(r'$v_\psi / c$')
+    ax.set_xlabel(r'$v_{\mathrm{sig}} / c$')
     ax.set_ylabel('Events / Bin')
     ax.set_yscale('log')
     _label_shadow(ax, 0.97, 0.92, 'Truth', color=_C['truth'])
@@ -497,9 +497,12 @@ def plot_entanglement_vs_spacetime(binned_results, bin_edges, xlabel, suffix="",
                                            'hspace': 0.08})
     fig.subplots_adjust(left=0.18, right=0.95, bottom=0.10, top=0.97)
 
-    # m12
+    # m12 — adaptive top so no point is silently clipped
     ax = axes[0]
-    ax.set_ylim(0, 3.5)
+    ytop = 3.5
+    if np.any(ok):
+        ytop = min(max(3.5, np.nanmax(m12[ok]) + 0.4), 8.0)
+    ax.set_ylim(0, ytop)
     ax.axhline(2.0, color=_C['sm'], linewidth=_S['ref_lw'],
                linestyle=_S['ref_ls_sm'], zorder=1)
     ax.axhline(1.0, color=_C['bell'], linewidth=_S['ref_lw'],
@@ -676,7 +679,7 @@ def plot_vpsi_overlay(binned_results_vs_v, bin_edges_v, v_psi_values,
                     markersize=_S['data_ms_large'], markeredgewidth=0,
                     zorder=6, clip_on=False)
 
-    ax.set_xlabel(r'$v_\psi / c$')
+    ax.set_xlabel(r'$v_{\mathrm{sig}} / c$')
     ax.set_ylabel(r'$m_{12}$')
 
     _paper_bg(fig, ax)
@@ -824,7 +827,7 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
                       markersize=_S['data_ms_large'], markeredgewidth=0,
                       zorder=6, clip_on=False)
 
-    ax_m.set_xlabel(r'$v_\psi / c$')
+    ax_m.set_xlabel(r'$v_{\mathrm{sig}} / c$')
     ax_m.set_ylabel(r'$m_{12}$')
 
     # ILD resolution label — upper-right of top panel
@@ -1156,7 +1159,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
     ax.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
     _label_shadow(ax, 0.97, 0.08, B_SM_LABEL,
                   fontsize=_S['annot_fs'], color=_C['sm'])
-    ax.set_xlabel(r'$v_\psi / c$')
+    ax.set_xlabel(r'$v_{\mathrm{sig}} / c$')
     ax.set_ylabel(r'Cosine Coefficient $B$')
 
     _paper_bg(fig, ax)
@@ -1197,7 +1200,7 @@ def plot_acoplanarity_2d(acoplanarity_arr, v_signal_arr):
     cbar.set_label('Fraction per slice', fontsize=_S['annot_fs'])
     cbar.outline.set_linewidth(0.3)
 
-    ax.set_xlabel(r'$v_\psi / c$')
+    ax.set_xlabel(r'$v_{\mathrm{sig}} / c$')
     ax.set_ylabel(r'Acoplanarity $\Delta\phi$')
     ax.set_yticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
     ax.set_yticklabels([r'$-\pi$', r'$-\pi/2$', '$0$', r'$\pi/2$', r'$\pi$'])
@@ -1256,8 +1259,12 @@ def plot_vertex_comparison(reco_results):
                fill_alpha=_S['fill_alpha'], fill_color=_C['truth'])
     ax.set_xlabel('Reco $-$ Truth [mm]')
     ax.set_ylabel('Entries / Bin')
+    # Robust location/width (median and IQR-based sigma): a handful of
+    # far outliers would otherwise dominate mean/RMS and mislead.
+    q75, q25 = np.percentile(residual, [75, 25])
     _label_shadow(ax, 0.97, 0.92,
-                  f'mean {np.mean(residual):.3f}\nRMS {np.std(residual):.3f}',
+                  f'median {np.median(residual):.3f} mm\n'
+                  rf'$\sigma_{{\mathrm{{IQR}}}}$ {(q75 - q25) / 1.349:.3f} mm',
                   fontsize=_S['annot_fs'], color=_C['data'])
 
     # (c) Ratio distribution

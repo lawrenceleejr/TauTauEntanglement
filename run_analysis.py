@@ -163,17 +163,33 @@ def process_events(filepath, max_events=None, smear=False):
     N = len(events_good)
     print(f"  Proceeding with {N} events.")
 
-    # Quality cut: require minimum IP significance on both taus to suppress
-    # Jeans-method outliers where the opening angle is poorly constrained.
+    # Quality cuts for vertex-dependent observables:
+    #  (i)  minimum IP significance on both taus, suppressing Jeans-method
+    #       outliers where the opening angle is poorly constrained;
+    #  (ii) fiducial requirement L_reco < 100 mm on both taus: the
+    #       impact-parameter geometry is only valid for decays inside the
+    #       vertexing volume, and alpha -> 0 failures otherwise produce
+    #       metre-scale fake decay lengths that contaminate the high-v_sig
+    #       tail of the causal-speed distribution.  Signal loss is
+    #       negligible: P(L > 100 mm) ~ e^-30 for gamma ~ 38 taus.
     MIN_IP_SIG = 3.0
+    MAX_DECAY_LENGTH_M = 0.1
     ip_pass = []
+    n_fid_fail = 0
     for r in reco_good:
         sig_m = r['tau_minus'].get('ip_significance', 999)
         sig_p = r['tau_plus'].get('ip_significance', 999)
-        ip_pass.append(min(sig_m, sig_p) >= MIN_IP_SIG)
+        L_m = r['tau_minus']['decay_length_m']
+        L_p = r['tau_plus']['decay_length_m']
+        fid_ok = max(L_m, L_p) < MAX_DECAY_LENGTH_M
+        if not fid_ok:
+            n_fid_fail += 1
+        ip_pass.append(min(sig_m, sig_p) >= MIN_IP_SIG and fid_ok)
     n_ip_cut = sum(1 for p in ip_pass if not p)
     if n_ip_cut > 0:
-        print(f"  IP significance cut (>{MIN_IP_SIG}): removed {n_ip_cut}/{N} events")
+        print(f"  Vertex quality cuts (IP sig > {MIN_IP_SIG}, "
+              f"L < {MAX_DECAY_LENGTH_M*1e3:.0f} mm): removed {n_ip_cut}/{N} "
+              f"events ({n_fid_fail} failed the fiducial requirement)")
 
     # ------------------------------------------------------------------
     # Phase 3: Compute spacetime intervals

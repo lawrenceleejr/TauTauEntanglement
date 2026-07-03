@@ -57,24 +57,14 @@ def make_spacetime_intervals(n, spacelike_frac=0.65):
 
 
 def make_entangled_cos_theta(n):
-    """Generate cos_theta arrays with SM-like entanglement.
+    """Generate cos_theta arrays with SM entanglement.
 
-    SM prediction for H->tautau: C = diag(+1, +1, -1).
+    Samples from the EXACT joint angular density for H -> tautau,
+    p ~ (1 - h+.C.h-)/(4pi)^2 with C = diag(+1, +1, -1), using the
+    validated sampler from entanglement.py.
     """
-    # Generate tau- direction cosines uniformly
-    cos_minus = _random_unit_vector(n)
-
-    # For entangled state: cos_plus correlations
-    # C_nn = +1, C_rr = +1, C_kk = -1
-    # cos_i+ ~ C_ii * cos_i- + noise
-    noise = RNG.normal(0, 0.25, (n, 3))
-    cos_plus = cos_minus * np.array([1.0, 1.0, -1.0]) + noise
-    # Normalise each row to unit vector
-    norms = np.linalg.norm(cos_plus, axis=1, keepdims=True)
-    norms = np.maximum(norms, 1e-10)
-    cos_plus = cos_plus / norms
-
-    return cos_plus, cos_minus
+    from entanglement import sample_sm_pairs
+    return sample_sm_pairs(n, rng=RNG)
 
 
 def make_acoplanarity(n):
