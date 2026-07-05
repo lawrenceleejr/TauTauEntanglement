@@ -6,9 +6,9 @@
 # in blender/output/.
 #
 # Usage:
-#   ./render.sh                       # everything: 3 stills + 4 animations
-#   ./render.sh stills 160            # just the three 4K stills
-#   ./render.sh anims 96 GPU          # all four animations on the GPU
+#   ./render.sh                       # the talk kit: 11-frame storyboard + 4 animations
+#   ./render.sh steps 200 GPU         # just the storyboard stills (00 ... 10)
+#   ./render.sh anims 96 GPU          # the four talk animations
 #   ./render.sh event 96              # a single shot
 #   ./render.sh boost 64 GPU          # just the boost animation
 #   ./render.sh steps 200 GPU --host  # render on the host's own Blender (no Docker)
