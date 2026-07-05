@@ -23,10 +23,13 @@
 #   REGEN=1          re-extract data/event.json (needs numpy/pyhepmc on host)
 #   BLENDER_BIN=...  explicit Blender binary for --host mode
 #
-# Shots: event | reco | rest | planes | planes-axial | event-angular | measurable | measure-muons
-#        steps  (the 10-frame storyboard)
-#        event-anim | reco-anim | rest-anim | planes-anim | boost | zoom
-#        stills | anims | all
+# Shots: event | reco | rest | planes | planes-axial | event-angular
+#        measurable | measure-muons | separation
+#        steps  (the 11-frame storyboard, 00 ... 10)
+#        anims  (the 4 talk animations: lab orbit, boost, acoplanarity, zoom)
+#        anims-extra  (orbits/companions for the other beats)
+#        event-anim | reco-anim | rest-anim | planes-anim | separation-anim
+#        boost | zoom | stills | all
 #
 set -euo pipefail
 

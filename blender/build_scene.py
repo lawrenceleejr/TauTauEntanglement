@@ -797,7 +797,8 @@ def rest_acoplanarity_deg():
 
 
 def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
-                     show_L=False, title=True, particle_labels=True):
+                     show_L=False, title=True, particle_labels=True,
+                     show_sep=False):
     """The Higgs decay in its own rest frame (no muons -- they only set the
     boost).  Layers:
 
@@ -814,6 +815,11 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                   Turn OFF for the down-the-axis view, where everything on
                   the tau axis projects onto the centre point and the labels
                   would pile up there.
+    show_sep    : the PAPER'S PAYOFF -- an engineering-style dimension line
+                  between the two decay vertices, calling out their spatial
+                  separation Δx.  With the decays back-to-back the interval
+                  is always spacelike (Δx = L⁺+L⁻ > c·Δt = |L⁺−L⁻|), which
+                  is what makes the entanglement measurement interesting.
     """
     clear("Rest")
     origin = Vector((0, 0, 0))
@@ -937,6 +943,45 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                             % (sup[label], sup[label], sup[label]),
                             g["dv"] * 0.62 + Vector((0, 0, -1.15 * s)), 0.4,
                             "Rest", "rs_L_" + label)
+
+    if show_sep:
+        # Engineering-style dimension line between the two decay vertices:
+        # dashed drop guides from each vertex, a horizontal measure line with
+        # end ticks below the axis, Δx on the line and the physics statement
+        # underneath.  This is the observable the whole analysis runs against.
+        m_sep = matte_material("sep", PALETTE["angle"], roughness=0.5,
+                               emission=2.2)
+        dv_m = rest_geo("tau_minus")["dv"]
+        dv_p = rest_geo("tau_plus")["dv"]
+        z_dim = -1.8
+        for tag, dv in (("m", dv_m), ("p", dv_p)):
+            dashed_line(dv + Vector((0, 0, -0.30)),
+                        Vector((dv.x, dv.y, z_dim - 0.35)), 0.014, m_sep,
+                        "sep_guide_" + tag, "Rest", n_dashes=7, duty=0.5)
+        a = Vector((dv_p.x, dv_p.y, z_dim))
+        b = Vector((dv_m.x, dv_m.y, z_dim))
+        cylinder_between(a, b, 0.022, m_sep, "sep_line", "Rest", caps=False)
+        for end, other in ((a, b), (b, a)):
+            # small arrowheads pointing outward at each end
+            outw = (end - other).normalized()
+            bpy.ops.mesh.primitive_cone_add(radius1=0.09, radius2=0.0,
+                                            depth=0.34,
+                                            location=end - outw * 0.17,
+                                            vertices=24)
+            hcone = bpy.context.active_object
+            hcone.name = "sep_tick"
+            hcone.rotation_mode = 'QUATERNION'
+            hcone.rotation_quaternion = \
+                Vector((0, 0, 1)).rotation_difference(outw)
+            bpy.ops.object.shade_smooth()
+            assign(hcone, m_sep)
+            link(hcone, "Rest")
+        mid = (a + b) * 0.5
+        billboard_label("Δx", mid + Vector((0, 0, 0.55)), 0.5,
+                        "Rest", "rs_sep_dx")
+        billboard_label("the two decays are spacelike separated",
+                        mid + Vector((0, 0, -0.85)), 0.42,
+                        "Rest", "rs_sep_txt")
 
     if show_planes:
         # when the impact-parameter geometry is also drawn, show the planes as
@@ -1679,76 +1724,95 @@ def _cam_rest_zoom(animated):
 #  Shots
 # ===========================================================================
 def shot_event(animated=False):
+    """The lab event -- same scene as storyboard frame 00, so the still IS
+    frame 00 and the animation is its drop-in animated companion."""
     build_event(displaced=True)
     set_visibility(lab=True, reco=False, rest=False)
     cam = _cam_event(animated)
-    render_animation(cam, "01_event_display.mp4") if animated \
-        else render_still(cam, "01_event_display")
+    render_animation(cam, "00_lab_event.mp4") if animated \
+        else render_still(cam, "00_lab_event")
 
 
 def shot_reco(animated=False):
+    """Appendix deep-dive: the Jeans impact-parameter right triangle for one
+    tau in its lab-frame track plane (backup slide for questions)."""
     pdir, dhat = build_reco()
     set_visibility(lab=False, reco=True, rest=False)
     cam = _cam_reco(animated, pdir, dhat)
-    render_animation(cam, "02_reconstruction_geometry.mp4") if animated \
-        else render_still(cam, "02_reconstruction_geometry")
+    render_animation(cam, "A1_reco_triangle.mp4") if animated \
+        else render_still(cam, "A1_reco_triangle")
 
 
 def shot_rest(animated=False):
+    """The back-to-back taus (storyboard frame 03).  The still is frame 03
+    itself; the animation is a slow orbit of the same scene (the boost MORPH
+    animation is shot_boost -> 03_boost_to_rest_frame.mp4)."""
     build_rest()
     set_visibility(lab=False, reco=False, rest=True)
     cam = _cam_rest(animated)
-    render_animation(cam, "03_higgs_rest_frame.mp4") if animated \
-        else render_still(cam, "03_higgs_rest_frame")
+    render_animation(cam, "03_rest_frame_orbit.mp4") if animated \
+        else render_still(cam, "03_boost_to_rest_frame")
 
 
 def shot_planes(animated=False):
-    """Rest frame, decay planes + the single acoplanarity angle phi.  Drawn
-    angular-only (pion directions from the PV) so each pion lies exactly in
-    its plane -- the displacement story is told by the zoom shots."""
+    """Rest frame, decay planes + the single acoplanarity angle phi (same
+    scene and camera as storyboard frame 06).  Drawn angular-only (pion
+    directions from the PV) so each pion lies exactly in its plane."""
     build_rest_scene(displaced=False, show_planes=True, title=False)
     set_visibility(lab=False, reco=False, rest=True)
     cam = _cam_rest_acop(animated)
-    render_animation(cam, "05_decay_planes.mp4") if animated \
-        else render_still(cam, "05_decay_planes")
+    render_animation(cam, "06_acoplanarity.mp4") if animated \
+        else render_still(cam, "06_acoplanarity")
 
 
 def shot_planes_axial(animated=False):
-    """The same decay planes viewed down the tau axis: the 'clock face'."""
+    """The same decay planes viewed down the tau axis: the 'clock face'
+    (storyboard frame 07)."""
     build_rest_scene(displaced=False, show_planes=True, title=False,
                      particle_labels=False)
     set_visibility(lab=False, reco=False, rest=True)
     cam = _cam_rest_axial(animated)
-    render_animation(cam, "06_decay_planes_axial.mp4") if animated \
-        else render_still(cam, "06_decay_planes_axial")
+    render_animation(cam, "07_acoplanarity_axial.mp4") if animated \
+        else render_still(cam, "07_acoplanarity_axial")
 
 
 def shot_event_angular(animated=False):
-    """The lab event display without resolved displacement (angular-only)."""
+    """Appendix: the lab event without resolved displacement (pions straight
+    from the PV) -- the 'angular analysis only' comparison."""
     build_event(displaced=False)
     set_visibility(lab=True, reco=False, rest=False)
     cam = _cam_event(animated)
-    render_animation(cam, "07_event_angular.mp4") if animated \
-        else render_still(cam, "07_event_angular")
+    render_animation(cam, "A2_event_angular_only.mp4") if animated \
+        else render_still(cam, "A2_event_angular_only")
 
 
 def shot_measurable(animated=False):
-    """What a detector actually measures: the four charged tracks, the PV and
-    the pion impact parameters (the taus / neutrinos shown ghosted)."""
+    """What a detector actually measures (storyboard frame 01)."""
     build_measurable()
     set_visibility(lab=True, reco=False, rest=False)
     cam = _cam_event(animated)
-    render_animation(cam, "08_what_is_measured.mp4") if animated \
-        else render_still(cam, "08_what_is_measured")
+    render_animation(cam, "01_what_is_measured.mp4") if animated \
+        else render_still(cam, "01_what_is_measured")
 
 
 def shot_measure_muons(animated=False):
-    """Highlight the Z -> mu mu measurement that fixes the Higgs 4-momentum."""
+    """Highlight the Z -> mu mu measurement (storyboard frame 02)."""
     build_measure_muons()
     set_visibility(lab=True, reco=False, rest=False)
     cam = _cam_event(animated)
-    render_animation(cam, "09_measure_the_muons.mp4") if animated \
-        else render_still(cam, "09_measure_the_muons")
+    render_animation(cam, "02_measure_the_muons.mp4") if animated \
+        else render_still(cam, "02_measure_the_muons")
+
+
+def shot_separation(animated=False):
+    """THE PAYOFF (storyboard frame 10): the dimension line between the two
+    decay vertices -- the spacetime separation the spin correlation is
+    measured against."""
+    build_rest_scene(displaced=True, title=False, show_sep=True)
+    set_visibility(lab=False, reco=False, rest=True)
+    cam = _cam_rest_wide(animated)
+    render_animation(cam, "10_spacetime_separation.mp4") if animated \
+        else render_still(cam, "10_spacetime_separation")
 
 
 def shot_zoom():
@@ -1766,7 +1830,7 @@ def shot_zoom():
                          (f1, (-1.3, -11.3, 1.6))],
                    look, up=(0, 0, 1), focus_at=(0, 0, 0))
     face_labels_to_camera(cam)
-    render_animation(cam, "05_zoom_to_impact_parameters.mp4")
+    render_animation(cam, "08_zoom_to_impact_parameters.mp4")
 
 
 def shot_boost():
@@ -1835,7 +1899,10 @@ def shot_steps():
       5. the two decay planes hinged on the tau axis + the single angle phi
       6. the same, viewed down the tau axis (the 'clock face' view)
       7. zoom in: the impact parameters of the two pion tracks
-      8. the payoff: d and alpha pin down where each tau decayed
+      8. d and alpha pin down where each tau decayed
+      9. THE PAYOFF: the spacetime separation Δx between the two decays --
+         always spacelike for the back-to-back pair -- against which the
+         spin correlation (entanglement) is measured
 
     No step captions and no specific numbers: each frame is a clean, generic
     stand-in carrying only symbolic physics labels, free for the user to
@@ -1907,6 +1974,13 @@ def shot_steps():
     set_visibility(lab=False, reco=False, rest=True)
     render_still(_cam_rest_3q(False), "09_decay_locations")
 
+    # 10. THE PAYOFF: knowing where each tau decayed gives the spacetime
+    #     separation between the two decays -- always spacelike for the
+    #     back-to-back pair -- against which the spin correlation is measured.
+    build_rest_scene(displaced=True, title=False, show_sep=True)
+    set_visibility(lab=False, reco=False, rest=True)
+    render_still(_cam_rest_wide(False), "10_spacetime_separation")
+
 
 # ===========================================================================
 #  Main
@@ -1922,24 +1996,31 @@ def main():
     stills = {"event": shot_event, "reco": shot_reco, "rest": shot_rest,
               "planes": shot_planes, "planes-axial": shot_planes_axial,
               "event-angular": shot_event_angular, "measurable": shot_measurable,
-              "measure-muons": shot_measure_muons}
+              "measure-muons": shot_measure_muons, "separation": shot_separation}
     anims = {"event-anim": shot_event, "reco-anim": shot_reco,
              "rest-anim": shot_rest, "planes-anim": shot_planes,
+             "separation-anim": shot_separation,
              "boost": shot_boost, "zoom": shot_zoom}
+    # the four animations that slot straight into the talk, in beat order:
+    # 00 lab event orbit, 03 boost morph, 06 acoplanarity orbit, 08 IP dolly
+    talk_anims = [lambda: shot_event(True), shot_boost,
+                  lambda: shot_planes(True), shot_zoom]
 
     if s == "steps":
         shot_steps()
     elif s == "all":
-        for fn in stills.values():
-            fn(animated=False)
         shot_steps()
-        shot_boost()
+        for fn in talk_anims:
+            fn()
     elif s == "stills":
         for fn in stills.values():
             fn(animated=False)
     elif s == "anims":
-        shot_event(True); shot_reco(True); shot_rest(True)
-        shot_planes(True); shot_boost(); shot_zoom()
+        for fn in talk_anims:
+            fn()
+    elif s == "anims-extra":
+        shot_reco(True); shot_rest(True)
+        shot_planes_axial(True); shot_separation(True)
     elif s in stills:
         stills[s](animated=False)
     elif s in anims:

@@ -1,45 +1,58 @@
-# Blender event display — H → ττ reconstruction
+# Blender event display — H → ττ entanglement, the talk kit
 
-A cinematic 3-D visualisation of the reconstruction method used in this
-analysis, built from a **real Monte-Carlo event** (not a cartoon) and rendered
-with Cycles in 4K inside a Blender Docker image.
+A cinematic 3-D visualisation of the analysis, built from a **real
+Monte-Carlo event** (not a cartoon) and rendered with Cycles in 4K.  It is
+organised as a **talk kit**: an 11-frame storyboard (one slide per beat of
+the argument) plus four drop-in animations, all named by the beat they
+belong to, so `00 → 10` in filename order IS the talk.
 
-The shots tell the story in several beats:
+### The storyboard (`--shot steps`) — one slide per beat
 
-| Output | Beat |
+No step-number captions and no event-specific numbers — each frame carries
+only its physics labels, so you narrate it however you like.  A suggested
+line per slide:
+
+| Frame | What it shows | Suggested narration |
+|---|---|---|
+| `00_lab_event` | The lab event, beam horizontal: μ⁺μ⁻ + τ⁺τ⁻ | "A Higgsstrahlung event: the Z gives two muons, the Higgs two taus — each τ → π ν." |
+| `01_what_is_measured` | Measured tracks solid; τ flights, decay points, ν's ghosted | "The detector only sees four charged tracks and the vertex — everything else must be reconstructed." |
+| `02_measure_the_muons` | Z→μ⁺μ⁻ bright, Higgs recoil `p_H = p_beam − p_Z` | "We measure the muons; recoil fixes the Higgs four-momentum…" |
+| `03_boost_to_rest_frame` | Two τ's exactly back-to-back, `\|p\| ≈ M_H/2` | "…so we can boost into the Higgs rest frame, where the taus are exactly back-to-back." |
+| `04_higgs_rest_frame` | The full decay in the Higgs frame: flights, π's, ν's | "In that frame the whole decay lives on one axis — this is where the spin physics is clean." |
+| `05_decay_planes` | Each decay spans a translucent plane hinged on the τ axis | "Each τ decay defines a plane containing its pion." |
+| `06_acoplanarity` | The single dihedral angle φ between the planes | "Between the two planes there is a single angle — the acoplanarity. Its distribution encodes the spin correlation." |
+| `07_acoplanarity_axial` | Down-the-axis "clock face" | "Looking down the axis: one angle, unmistakably." |
+| `08_impact_parameters` | Zoom: impact parameters d of the pion tracks | "The pion tracks miss the vertex by measurable impact parameters…" |
+| `09_decay_locations` | `L = \|d\|/sin α` right triangles fix both decay points | "…and d with the opening angle α pins down *where* each τ decayed." |
+| `10_spacetime_separation` | Dimension line Δx between the two decay vertices | "So we know the spacetime separation of the two decays — always **spacelike** — and can measure the spin correlation as a function of it. That's the entanglement test." |
+
+### The four talk animations (`--shot anims`)
+
+Each is the animated companion of a storyboard frame (same scene, same
+palette), named to slot in right after it:
+
+| Animation | Companion of | Move |
+|---|---|---|
+| `00_lab_event.mp4` | frame 00 | slow orbit of the lab event |
+| `03_boost_to_rest_frame.mp4` | frame 03 | the lab-frame τ momenta **morph** into the back-to-back configuration |
+| `06_acoplanarity.mp4` | frame 06 | slow orbit of the two planes + φ |
+| `08_zoom_to_impact_parameters.mp4` | frame 08 | dolly from the wide rest-frame view down into the vertex region |
+
+`--shot anims-extra` renders orbit companions for other beats
+(`03_rest_frame_orbit`, `07_acoplanarity_axial`, `10_spacetime_separation`,
+`A1_reco_triangle`).
+
+### Appendix / backup-slide assets
+
+| Output | Use |
 |---|---|
-| `01_event_display` (.png / .mp4) | The lab-frame event `e⁺e⁻ → ZH → μ⁺μ⁻ τ⁺τ⁻`, beam horizontal. The Z→μμ "tag" fixes the Higgs 4-momentum; each τ flies a short distance and decays to `π ν`. |
-| `02_reconstruction_geometry` (.png / .mp4) | The Jeans impact-parameter method for one τ: the measured π track misses the primary vertex by **d**; the τ flight, the opening angle **α**, and **L = \|d\|/sin α** form a right triangle in a translucent track plane. |
-| `03_higgs_rest_frame` (.png / .mp4) | Boosted into the Higgs rest frame the two τ's are **back-to-back**, each ≈ M_H/2. |
-| `04_boost_to_rest_frame.mp4` | The boost itself: the lab-frame τ momenta morph into the back-to-back rest-frame configuration. |
-| `05_decay_planes` (.png / .mp4) | Rest frame: the two **translucent τ decay planes** hinged on the common τ axis and the **single acoplanarity angle φ** between them. |
-| `05_zoom_to_impact_parameters.mp4` | Animated dolly from the wide rest-frame view down into the vertex region where the impact parameters live. |
-| `06_decay_planes_axial` (.png) | The same decay planes viewed **down the τ axis** — the classic "clock face" where the one angle φ is unmistakable. |
-| `07_event_angular` (.png) | The lab event display without the resolved displacement (pions drawn straight from the PV). |
-| storyboard `01 … 06` (.png) | The **pedagogical storyboard** — one rendered frame per step of the method (see below). |
-| `tautau_event.blend` | The full Blender scene, for opening / tweaking by hand. |
+| `A1_reco_triangle` (.png / .mp4) | Deep-dive on the Jeans method for ONE τ: track plane, d, α, `L = \|d\|/sin α` right triangle (for questions) |
+| `A2_event_angular_only` (.png / .mp4) | The lab event *without* resolved displacement — the "angular analysis only" comparison |
+| `tautau_event.blend` | The full Blender scene, for opening / tweaking by hand |
 
-### The step-by-step storyboard (`--shot steps`)
-
-A clean diagram per step, in narrative order, **all in the Higgs rest frame**
-after the boost.  No step-number captions — each frame carries only its
-physics labels, so the sequence can be narrated however you like.
-
-| Frame | Diagram |
-|---|---|
-| `00_lab_event` | The lab event: μ⁺μ⁻ from the Z and τ⁺τ⁻ from the Higgs (beam horizontal) |
-| `01_what_is_measured` | What a detector **actually measures**: the four charged tracks, the primary vertex and the pion impact parameters (solid/bright); the τ flights, decay vertices and neutrinos are **inferred** (faint ghosts) |
-| `02_measure_the_muons` | Highlight the Z→μ⁺μ⁻ measurement and the Higgs recoil `p_H = p_beam − p_Z` (tau side ghosted) — "we measure the muons, which fixes the Higgs momentum…" |
-| `03_boost_to_rest_frame` | "…and that lets us boost into the Higgs rest frame": τ's back-to-back, `|p| ≈ M_H/2` (muons still shown) |
-| `04_higgs_rest_frame` | Muons removed — the Higgs decay in its own frame |
-| `05_decay_planes` | Each τ decay spans a **plane**, shown with the real (displaced) decays sitting inside the two translucent planes |
-| `06_acoplanarity` | The **single** acoplanarity angle φ between the two planes (3/4 "book" view) |
-| `07_acoplanarity_axial` | The same planes viewed down the τ axis — the "clock face", one angle unmistakably |
-| `08_impact_parameters` | **Zoom in**: each pion's impact parameter d, sitting inside its decay plane |
-| `09_decay_locations` | The payoff: d and the opening angle α pin down where each τ decayed — `L = |d|/sin α`, planes shown |
-
-Standalone `--shot measurable` and `--shot measure-muons` render those
-lab-frame slides on their own.
+Standalone still shots (`event`, `measurable`, `measure-muons`, `rest`,
+`planes`, `planes-axial`, `separation`) re-render single storyboard frames
+under the same filenames.
 
 Physics conventions match the analysis (`spin_analysis.py`): the common axis
 k̂ is the τ⁻ direction in the Higgs frame, both pions' azimuths are measured
@@ -91,17 +104,18 @@ renders inside it (the committed `data/event.json` is used as-is):
 
 ```bash
 cd blender
-./render.sh                       # all stills + storyboard + boost animation
-./render.sh steps 160             # the 10-frame step-by-step storyboard
-./render.sh stills 160            # the standalone still frames
-./render.sh anims 96 GPU          # the animations, on the GPU
+./render.sh                       # the full talk kit: storyboard + 4 animations
+./render.sh steps 160             # the 11-frame storyboard (00 ... 10)
+./render.sh anims 96 GPU          # the 4 talk animations, on the GPU
+./render.sh anims-extra 96 GPU    # orbit companions for the other beats
 ./render.sh planes 192            # a single still
 ```
 
-Shots: `event`, `reco`, `rest`, `planes`, `planes-axial`, `event-angular`
-(stills, plus `measure-muons`) · `steps` (the 10-frame storyboard) · `event-anim`, `reco-anim`,
-`rest-anim`, `planes-anim`, `boost`, `zoom` (animations) · `stills`, `anims`,
-`all`.
+Shots: `event`, `reco`, `rest`, `planes`, `planes-axial`, `event-angular`,
+`measurable`, `measure-muons`, `separation` (single stills) · `steps` (the
+11-frame storyboard) · `anims` (the 4 talk animations) · `anims-extra` ·
+`event-anim`, `reco-anim`, `rest-anim`, `planes-anim`, `separation-anim`,
+`boost`, `zoom` (single animations) · `stills`, `all`.
 
 ### Running without Docker (`--host`)
 
