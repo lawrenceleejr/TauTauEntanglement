@@ -369,9 +369,18 @@ def billboard_label(body, loc, size, collection, name="lbl", align='CENTER'):
     o = bpy.data.objects.new(name, cu)
     mat = matte_material("text", PALETTE["text"], roughness=0.6, emission=5.0)
     o.data.materials.append(mat)
+    _hide_from_reflections(o)
     col(collection).objects.link(o)
     o.location = loc
     return o
+
+
+def _hide_from_reflections(o):
+    """Emissive labels otherwise mirror in the glossy glass decay planes as
+    ghostly floating text; keep them out of glossy rays (still visible to
+    the camera and through the translucent panels)."""
+    if hasattr(o, "visible_glossy"):
+        o.visible_glossy = False
 
 
 def _parse_math(text):
@@ -433,6 +442,7 @@ def math_label(text, loc, size, collection, name="lbl", align='CENTER'):
         cu.align_y = 'CENTER'
         o = bpy.data.objects.new("%s_%d" % (name, idx), cu)
         o.data.materials.append(mat)
+        _hide_from_reflections(o)
         col(collection).objects.link(o)
         o["mathchild"] = 1
         pieces.append((o, kind))
@@ -838,10 +848,13 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
         billboard_label("Higgs rest frame", origin + Vector((0, 0, 1.4)),
                         0.5, "Rest", "rs_title")
     elif particle_labels:
-        # zoomed frames: a short PV tag, tucked down-left of the vertex
-        # cluster (below the tau+ flight, clear of the phi label above)
+        # zoomed frames: a short PV tag.  With the impact-parameter geometry
+        # drawn, the tau+ track back-extension sweeps through the down-left
+        # region, so the tag goes up-left instead; otherwise down-left
+        # (clear of the phi label that sits above in the plane frames).
+        pv_z = 0.8 if show_ip else -0.95
         billboard_label("PV", origin - rest_axis() * 1.6
-                        + Vector((0, 0, -0.95)), 0.42, "Rest", "rs_pv")
+                        + Vector((0, 0, pv_z)), 0.42, "Rest", "rs_pv")
 
     sym = {"tau_minus": ("τ⁻", "π⁻"), "tau_plus": ("τ⁺", "π⁺")}
     sup = {"tau_minus": "⁻", "tau_plus": "⁺"}
@@ -897,11 +910,17 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                                 + Vector((0, 0, -0.8)), 0.42,
                                 "Rest", "rs_nu_" + label)
         else:
-            # angular-only: pion direction straight from the PV
+            # angular-only: pion direction straight from the PV.  The label
+            # is staggered in world-Z (an offset along q lands ON the glass
+            # plane face / rim): tau- below its arrow onto dark background,
+            # tau+ above (its plane face is behind the label from the talk
+            # cameras, translucent enough to read against)
             arrow(origin, g["pdir"], 6.0, 0.045, m_pi, label + "_pion", "Rest")
             if particle_labels:
+                zoff = -0.75 if label == "tau_minus" else 0.9
                 billboard_label(sym[label][1],
-                                origin + g["pdir"] * 6.0 + q * 0.7, 0.5,
+                                origin + g["pdir"] * 6.0
+                                + Vector((0, 0, zoff)), 0.5,
                                 "Rest", "rs_pi_" + label)
 
         if show_ip:
@@ -930,14 +949,19 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
         if show_L:
             # opening angle alpha at the decay vertex: the interior angle of
             # the PV-dv-pca right triangle, between the tau line back to the PV
-            # (-kdir) and the pion line back to its closest approach (-pdir)
-            mid_a = draw_angle_arc(g["dv"], -g["kdir"], -g["pdir"], radius=0.9,
-                                   mat=m_ang, name=label + "_alpha",
-                                   collection="Rest", tube=0.022)
-            if mid_a is not None:
-                billboard_label("α%s" % sup[label],
-                                g["dv"] + Vector(mid_a) * 1.35, 0.4,
-                                "Rest", "rs_a_" + label)
+            # (-kdir) and the pion line back to its closest approach (-pdir).
+            # Below ~30 mrad the arc is sub-pixel, so drawing it (and a label
+            # pointing at nothing) only confuses -- the L formula still names
+            # the angle.
+            if g["alpha"] > 0.03:
+                mid_a = draw_angle_arc(g["dv"], -g["kdir"], -g["pdir"],
+                                       radius=0.9, mat=m_ang,
+                                       name=label + "_alpha",
+                                       collection="Rest", tube=0.022)
+                if mid_a is not None:
+                    billboard_label("α%s" % sup[label],
+                                    g["dv"] + Vector(mid_a) * 1.35, 0.4,
+                                    "Rest", "rs_a_" + label)
             # L hugs the flight, vertically split from the d label
             billboard_label("L%s = |d%s| / sin α%s"
                             % (sup[label], sup[label], sup[label]),
@@ -953,7 +977,9 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
                                emission=2.2)
         dv_m = rest_geo("tau_minus")["dv"]
         dv_p = rest_geo("tau_plus")["dv"]
-        z_dim = -1.8
+        # low enough that the tau/PV tag row (z ~ -1.0) reads separately from
+        # the dimension line and its Δx
+        z_dim = -2.4
         for tag, dv in (("m", dv_m), ("p", dv_p)):
             dashed_line(dv + Vector((0, 0, -0.30)),
                         Vector((dv.x, dv.y, z_dim - 0.35)), 0.014, m_sep,
@@ -1031,12 +1057,13 @@ def build_rest_decay_planes(labels=True, acop=True):
             cylinder_between(verts[i], verts[(i + 1) % 4], 0.018, m_rim,
                              "rpe_%s_%d" % (label, i), "Rest", caps=False)
         if labels:
-            # toward the plane's outer end, lifted in WORLD-Z above the rim:
-            # an offset along w can point toward the camera and projects to
-            # nothing, while +Z always reads as screen-up in these views
+            # lifted in WORLD-Z above the rim (an offset along w can point at
+            # the camera and projects to nothing); kept at 0.62 of the span
+            # so the text stays inside the 3/4 and acop framings even though
+            # the plane itself may bleed off the frame edge
             billboard_label("%s decay plane"
                             % {"tau_minus": "τ⁻", "tau_plus": "τ⁺"}[label],
-                            k * (side * span * 0.8) + w * b1
+                            k * (side * span * 0.62) + w * b1
                             + Vector((0, 0, 1.1)),
                             0.42, "Rest", "rs_plane_" + label)
 
