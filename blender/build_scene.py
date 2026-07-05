@@ -925,26 +925,36 @@ def build_rest_scene(displaced=True, show_planes=False, show_ip=False,
 
         if show_ip:
             # extend the pion track back past its PCA so the impact parameter
-            # meets the line, then draw d with its right-angle marker
+            # meets the line
             s_pca = (g["pca"] - g["dv"]).dot(g["pdir"])
             cylinder_between(g["dv"] + g["pdir"] * (s_pca - 1.2),
                              g["dv"] + g["pdir"] * 1.5, 0.022, m_pi,
                              label + "_track_ext", "Rest", caps=False)
-            cylinder_between(origin, g["pca"], 0.035, m_reco,
-                             label + "_d", "Rest")
-            sphere(g["pca"], 0.07, m_reco, label + "_pca", "Rest")
-            dhat = g["pca"].normalized()
-            q = min(0.45, g["pca"].length * 0.55)
-            corner = g["pca"] - g["pdir"] * q
-            cylinder_between(corner, corner + g["pdir"] * q, 0.012, m_reco,
-                             label + "_ra_a", "Rest", caps=False)
-            cylinder_between(corner, corner - dhat * q, 0.012, m_reco,
-                             label + "_ra_b", "Rest", caps=False)
-            # d labels: kicked out along each arm and split vertically so the
-            # two never collide near the PV
-            billboard_label("d%s" % sup[label],
-                            g["dv"] * 0.28 + Vector((0, 0, 1.05 * s)), 0.42,
-                            "Rest", "rs_d_" + label)
+            # the d segment, its foot and the right-angle marker are only
+            # drawn when they are actually resolvable at scene scale --
+            # for a ~40 um impact parameter the stub is sub-pixel and a
+            # label would point at nothing (the L formula still tells that
+            # tau's story)
+            if g["pca"].length > 0.25:
+                cylinder_between(origin, g["pca"], 0.035, m_reco,
+                                 label + "_d", "Rest")
+                sphere(g["pca"], 0.07, m_reco, label + "_pca", "Rest")
+                dhat = g["pca"].normalized()
+                q = min(0.45, g["pca"].length * 0.55)
+                corner = g["pca"] - g["pdir"] * q
+                cylinder_between(corner, corner + g["pdir"] * q, 0.012,
+                                 m_reco, label + "_ra_a", "Rest", caps=False)
+                cylinder_between(corner, corner - dhat * q, 0.012, m_reco,
+                                 label + "_ra_b", "Rest", caps=False)
+                # label hugs the FOOT of the perpendicular, offset along the
+                # decay-plane normal so it clears both the track and the d
+                # segment (which both lie in the plane)
+                n = g["pdir"].cross(dhat).normalized()
+                if n.z < 0:
+                    n = -n
+                billboard_label("d%s" % sup[label],
+                                g["pca"] + n * 0.7, 0.42,
+                                "Rest", "rs_d_" + label)
 
         if show_L:
             # opening angle alpha at the decay vertex: the interior angle of
@@ -1911,7 +1921,7 @@ def shot_boost():
     animate_camera(cam, _arc_moves(f0, f1, look, start, sweep_deg=16,
                                    push_in=0.92, lift=0.6), look, up=(0, 0, 1))
     face_labels_to_camera(cam)
-    render_animation(cam, "04_boost_to_rest_frame.mp4")
+    render_animation(cam, "03_boost_to_rest_frame.mp4")
 
 
 def shot_steps():
