@@ -1817,8 +1817,10 @@ def shot_separation(animated=False):
 
 def shot_zoom():
     """Animated dolly from the wide rest-frame decay view down into the
-    vertex region where the impact parameters live (motion blur on)."""
-    build_rest_scene(displaced=True, show_ip=True, title=False)
+    vertex region where the impact parameters live (motion blur on).  Planes
+    shown, so the dolly lands exactly on storyboard frame 08's look."""
+    build_rest_scene(displaced=True, show_ip=True, show_planes=True,
+                     title=False)
     set_visibility(lab=False, reco=False, rest=True)
     f0, f1 = _frame_range()
     look = (-1.8, 0, 0.3)
@@ -1842,8 +1844,7 @@ def shot_boost():
     m_higgs = matte_material("higgs", PALETTE["higgs"], roughness=0.45)
     origin = Vector((0, 0, 0))
     sphere(origin, 0.20, m_higgs, "boost_h", "Rest")
-    billboard_label("boost into the Higgs rest frame",
-                    origin + Vector((0, 0, 1.3)), 0.5, "Rest", "bl_title")
+    # no caption -- like the stills, the animation carries no narration text
     pscale = 5.0 / 60.0
     f0, f1 = _frame_range()
     # the animation lands on the EXACT back-to-back rest configuration: a
