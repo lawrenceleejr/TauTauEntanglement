@@ -317,8 +317,13 @@ def make_unit_arrow_x(radius, mat, name, collection):
     bpy.ops.object.join()
     o = bpy.context.active_object
     o.name = name
-    bpy.context.scene.cursor.location = (0, 0, 0)
-    bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+    # BAKE the primitives' placement into the mesh data.  The rotation= on
+    # primitive_*_add is an OBJECT transform: without applying it, the mesh
+    # runs along local Z, so replacing the object rotation with the morph
+    # quaternion mis-aims the arrow and scale=(L,1,1) stretches its
+    # THICKNESS.  After apply, local +X is the arrow axis, tail at the
+    # origin, identity transform.
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     o.location = (0, 0, 0)
     bpy.ops.object.shade_smooth()
     assign(o, mat)
