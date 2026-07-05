@@ -291,8 +291,15 @@ def arrow(p0, direction, length, shaft_r, mat, name, collection):
 
 
 def make_unit_arrow_x(radius, mat, name, collection):
-    """Single-mesh unit arrow along +X (tail at origin) for length-only scaling."""
-    head_len = 0.26
+    """Single-mesh unit arrow along +X for length-only scaling.
+
+    The object ORIGIN is placed at the TAIL: the boost morph scales and
+    rotates these arrows, and both must happen about the production vertex,
+    not the joined mesh's default (shaft-centre) origin -- that made the two
+    morphing arrows pivot about mid-shaft and collapse into a wad.  The head
+    is kept short (0.18) so that at typical momentum scalings (~3-5x in X)
+    the stretched head still reads with static-arrow proportions."""
+    head_len = 0.18
     shaft_len = 1.0 - head_len
     bpy.ops.mesh.primitive_cylinder_add(radius=radius, depth=shaft_len,
                                          location=(shaft_len / 2.0, 0, 0),
@@ -310,6 +317,8 @@ def make_unit_arrow_x(radius, mat, name, collection):
     bpy.ops.object.join()
     o = bpy.context.active_object
     o.name = name
+    bpy.context.scene.cursor.location = (0, 0, 0)
+    bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
     o.location = (0, 0, 0)
     bpy.ops.object.shade_smooth()
     assign(o, mat)
@@ -1882,18 +1891,16 @@ def shot_boost():
     origin = Vector((0, 0, 0))
     sphere(origin, 0.20, m_higgs, "boost_h", "Rest")
     # no caption -- like the stills, the animation carries no narration text
-    pscale = 5.0 / 60.0
+    pscale = 0.068
     f0, f1 = _frame_range()
-    # the animation lands on the EXACT back-to-back rest configuration: a
-    # single common axis (bisecting the two reco directions) and one shared
-    # magnitude, so the two arrows finish perfectly antiparallel.
+    # the animation lands on the EXACT frame-03 configuration: back-to-back
+    # along display X with one shared magnitude, so a talk can cut from the
+    # end of this clip straight to the labelled 03 still.
     pr = {l: p3(DATA["taus"][l]["rest_frame"]["tau_p4_reco"])
           for l in ("tau_minus", "tau_plus")}
     rest_mag = (pr["tau_minus"].length + pr["tau_plus"].length) / 2.0
-    rest_ax = (pr["tau_minus"].normalized()
-               - pr["tau_plus"].normalized()).normalized()
-    p_rest_of = {"tau_minus": rest_ax * rest_mag,
-                 "tau_plus": -rest_ax * rest_mag}
+    p_rest_of = {"tau_minus": Vector((1, 0, 0)) * rest_mag,
+                 "tau_plus": Vector((-1, 0, 0)) * rest_mag}
     for label in ("tau_minus", "tau_plus"):
         m_tau = matte_material(label, PALETTE[TAUCOL[label]], roughness=0.5)
         p_lab = p3(DATA["taus"][label]["tau_p4_reco"])
