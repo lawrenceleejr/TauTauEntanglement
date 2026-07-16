@@ -15,6 +15,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as pe
 import matplotlib.colors as mcolors
+import matplotlib.text as mtext
+import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
+import matplotlib.collections as mcoll
 from matplotlib.ticker import AutoMinorLocator, MaxNLocator, MultipleLocator
 from matplotlib.transforms import ScaledTranslation
 from scipy.optimize import curve_fit
@@ -153,13 +157,110 @@ def _ensure_output_dir():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
+def _invert_color(c):
+    """Invert an RGB(A) colour, preserving alpha.
+
+    Fully transparent colours are returned unchanged so invisible artists
+    stay invisible.  This is a literal colour inversion (rgb -> 1-rgb), the
+    same transform as toggling "invert colours" in a viewer.
+    """
+    r, g, b, a = mcolors.to_rgba(c)
+    if a == 0:
+        return (r, g, b, a)
+    return (1.0 - r, 1.0 - g, 1.0 - b, a)
+
+
+def _invert_color_array(arr):
+    """Invert an (N, 4) RGBA colour array, leaving transparent rows alone."""
+    arr = np.atleast_2d(np.array(arr, dtype=float))
+    out = arr.copy()
+    if out.shape[1] == 4:
+        visible = out[:, 3] > 0
+        out[visible, :3] = 1.0 - out[visible, :3]
+    else:
+        out[:, :3] = 1.0 - out[:, :3]
+    return out
+
+
+def _invert_path_effect(effect):
+    """Invert the colours baked into a path effect (halo / drop shadow)."""
+    gc = getattr(effect, '_gc', None)
+    if isinstance(gc, dict) and gc.get('foreground') is not None:
+        gc['foreground'] = _invert_color(gc['foreground'])
+    if getattr(effect, '_shadow_color', None) is not None:
+        effect._shadow_color = _invert_color(effect._shadow_color)
+
+
+def _invert_figure_colors(fig):
+    """Invert every artist colour in place for a dark-background variant.
+
+    Figure and axes background patches are left untouched: they are made
+    transparent at save time (``transparent=True``) so the plot drops onto
+    any dark slide.  Everything else (text, lines, markers, spines, ticks,
+    fills, path-effect halos and shadows) is flipped light-on-dark.
+    """
+    background = {id(fig.patch)}
+    for ax in fig.get_axes():
+        background.add(id(ax.patch))
+
+    for obj in fig.findobj():
+        pes = getattr(obj, 'get_path_effects', None)
+        if callable(pes):
+            for effect in (pes() or []):
+                _invert_path_effect(effect)
+
+        if isinstance(obj, mtext.Text):
+            obj.set_color(_invert_color(obj.get_color()))
+        elif isinstance(obj, mlines.Line2D):
+            # Read every colour *before* mutating any of them: the marker
+            # face/edge default to 'auto' (they track the line colour), so
+            # once the line colour is flipped a later read would return the
+            # already-inverted value and invert it a second time.
+            line_c = obj.get_color()
+            mfc = obj.get_markerfacecolor()
+            mec = obj.get_markeredgecolor()
+            obj.set_color(_invert_color(line_c))
+            if mfc not in (None, 'none'):
+                obj.set_markerfacecolor(_invert_color(mfc))
+            if mec not in (None, 'none'):
+                obj.set_markeredgecolor(_invert_color(mec))
+        elif isinstance(obj, mpatches.Patch):
+            if id(obj) in background:
+                continue
+            fc = obj.get_facecolor()
+            if fc is not None and mcolors.to_rgba(fc)[3] > 0:
+                obj.set_facecolor(_invert_color(fc))
+            ec = obj.get_edgecolor()
+            if ec is not None and mcolors.to_rgba(ec)[3] > 0:
+                obj.set_edgecolor(_invert_color(ec))
+        elif isinstance(obj, mcoll.Collection):
+            fcs = obj.get_facecolor()
+            if len(fcs):
+                obj.set_facecolor(_invert_color_array(fcs))
+            ecs = obj.get_edgecolor()
+            if len(ecs):
+                obj.set_edgecolor(_invert_color_array(ecs))
+
+
 def _save(fig, name):
-    """Save figure as PDF + PNG and close."""
+    """Save the figure and close it.
+
+    Writes three files per plot:
+      * ``<name>.pdf`` / ``<name>.png`` — white-background versions for the
+        paper and quick viewing.
+      * ``<name>_dark.pdf`` — colour-inverted, transparent-background version
+        for talks on a dark slide background.
+    """
     _ensure_output_dir()
     for ext in ('pdf', 'png'):
         fig.savefig(os.path.join(OUTPUT_DIR, f"{name}.{ext}"))
+
+    # Dark-background talk variant: invert every colour, drop the background.
+    _invert_figure_colors(fig)
+    fig.savefig(os.path.join(OUTPUT_DIR, f"{name}_dark.pdf"), transparent=True)
+
     plt.close(fig)
-    print(f"  Saved {name}.pdf")
+    print(f"  Saved {name}.pdf (+ {name}_dark.pdf)")
 
 
 # ===================================================================
@@ -882,18 +983,6 @@ def plot_vpsi_exclusion(vpsi_scan_results):
         v_plot1 = np.append(v_plot1, v_zero)
         s_plot1 = np.append(s_plot1, 0.0)
 
-    # Ideal expected significance for the LR test: Z = sqrt(N)/2 from the
-    # exact per-event LLR moments (detector dilution pulls data below this)
-    if np.any(ok):
-        z_exp = np.sqrt(nev[ok].astype(float)) / 2.0
-        ax.plot(v_psi[ok], z_exp, linestyle=':', color=_C['truth'],
-                linewidth=0.5, alpha=0.7, zorder=2)
-        ax.annotate(r'$\sqrt{N}/2$ (ideal)',
-                    xy=(v_psi[ok][0], z_exp[0]),
-                    xytext=(4, 3), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['truth'],
-                    alpha=0.85, ha='left', va='bottom')
-
     # Data lines
     ax.plot(v_plot0, s_plot0, 'o-', color=_C['truth'], markersize=2.5,
             linewidth=0.5,
@@ -907,20 +996,21 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-',
                zorder=1)
 
-    # Direct line labels — place at midpoint of each curve to avoid overlap
+    # Direct line labels — parked in open space clear of both curves.
     if np.any(ok):
         n_ok = int(np.sum(ok))
-        mid = max(0, n_ok // 2 - 1)  # midpoint index
-        ax.annotate('Reject no correlation\n(optimal LR test)',
-                    xy=(v_plot0[mid], s_plot0[mid]),
-                    xytext=(0, 6), textcoords='offset points',
+        # "Reject no correlation" (teal, upper curve): float the label in the
+        # open upper-right region, to the right of the steeply falling curve.
+        ax.annotate('Reject no correlation',
+                    xy=(0.60, 0.72), xycoords='axes fraction',
                     fontsize=_S['annot_fs'], color=_C['truth'],
-                    ha='center', va='bottom')
+                    ha='center', va='center')
+        # "Reject CHSH S<=2" (ruby, lower curve): float the label in the clear
+        # strip along the bottom axis, beneath the falling ruby curve.
         ax.annotate(r'Reject CHSH $S\leq 2$',
-                    xy=(v_plot1[mid], s_plot1[mid]),
-                    xytext=(0, -6), textcoords='offset points',
+                    xy=(0.30, 0.05), xycoords='axes fraction',
                     fontsize=_S['annot_fs'], color=_C['reco'],
-                    ha='center', va='top')
+                    ha='center', va='center')
     # 95% CL label — place below the line to stay clear of data labels
     ax.annotate('95% CL', xy=(0.99, 1.96),
                 xycoords=('axes fraction', 'data'),
@@ -938,7 +1028,7 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax.set_xscale('log')
     ax.tick_params(labelbottom=False)
 
-    # --- Bottom panel: surviving event counts + exact Pareto law ---
+    # --- Bottom panel: surviving event counts + exact Pareto reference ---
     pos = nev > 0
     ax_n.plot(v_psi[pos], nev[pos], 'o', color=_C['data'],
               markersize=2.2, markeredgewidth=0, zorder=5)
@@ -949,10 +1039,6 @@ def plot_vpsi_exclusion(vpsi_scan_results):
         v_fine = np.geomspace(v_psi[pos][0], max(v_psi[pos][-1], v1 * 2), 200)
         ax_n.plot(v_fine, n1 * v1 / v_fine, color=_C['sm'],
                   linewidth=_S['ref_lw'], linestyle='--', zorder=2)
-        ax_n.annotate(r'$N \propto 1/v_\psi$ (Pareto)',
-                      xy=(0.97, 0.85), xycoords='axes fraction',
-                      fontsize=_S['annot_fs'], color=_C['sm'],
-                      ha='right', va='top')
     ax_n.set_yscale('log')
     ax_n.set_xscale('log')
     ax_n.set_ylabel(r'$N(v_{\mathrm{sig}}>v_\psi)$')
