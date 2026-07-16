@@ -1009,25 +1009,29 @@ def plot_vpsi_exclusion(vpsi_scan_results):
                     xytext=(8, 10), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['truth'],
                     ha='left', va='bottom')
-        # "Reject CHSH S<=2" (ruby, lower curve): float the label in the clear
-        # strip along the bottom axis, beneath the falling ruby curve.
+        # "Reject CHSH S<=2" (ruby, lower curve): anchor to the ruby curve
+        # and lift the label into the open wedge between the two curves.
+        mid1 = max(0, min(n_ok - 1, n_ok // 2 - 1))
         ax.annotate(r'Reject CHSH $S\leq 2$',
-                    xy=(0.30, 0.05), xycoords='axes fraction',
+                    xy=(v_plot1[mid1], s_plot1[mid1]),
+                    xytext=(0, 13), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['reco'],
-                    ha='center', va='center')
-    # 95% CL label — place below the line to stay clear of data labels
-    ax.annotate('95% CL', xy=(0.99, 1.96),
+                    ha='center', va='bottom')
+    # Threshold labels — small, tucked at the right edge against their lines.
+    thr_fs = _S['annot_fs'] - 2
+    ax.annotate('95% CL', xy=(0.995, 1.96),
                 xycoords=('axes fraction', 'data'),
-                xytext=(0, -4), textcoords='offset points',
-                fontsize=_S['annot_fs'], color=_C['accent'],
+                xytext=(0, -2), textcoords='offset points',
+                fontsize=thr_fs, color=_C['accent'],
                 ha='right', va='top')
-    if np.any(ok):
-        ax.annotate(r'$3\sigma$', xy=(v_psi[ok][-1], 3.0),
-                    xytext=(4, -1), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['light'], va='top')
-        ax.annotate(r'$5\sigma$', xy=(v_psi[ok][-1], 5.0),
-                    xytext=(4, -1), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['light'], va='top')
+    ax.annotate(r'$3\sigma$', xy=(0.995, 3.0),
+                xycoords=('axes fraction', 'data'),
+                xytext=(0, 1), textcoords='offset points',
+                fontsize=thr_fs, color=_C['light'], ha='right', va='bottom')
+    ax.annotate(r'$5\sigma$', xy=(0.995, 5.0),
+                xycoords=('axes fraction', 'data'),
+                xytext=(0, 1), textcoords='offset points',
+                fontsize=thr_fs, color=_C['light'], ha='right', va='bottom')
     ax.set_ylabel(r'Rejection Significance [$\sigma$]')
     ax.set_xscale('log')
     ax.tick_params(labelbottom=False)
