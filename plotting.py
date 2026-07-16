@@ -996,15 +996,19 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-',
                zorder=1)
 
-    # Direct line labels — parked in open space clear of both curves.
+    # Direct line labels — anchored to each curve, offset clear of it.
     if np.any(ok):
         n_ok = int(np.sum(ok))
-        # "Reject no correlation" (teal, upper curve): float the label in the
-        # open upper-right region, to the right of the steeply falling curve.
+        # "Reject no correlation" (teal, upper curve): anchor to the curve
+        # past its steepest drop, where it has started to flatten, and set
+        # the label above-right of that point so it reads next to the curve
+        # without sitting on top of it.
+        mid0 = max(0, min(n_ok - 1, n_ok // 2))
         ax.annotate('Reject no correlation',
-                    xy=(0.60, 0.72), xycoords='axes fraction',
+                    xy=(v_plot0[mid0], s_plot0[mid0]),
+                    xytext=(8, 10), textcoords='offset points',
                     fontsize=_S['annot_fs'], color=_C['truth'],
-                    ha='center', va='center')
+                    ha='left', va='bottom')
         # "Reject CHSH S<=2" (ruby, lower curve): float the label in the clear
         # strip along the bottom axis, beneath the falling ruby curve.
         ax.annotate(r'Reject CHSH $S\leq 2$',
