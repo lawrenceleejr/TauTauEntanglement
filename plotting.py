@@ -1077,9 +1077,9 @@ def plot_vpsi_exclusion(vpsi_scan_results):
         i0, i1 = min(1, n_ok - 1), min(4, n_ok - 1)
         if i1 > i0:
             _label_along_curve(ax, v_psi[ok], sig0[ok], i0, i1,
-                               'Reject no correlation', _C['truth'])
+                               r'Reject $m_{12}=0$', _C['truth'])
             _label_along_curve(ax, v_psi[ok], sig1[ok], i0, i1,
-                               r'Reject CHSH $S\leq 2$', _C['reco'])
+                               r'Reject $m_{12}<1$', _C['reco'])
 
     _paper_bg(fig, [ax, ax_n])
     fig.align_ylabels([ax, ax_n])
