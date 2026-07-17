@@ -985,6 +985,46 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
 # 4. v_psi exclusion curve  (single-column, tall)
 # ---------------------------------------------------------------------------
 
+def _threshold_reach(v, s, thr):
+    """Largest v_psi at which significance curve s(v) crosses down through thr.
+
+    Interpolates linearly in log10(v) vs sigma, matching the straight
+    segments the curve is drawn with on the log-x, linear-y axes.  Scans
+    every segment and keeps the highest-v downward crossing (so wiggles
+    below threshold don't shorten a reach that recovers above it).
+    Returns None if the curve never reaches thr.
+    """
+    v = np.asarray(v, dtype=float)
+    s = np.asarray(s, dtype=float)
+    reach = None
+    for i in range(len(v) - 1):
+        s0, s1 = s[i], s[i + 1]
+        if s0 >= thr > s1:
+            frac = (s0 - thr) / (s0 - s1)
+            logv = np.log10(v[i]) + frac * (np.log10(v[i + 1]) - np.log10(v[i]))
+            reach = 10.0 ** logv
+    return reach
+
+
+def _print_exclusion_reach(curves):
+    """Print where each exclusion curve crosses the 5 sigma and 95% CL lines.
+
+    ``curves`` is a list of (label, v_array, sig_array) using the same
+    (extended) arrays that are plotted, so the printed reach matches the
+    drawn curve.
+    """
+    print("\n  v_psi exclusion reach (threshold crossings):")
+    for label, v_arr, s_arr in curves:
+        for thr, tname in ((5.0, '5sigma'), (1.96, '95% CL')):
+            reach = _threshold_reach(v_arr, s_arr, thr)
+            if reach is None:
+                peak = np.nanmax(s_arr) if len(s_arr) else 0.0
+                print(f"    {label:<14s} {tname:>7s}: not reached "
+                      f"(peak {peak:.1f} sigma)")
+            else:
+                print(f"    {label:<14s} {tname:>7s}: v_psi = {reach:.1f} c")
+
+
 def plot_vpsi_exclusion(vpsi_scan_results):
     _apply_style()
 
@@ -1083,6 +1123,12 @@ def plot_vpsi_exclusion(vpsi_scan_results):
 
     _paper_bg(fig, [ax, ax_n])
     fig.align_ylabels([ax, ax_n])
+
+    if np.any(ok):
+        _print_exclusion_reach([
+            (r'Reject m12=0', v_plot0, s_plot0),
+            (r'Reject m12<1', v_plot1, s_plot1),
+        ])
 
     _save(fig, "vpsi_exclusion")
 
