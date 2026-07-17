@@ -1443,7 +1443,7 @@ def print_summary(global_result, locality_sigma, entanglement_sigma,
         print(f"\n  v_psi exclusion scan "
               f"(LR test = optimal no-correlation test, permutation-calibrated):")
         print(f"    {'v_psi/c':>10s} {'N_events':>10s} {'m12_bc':>10s} "
-              f"{'z(LR test)':>12s} {'z(CHSH S>2)':>12s}")
+              f"{'z(LR test)':>12s} {'z(CHSH exp)':>12s}")
         for r in vpsi_scan_results:
             if r['n_events'] >= 6:
                 m12_show = r.get('m12_bc', r['m12'])

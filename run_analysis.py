@@ -430,7 +430,7 @@ def process_events(filepath, max_events=None, smear=False):
                   f"(noise floor {r['m12_null_exp']:.2f}), "
                   f"LR test p={r['p_llr']:.3g} (z={r['z_llr']:.1f}), "
                   f"CHSH S={r['chsh_S']:.2f}+/-{r['chsh_S_err']:.2f} "
-                  f"(S>2 at {r['sigma_vs_1']:.1f}sig)")
+                  f"(S>2 expected at {r['sigma_vs_1']:.1f}sig)")
 
     # Analytic sensitivity projection: P(v_sig > v) = beta/v (Pareto) and
     # Z = sqrt(N)/2 per the exact LLR moments => v95 = N beta / (4 z95^2).

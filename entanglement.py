@@ -621,6 +621,13 @@ def vpsi_rejection_significance(cos_theta_plus, cos_theta_minus,
     2. LOCAL-REALISM test ('sigma_vs_1'): the CHSH score with fixed
        a-priori axes, S = sqrt(2)(C_nn + C_rr), a linear (unbiased)
        statistic tested against the local-hidden-variable bound S <= 2.
+       Reported as the EXPECTED sensitivity: the central value is held at
+       the SM prediction (S = 2 sqrt(2), i.e. m12 = 2) and only the
+       statistical uncertainty scales with the surviving sample size,
+       z = (S_SM - 2) / sigma_S(N).  This is the median significance with
+       which an SM signal would exclude S <= 2 at each v_psi, and is
+       monotonic in N (unlike the per-subsample measured score, which
+       fluctuates and is kept as 'sigma_vs_1_measured' for reference).
 
     Returns
     -------
@@ -635,7 +642,7 @@ def vpsi_rejection_significance(cos_theta_plus, cos_theta_minus,
             'n_events': n_sel,
             'm12': np.nan, 'm12_err': np.nan, 'm12_bc': np.nan,
             'm12_null_exp': np.nan,
-            'sigma_vs_0': 0.0, 'sigma_vs_1': 0.0,
+            'sigma_vs_0': 0.0, 'sigma_vs_1': 0.0, 'sigma_vs_1_measured': 0.0,
             'p_llr': np.nan, 'z_llr': 0.0,
             'chsh_S': np.nan, 'chsh_S_err': np.nan,
             'concurrence': np.nan, 'concurrence_err': np.nan,
@@ -649,6 +656,15 @@ def vpsi_rejection_significance(cos_theta_plus, cos_theta_minus,
     # Optimal LR test, permutation-calibrated (exact at finite N)
     perm = permutation_test(cp, cm, statistic='llr', n_perm=n_perm, rng=rng)
 
+    # Expected CHSH sensitivity: hold the central value at the SM prediction
+    # (S = 2 sqrt(2)) and scale only the measured statistical error with N.
+    # Gives the median significance for excluding S <= 2, monotonic in N.
+    s_err = result['chsh_S_err']
+    if np.isfinite(s_err) and s_err > 0:
+        sigma_vs_1_proj = (CHSH_SM - 2.0) / s_err
+    else:
+        sigma_vs_1_proj = 0.0
+
     return {
         'n_events': n_sel,
         'm12': result['m12'],
@@ -656,7 +672,8 @@ def vpsi_rejection_significance(cos_theta_plus, cos_theta_minus,
         'm12_bc': result['m12_bc'],
         'm12_null_exp': m12_null_expectation(n_sel),
         'sigma_vs_0': perm['z_score'],
-        'sigma_vs_1': result['chsh_z_bell'],
+        'sigma_vs_1': sigma_vs_1_proj,
+        'sigma_vs_1_measured': result['chsh_z_bell'],
         'p_llr': perm['p_value'],
         'z_llr': perm['z_score'],
         'chsh_S': result['chsh_S'],
