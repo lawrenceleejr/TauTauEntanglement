@@ -446,6 +446,42 @@ def _label_shadow(ax, x_frac, y_frac, text, fontsize=None, color=_C['data'],
             path_effects=shadow_fx, **kw)
 
 
+def _label_along_curve(ax, x, y, i0, i1, text, color, perp_pt=4.0,
+                       fontsize=None):
+    """Direct-label a curve with text that follows its local slope.
+
+    The label is centred on the segment between points i0 and i1, rotated
+    to the segment's slope in display space (so log axes are handled
+    correctly), and offset perpendicular to the curve so it floats just
+    above it.  Because the text tracks its own curve, it cannot wander
+    into a neighbouring curve the way a long horizontal label can.
+
+    Call only after all artists are drawn and the axis limits are final —
+    the rotation angle is computed from the current display transform.
+    """
+    if fontsize is None:
+        fontsize = _S['annot_fs']
+    p0 = ax.transData.transform((x[i0], y[i0]))
+    p1 = ax.transData.transform((x[i1], y[i1]))
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    angle = np.degrees(np.arctan2(dy, dx))
+    norm = np.hypot(dx, dy)
+    if norm == 0:
+        nx, ny = 0.0, 1.0
+    else:
+        nx, ny = -dy / norm, dx / norm
+        if ny < 0:
+            nx, ny = -nx, -ny
+    xm, ym = ax.transData.inverted().transform(
+        ((p0[0] + p1[0]) / 2.0, (p0[1] + p1[1]) / 2.0))
+    ax.annotate(text, xy=(xm, ym),
+                xytext=(nx * perp_pt, ny * perp_pt),
+                textcoords='offset points',
+                rotation=angle, rotation_mode='anchor',
+                fontsize=fontsize, color=color,
+                ha='center', va='bottom')
+
+
 def _jewel_colormap():
     """Create a bespoke two-tone colormap from the jewel palette.
 
@@ -996,27 +1032,6 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax.axhline(5.0, color=_C['light'], linewidth=0.3, linestyle='-',
                zorder=1)
 
-    # Direct line labels — anchored to each curve, offset clear of it.
-    if np.any(ok):
-        n_ok = int(np.sum(ok))
-        # "Reject no correlation" (teal, upper curve): anchor to the curve
-        # past its steepest drop, where it has started to flatten, and set
-        # the label above-right of that point so it reads next to the curve
-        # without sitting on top of it.
-        mid0 = max(0, min(n_ok - 1, n_ok // 2))
-        ax.annotate('Reject no correlation',
-                    xy=(v_plot0[mid0], s_plot0[mid0]),
-                    xytext=(8, 10), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['truth'],
-                    ha='left', va='bottom')
-        # "Reject CHSH S<=2" (ruby, lower curve): anchor to the ruby curve
-        # and lift the label into the open wedge between the two curves.
-        mid1 = max(0, min(n_ok - 1, n_ok // 2 - 1))
-        ax.annotate(r'Reject CHSH $S\leq 2$',
-                    xy=(v_plot1[mid1], s_plot1[mid1]),
-                    xytext=(0, 13), textcoords='offset points',
-                    fontsize=_S['annot_fs'], color=_C['reco'],
-                    ha='center', va='bottom')
     # Threshold labels — small, tucked at the right edge against their lines.
     thr_fs = _S['annot_fs'] - 2
     ax.annotate('95% CL', xy=(0.995, 1.96),
@@ -1051,6 +1066,20 @@ def plot_vpsi_exclusion(vpsi_scan_results):
     ax_n.set_xscale('log')
     ax_n.set_ylabel(r'$N(v_{\mathrm{sig}}>v_\psi)$')
     ax_n.set_xlabel(r'$v_\psi / c$')
+
+    # Direct curve labels — rotated to follow each curve's early descent,
+    # hugging the curve they name.  Placed last, once both panels are
+    # drawn, so the shared-x limits (and hence the display transform that
+    # sets the rotation angle) are final.
+    fig.draw_without_rendering()
+    if np.any(ok):
+        n_ok = int(np.sum(ok))
+        i0, i1 = min(1, n_ok - 1), min(4, n_ok - 1)
+        if i1 > i0:
+            _label_along_curve(ax, v_psi[ok], sig0[ok], i0, i1,
+                               'Reject no correlation', _C['truth'])
+            _label_along_curve(ax, v_psi[ok], sig1[ok], i0, i1,
+                               r'Reject CHSH $S\leq 2$', _C['reco'])
 
     _paper_bg(fig, [ax, ax_n])
     fig.align_ylabels([ax, ax_n])
