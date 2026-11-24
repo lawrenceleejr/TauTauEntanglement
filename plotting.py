@@ -19,6 +19,7 @@ from matplotlib.ticker import AutoMinorLocator, MaxNLocator, MultipleLocator
 from matplotlib.transforms import ScaledTranslation
 from scipy.optimize import curve_fit
 from scipy.special import erfc
+from config import B_ACOPLANARITY_SM
 import os
 from config import OUTPUT_DIR
 
@@ -720,7 +721,7 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
             frac = np.where(v_fine <= v_psi, 1.0, 0.0)
 
         # B panel
-        ax_B.plot(v_fine, -0.5 * frac, color=hc,
+        ax_B.plot(v_fine, B_ACOPLANARITY_SM * frac, color=hc,
                   linewidth=_S['hypo_lw'], zorder=2)
         if v_psi <= x_hi:
             # Nudge the rightmost label a bit more to avoid clipping
@@ -746,10 +747,10 @@ def plot_vpsi_combined(binned_results_vs_v, bin_edges_v,
         _shadow_errorbar(ax_B, bc_v[ok_B], B_vals[ok_B], yerr=B_errs[ok_B],
                          xerr=hw_v[ok_B], color=_C['data'], marker='o',
                          ms=_S['data_ms_large'])
-    ax_B.axhline(-0.5, color=_C['sm'], linewidth=_S['ref_lw'],
+    ax_B.axhline(B_ACOPLANARITY_SM, color=_C['sm'], linewidth=_S['ref_lw'],
                  linestyle=_S['ref_ls_sm'], zorder=1)
     ax_B.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
-    ax_B.annotate(r'SM ($B=-0.5$)', xy=(x_hi, -0.5),
+    ax_B.annotate(r'SM ($B=-\pi^2/16$)', xy=(x_hi, B_ACOPLANARITY_SM),
                   xytext=(-3, 2), textcoords='offset points',
                   fontsize=_S['annot_fs'], color=_C['sm'],
                   ha='right', va='bottom')
@@ -989,9 +990,9 @@ def plot_acoplanarity(delta_phi_arr, suffix=""):
     # SM expectation
     phi_fine = np.linspace(-np.pi, np.pi, 200)
     norm = len(delta_phi_arr) * bw / (2 * np.pi)
-    ax.plot(phi_fine, norm * (1 - 0.5 * np.cos(phi_fine)),
+    ax.plot(phi_fine, norm * (1 + B_ACOPLANARITY_SM * np.cos(phi_fine)),
             color=_C['sm'], linewidth=0.4, linestyle='--', zorder=1)
-    _label_shadow(ax, 0.03, 0.85, r'SM ($B=-0.5$)',
+    _label_shadow(ax, 0.03, 0.85, r'SM ($B=-\pi^2/16$)',
                   fontsize=_S['annot_fs'], color=_C['sm'], ha='left')
 
     ax.set_xlabel(r'Acoplanarity $\Delta\phi$')
@@ -1053,7 +1054,7 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
         yhi = max(0.5, np.nanmax(vb + B_errs[ok]) + 0.2)
         ax.set_ylim(ylo, yhi)
 
-    # v_psi hypothesis models for B: entangled B=-0.5, separable B=0
+    # v_psi hypothesis models for B: entangled B=-pi^2/16, separable B=0
     x_lo_v, x_hi_v = v_edges[0], v_edges[-1]
     ax.set_xlim(x_lo_v, x_hi_v)
     if v_psi_values is not None and len(v_psi_values) > 0:
@@ -1064,9 +1065,9 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
                 sigma_v = sigma_v_frac * v_fine.clip(1e-6)
                 frac_ent = 0.5 * erfc(
                     (v_fine - v_psi) / (np.sqrt(2) * sigma_v))
-                B_model = -0.5 * frac_ent
+                B_model = B_ACOPLANARITY_SM * frac_ent
             else:
-                B_model = np.where(v_fine <= v_psi, -0.5, 0.0)
+                B_model = np.where(v_fine <= v_psi, B_ACOPLANARITY_SM, 0.0)
             ax.plot(v_fine, B_model, color=hc,
                     linewidth=_S['hypo_lw'], zorder=2)
             # Label at the midpoint of the transition, offset right
@@ -1079,10 +1080,10 @@ def plot_acoplanarity_vs_vsignal(acoplanarity_arr, v_signal_arr, v_edges,
         _shadow_errorbar(ax, bc_v[ok], B_vals[ok], yerr=B_errs[ok],
                          xerr=hw_v[ok], color=_C['data'], marker='o',
                          ms=2.5)
-    ax.axhline(-0.5, color=_C['sm'], linewidth=_S['ref_lw'],
+    ax.axhline(B_ACOPLANARITY_SM, color=_C['sm'], linewidth=_S['ref_lw'],
                linestyle=_S['ref_ls_sm'], zorder=1)
     ax.axhline(0.0, color=_C['light'], linewidth=0.25, zorder=1)
-    _label_shadow(ax, 0.97, 0.08, r'SM ($B=-0.5$)',
+    _label_shadow(ax, 0.97, 0.08, r'SM ($B=-\pi^2/16$)',
                   fontsize=_S['annot_fs'], color=_C['sm'])
     ax.set_xlabel(r'$v_\psi / c$')
     ax.set_ylabel(r'Cosine Coefficient $B$')

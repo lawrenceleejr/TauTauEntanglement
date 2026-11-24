@@ -13,6 +13,32 @@ from config import (
     PDGID_PI0, PDGID_HIGGS, PDGID_Z, C_LIGHT,
     ALLOWED_DECAY_MODES,
 )
+import config
+
+
+def sample_sqrts(filepath, n_events=50):
+    """Centre-of-mass energy of a sample: median summed energy of the
+    particles attached to the root vertex over the first n_events."""
+    totals = []
+    with pyhepmc.open(filepath) as f:
+        for i, event in enumerate(f):
+            if i >= n_events:
+                break
+            totals.append(sum(
+                p.momentum.e for p in event.particles
+                if p.production_vertex is None or p.production_vertex.id == 0))
+    return float(np.median(totals)) if totals else float('nan')
+
+
+def check_sqrts(filepath, tolerance_gev=0.5):
+    """Raise if the sample was not generated at config.SQRT_S."""
+    found = sample_sqrts(filepath)
+    if not abs(found - config.SQRT_S) <= tolerance_gev:
+        raise RuntimeError(
+            f"{filepath} was generated at sqrt(s) = {found:.1f} GeV but the "
+            f"analysis assumes {config.SQRT_S:.1f} GeV.  The recoil Higgs "
+            f"frame would be wrong.  Rerun with --sqrts {found:.0f}.")
+    return found
 
 
 def _to_p4(particle):
@@ -218,6 +244,7 @@ def parse_events(filepath, max_events=None, require_pi_pi=True,
     if allowed_modes is None:
         allowed_modes = ALLOWED_DECAY_MODES
     allowed_set = set(allowed_modes)
+    check_sqrts(filepath)
 
     events = []
     n_total = 0

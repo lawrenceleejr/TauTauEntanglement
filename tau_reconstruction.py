@@ -22,7 +22,8 @@ particularly clean:
 Reference: arXiv:1507.01700 (Jeans), arXiv:1804.01241 (Jeans & Wilson)
 """
 import numpy as np
-from config import M_TAU, M_PI, M_HIGGS, CTAU_TAU, C_LIGHT, SQRT_S, P_BEAM_TOTAL
+import config
+from config import M_TAU, M_PI, M_HIGGS, CTAU_TAU, C_LIGHT
 from parse_hepmc import EventRecord
 from smearing import sigma_d0
 
@@ -385,7 +386,7 @@ def reconstruct_event(event: EventRecord):
 
     # Reconstruct Higgs 4-momentum
     p_Z = event.mu_plus_p4 + event.mu_minus_p4
-    p_H = P_BEAM_TOTAL - p_Z
+    p_H = config.P_BEAM_TOTAL - p_Z
 
     # Missing momentum should equal total neutrino momentum
     p_pi_minus = event.tau_minus.charged_pion_p4

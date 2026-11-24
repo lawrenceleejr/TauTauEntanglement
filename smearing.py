@@ -207,7 +207,7 @@ def print_resolution_summary():
 
     # Impact parameter significance
     L_typ = 3e-3    # 3 mm typical tau decay length
-    alpha_typ = 8e-4  # typical tau-pion opening angle
+    alpha_typ = 26e-3  # median tau-pion opening angle ~ m_tau/E_tau [rad]
     d_typ = L_typ * alpha_typ
     print(f"\n    Typical tau IP ~ {d_typ*1e6:.1f} um, "
           f"sigma(d0) ~ {sig_d*1e6:.1f} um, "

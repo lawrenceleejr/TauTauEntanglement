@@ -25,6 +25,7 @@ import json
 import pickle
 import numpy as np
 
+import config
 from config import (
     N_BINS_SPACETIME, N_BINS_SIGNAL_SPEED, N_BOOTSTRAP,
     V_PSI_SCAN, OUTPUT_DIR, ALLOWED_DECAY_MODES,
@@ -342,17 +343,12 @@ def process_events(filepath, max_events=None, smear=False):
     br_tau_sq = sum(_br_tau_mode.get(m, 0) for m in ALLOWED_DECAY_MODES) ** 2
     sigma_eff_fb = SIGMA_ZH_FB * BR_H_TAUTAU * BR_Z_MUMU * br_tau_sq
     # N is the number of fully-reconstructed events analysed
-    if sigma_eff_fb > 0:
-        int_lumi_fb = N / sigma_eff_fb           # fb^-1
-        int_lumi_ab = int_lumi_fb * 1e-6          # ab^-1
-    else:
-        int_lumi_fb = 0.0
-        int_lumi_ab = 0.0
+    int_lumi_fb, int_lumi_ab = config.lumi_from_events(N, sigma_eff_fb)
 
     T_COLLECT = 1e7   # assumed data-taking time [s]
     inst_lumi = int_lumi_fb / T_COLLECT if T_COLLECT > 0 else 0.0  # fb^-1 s^-1
-    # Convert to conventional units: cm^-2 s^-1  (1 fb = 1e-39 cm^2)
-    inst_lumi_cgs = inst_lumi * 1e-39  # cm^-2 s^-1
+    # Convert to conventional units: cm^-2 s^-1  (1 fb^-1 = 1e39 cm^-2)
+    inst_lumi_cgs = inst_lumi * 1e39  # cm^-2 s^-1
 
     print(f"\n  Luminosity estimate (modes: {ALLOWED_DECAY_MODES}):")
     print(f"    sigma_eff = {sigma_eff_fb:.4f} fb")
@@ -568,6 +564,10 @@ def main():
                         help="Maximum number of events to process")
     parser.add_argument("--smear", action="store_true",
                         help="Apply ILC/ILD-like detector smearing")
+    parser.add_argument("--sqrts", type=float, default=None,
+                        help="Centre-of-mass energy of the sample [GeV] "
+                             f"(default {config.SQRT_S:.0f}); must match the "
+                             "sample or the run stops")
     parser.add_argument("--replot", nargs='?', const=True, default=False,
                         metavar="PKL_PATH",
                         help="Skip analysis; regenerate plots only. "
@@ -596,6 +596,9 @@ def main():
     if not os.path.isfile(args.hepmc_file):
         print(f"ERROR: File not found: {args.hepmc_file}")
         sys.exit(1)
+
+    if args.sqrts is not None:
+        config.set_sqrts(args.sqrts)
 
     process_events(args.hepmc_file, max_events=args.max_events,
                    smear=args.smear)

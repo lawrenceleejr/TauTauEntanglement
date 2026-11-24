@@ -14,14 +14,48 @@ M_MU = 0.10566         # muon mass [GeV]
 M_PI = 0.13957         # charged pion mass [GeV]
 M_PI0 = 0.13498        # neutral pion mass [GeV]
 M_RHO = 0.77526        # rho(770) mass [GeV]
-SQRT_S = 240.0         # centre-of-mass energy [GeV]
+SQRT_S = 240.0         # centre-of-mass energy [GeV]; see set_sqrts()
 C_LIGHT = 2.99792458e8 # speed of light [m/s]
 
 # Beam four-momenta (symmetric e+e- at 240 GeV)
 E_BEAM = SQRT_S / 2.0  # 120 GeV per beam
 P_BEAM_MINUS = np.array([E_BEAM, 0.0, 0.0,  E_BEAM])  # (E, px, py, pz) e-
 P_BEAM_PLUS  = np.array([E_BEAM, 0.0, 0.0, -E_BEAM])  # (E, px, py, pz) e+
-P_BEAM_TOTAL = P_BEAM_MINUS + P_BEAM_PLUS               # (240, 0, 0, 0)
+P_BEAM_TOTAL = P_BEAM_MINUS + P_BEAM_PLUS               # (sqrt(s), 0, 0, 0)
+
+
+def set_sqrts(sqrts):
+    """Set the centre-of-mass energy assumed by the analysis.
+
+    The recoil Higgs four-momentum p_H = p_beam - p_Z, and with it the Higgs
+    rest frame and every spin observable, depends on this value.  It must
+    equal the energy at which the sample was generated: parse_events() checks
+    this and refuses to continue on a mismatch.  Consumers must read
+    config.P_BEAM_TOTAL / config.P_BEAM_MINUS at call time.
+    """
+    global SQRT_S, E_BEAM, P_BEAM_MINUS, P_BEAM_PLUS, P_BEAM_TOTAL
+    SQRT_S = float(sqrts)
+    E_BEAM = SQRT_S / 2.0
+    P_BEAM_MINUS = np.array([E_BEAM, 0.0, 0.0,  E_BEAM])
+    P_BEAM_PLUS = np.array([E_BEAM, 0.0, 0.0, -E_BEAM])
+    P_BEAM_TOTAL = P_BEAM_MINUS + P_BEAM_PLUS
+
+
+def lumi_from_events(n_events, sigma_eff_fb):
+    """Integrated luminosity needed for n_events at 100% efficiency.
+
+    Returns (fb^-1, ab^-1).  1 ab^-1 = 1000 fb^-1.
+    """
+    if sigma_eff_fb <= 0:
+        return 0.0, 0.0
+    lumi_fb = n_events / sigma_eff_fb
+    return lumi_fb, lumi_fb * 1e-3
+
+
+# Acoplanarity coefficient for a CP-even scalar with both taus -> pi nu:
+# dN/dphi ~ 1 + B cos(phi), B = -(pi/4)^2 from averaging sin(theta+) sin(theta-)
+# over the two polar angles.
+B_ACOPLANARITY_SM = -np.pi**2 / 16.0
 
 # ---------------------------------------------------------------------------
 # Cross sections and branching ratios (for luminosity estimation)

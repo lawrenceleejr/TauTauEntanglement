@@ -27,7 +27,8 @@ The single-tau polarisation B_i is extracted from:
 (sign from the tau+/tau- convention in arXiv:2602.03960)
 """
 import numpy as np
-from config import P_BEAM_MINUS, P_BEAM_TOTAL, M_TAU
+import config
+from config import M_TAU
 from tau_reconstruction import boost, p3hat, p3vec, p3mag, beta_vec, mass
 
 
@@ -126,7 +127,7 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
         # Boost pions to this (correct) Higgs rest frame
         p_pi_m_H = boost(p_pi_m, beta_H)
         p_pi_p_H = boost(p_pi_p, beta_H)
-        p_beam_m_H = boost(P_BEAM_MINUS, beta_H)
+        p_beam_m_H = boost(config.P_BEAM_MINUS, beta_H)
     else:
         # Truth: use exact tau momenta
         p_tau_m = event.tau_minus.tau_p4
@@ -137,7 +138,7 @@ def compute_spin_observables(event, reco, use_reco_tau=True):
         p_tau_p_H = boost(p_tau_p, beta_H)
         p_pi_m_H = boost(p_pi_m, beta_H)
         p_pi_p_H = boost(p_pi_p, beta_H)
-        p_beam_m_H = boost(P_BEAM_MINUS, beta_H)
+        p_beam_m_H = boost(config.P_BEAM_MINUS, beta_H)
 
     # Define the {n, r, k} basis using tau- direction in Higgs rest frame
     k_hat, r_hat, n_hat = _define_basis(p_tau_m_H, p_beam_m_H)
@@ -221,6 +222,6 @@ def extract_correlation_matrix(cos_theta_plus_arr, cos_theta_minus_arr):
 
     # Single-tau polarisations
     B_plus = -3.0 * np.mean(cos_theta_plus_arr, axis=0)
-    B_minus = -3.0 * np.mean(cos_theta_minus_arr, axis=0)
+    B_minus = +3.0 * np.mean(cos_theta_minus_arr, axis=0)
 
     return C, B_plus, B_minus
