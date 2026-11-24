@@ -73,15 +73,16 @@ class TestCorrelationMatrix:
         assert np.all(np.abs(B_minus) < 0.05)
 
     def test_perfect_correlation(self):
-        """If cos+ = cos- exactly, C_ii = 9 * <cos^2> = 3 for uniform."""
+        """If cos+ = cos- exactly, C_ii = -9 * <cos^2> = -3 for uniform
+        (C_ij = -9 <cos+ cos->: the tau+ analysing power is -1)."""
         rng = np.random.default_rng(42)
         N = 100000
         cos_vals = 2 * rng.random((N, 3)) - 1
         C, _, _ = extract_correlation_matrix(cos_vals, cos_vals)
 
-        # <x^2> for Uniform(-1,1) = 1/3, so C_ii = 9 * 1/3 = 3
+        # <x^2> for Uniform(-1,1) = 1/3, so C_ii = -9 * 1/3 = -3
         for i in range(3):
-            assert abs(C[i, i] - 3.0) < 0.1
+            assert abs(C[i, i] + 3.0) < 0.1
 
     def test_empty_input(self):
         """Empty arrays should return zeros."""
