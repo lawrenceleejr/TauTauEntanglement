@@ -54,6 +54,8 @@ def pythia_settings(sqrts, zmode, seed, beam_effects=True):
         "23:onMode = off", Z_MODES[zmode],
         "25:onMode = off", "25:onIfMatch = 15 -15",
         "15:onMode = off", "15:onIfMatch = 16 -211",
+        # PDG 2024 τ mass and lifetime (Pythia defaults: 1.77682 GeV, 87.11 μm)
+        f"15:m0 = {bp.M_TAU}", f"15:tau0 = {bp.CTAU_TAU_MM}",
         "Random:setSeed = on", f"Random:seed = {seed}",
         "Next:numberCount = 0", "Next:numberShowEvent = 0",
         "Next:numberShowInfo = 0", "Next:numberShowProcess = 0",
@@ -65,15 +67,16 @@ def pythia_settings(sqrts, zmode, seed, beam_effects=True):
         # the quarks are showered but not hadronised.  τ decays still run.
         s += ["HadronLevel:Hadronize = off"]
     if beam_effects:
+        # The beam energy spread is NOT applied here: Pythia's
+        # allowMomentumSpread corrupts its cross-section bookkeeping (factor
+        # 0.57 with lepton PDFs).  It is applied in detector.py as an error
+        # on the beam energies known to the analysis, which gives the same
+        # error on the recoil four-momentum.
         th = bp.CROSSING_ANGLE / 2.0
-        sig_pz = e * bp.BEAM_ENERGY_SPREAD
         s += [
             "Beams:frameType = 3",
             f"Beams:pxA = {e * np.sin(th):.9f}", f"Beams:pzA = {e * np.cos(th):.9f}",
             f"Beams:pxB = {e * np.sin(th):.9f}", f"Beams:pzB = {-e * np.cos(th):.9f}",
-            "Beams:allowMomentumSpread = on",
-            "Beams:sigmaPxA = 0.", "Beams:sigmaPyA = 0.", f"Beams:sigmaPzA = {sig_pz:.6f}",
-            "Beams:sigmaPxB = 0.", "Beams:sigmaPyB = 0.", f"Beams:sigmaPzB = {sig_pz:.6f}",
             "Beams:allowVertexSpread = on",
             f"Beams:sigmaVertexX = {bp.LUMINOUS_REGION_MM[0]:.7f}",
             f"Beams:sigmaVertexY = {bp.LUMINOUS_REGION_MM[1]:.7f}",
