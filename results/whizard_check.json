@@ -1,0 +1,58 @@
+{
+ "n_whizard_events": 90,
+ "n_pythia_events": 20000,
+ "pion_energy": {
+  "ks_statistic": 0.054769444444444426,
+  "p_value": 0.6359060001116791,
+  "whizard_percentiles_10_50_90": [
+   8.315638,
+   31.63075,
+   66.55163999999999
+  ],
+  "pythia_percentiles_10_50_90": [
+   6.780548853791587,
+   32.18356908557698,
+   66.06998175596372
+  ]
+ },
+ "recoil_mass": {
+  "ks_statistic": 0.25151111111111113,
+  "p_value": 1.669144554552295e-05,
+  "whizard_percentiles_10_50_90": [
+   125.01929211757174,
+   127.08500561870392,
+   142.79525469206507
+  ],
+  "pythia_percentiles_10_50_90": [
+   125.00009594000622,
+   125.52106438716928,
+   142.42685817659353
+  ]
+ },
+ "note": "pion energies: 2 per event, so the KS p-value is approximate; recoil mass from the generator-level muons",
+ "gate": false,
+ "radiation_diagnosis": {
+  "beta_LL": 0.11707569257888022,
+  "rows": [
+   {
+    "eps": 0.004,
+    "LL_x_Born": 0.41789671301504094,
+    "pythia_incl_FSR": 0.42665,
+    "whizard_incl_FSR": 0.6610169491525424
+   },
+   {
+    "eps": 0.02,
+    "LL_x_Born": 0.2723616802174118,
+    "pythia_incl_FSR": 0.2457,
+    "whizard_incl_FSR": 0.386839481555334
+   },
+   {
+    "eps": 0.05,
+    "LL_x_Born": 0.17607595315817082,
+    "pythia_incl_FSR": 0.12765,
+    "whizard_incl_FSR": 0.18444666001994017
+   }
+  ],
+  "note": "P(\u03b5 > \u03b50) for the radiated energy fraction.  'LL_x_Born' is ISR only; the generator columns also contain final-state radiation off the leptons (and, for Pythia, the \u03c4 leptons).  The WHIZARD file carries no generator metadata, so whether it includes an ILC beam spectrum (beamstrahlung) cannot be checked from the file."
+ }
+}

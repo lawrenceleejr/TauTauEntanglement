@@ -1,0 +1,10 @@
+{
+ "n_events": 50000,
+ "fraction_clean": 0.52592,
+ "tau_dir_err_median_mrad_clean": 0.023033749046293805,
+ "tau_dir_err_median_mrad_all": 0.057846813478082376,
+ "nu_residual_median_gev_clean": 7.105427357601002e-15,
+ "note": "nu_residual = |\u03a3p_\u03bd(fit) - (p_H - p_\u03c0- - p_\u03c0+)|; it vanishes by construction when \u03c4- + \u03c4+ = p_H, which the Higgs-frame parametrisation enforces.",
+ "gate_direction": true,
+ "gate_nu_residual": true
+}
