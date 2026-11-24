@@ -13,3 +13,7 @@ paper/*.bbl
 paper/*.blg
 paper/*.synctex.gz
 paper/paperNotes.bib
+
+# generated event samples (regenerate with generate_sample.py)
+samples/
+results/*.npz
