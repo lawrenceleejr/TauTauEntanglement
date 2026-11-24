@@ -7,14 +7,14 @@ This file says what to build.
 ## Goal
 
 Produce a corrected analysis and a v2 draft of the paper for an **FCC-ee run
-at √s = 250 GeV with 10.8 ab⁻¹**, using a signal sample we generate
+at √s = 240 GeV with 10.8 ab⁻¹**, using a signal sample we generate
 ourselves. The paper's claim becomes: the separation of the two τ decays in
 H→ττ can be measured event by event, and the resulting v_min spectrum bounds
 the speed v_ψ of any finite-speed influence.
 
 Decisions already made by the author. Do not reopen them:
 
-- Collider scenario: FCC-ee, √s = 250 GeV. Keep √s as a single parameter
+- Collider scenario: FCC-ee baseline ZH run, √s = 240 GeV. Keep √s as a single parameter
   (`config.set_sqrts`) so it can be changed in one place.
 - We generate our own sample. The bundled `EventSample*.hepmc` files (WHIZARD,
   250 GeV, from D. Jeans) are for cross-checks only.
@@ -37,12 +37,13 @@ Decisions already made by the author. Do not reopen them:
 ## What is already verified in this environment
 
 - `pip install pythia8mc` works and generates the signal at about 3000 events
-  per second. These settings were tested:
+  per second. These settings were tested (at 250 GeV; only `Beams:eCM`
+  differs):
 
   ```
   Beams:idA = 11
   Beams:idB = -11
-  Beams:eCM = 250.
+  Beams:eCM = 240.
   PDF:lepton = on              # ISR
   HiggsSM:ffbar2HZ = on
   25:m0 = 125.
@@ -89,8 +90,10 @@ Gates, at truth level, each within statistical error:
 - P(v_min > V) = β/V in the Higgs frame.
 - cτ = 87.03 μm from the proper decay times.
 - `check_sqrts` passes.
-- Agreement with the 90 ππ events of the bundled WHIZARD sample in the pion
-  energy and recoil-mass distributions.
+- Generator cross-check: a separate small Pythia sample at 250 GeV agrees
+  with the 90 ππ events of the bundled WHIZARD sample (which is at 250 GeV)
+  in the pion energy and recoil-mass distributions. Do not compare the
+  240 GeV sample with it.
 
 ### 2. Reconstruction and detector model
 
@@ -207,8 +210,7 @@ anything you could not do.
 
 ## Known open points for the author
 
-- FCC-ee's baseline ZH run is at 240 GeV with 10.8 ab⁻¹. This handoff uses
-  250 GeV as instructed. State the energy and luminosity assumption
-  explicitly in the paper.
+- The v1 text says 240 GeV but its sample was generated at 250 GeV. Version
+  2 is at 240 GeV throughout; record this in `paper/v2/CHANGES.md`.
 - Backgrounds are not in scope here. The paper must say so, or a later pass
   adds ZZ, Zγ* and τ-decay cross-feed.
