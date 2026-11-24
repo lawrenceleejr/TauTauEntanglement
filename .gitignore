@@ -17,3 +17,11 @@ paper/paperNotes.bib
 # generated event samples (regenerate with generate_sample.py)
 samples/
 results/*.npz
+paper/v2/*.aux
+paper/v2/*.log
+paper/v2/*.out
+paper/v2/*.bbl
+paper/v2/*.blg
+paper/v2/*Notes.bib
+results_pipeline.log
+rerun.sh

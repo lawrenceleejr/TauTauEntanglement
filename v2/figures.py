@@ -122,7 +122,8 @@ def plot():
     ax.errorbar(c, y, yerr=np.sqrt(np.maximum(y, 1)), fmt="o", ms=2.6, color=INK,
                 elinewidth=0.6, capsize=0)
     ax.set_xlim(-np.pi, np.pi)
-    ymax = max(y.max() + np.sqrt(y.max()), expd.max()) * 1.08
+    truth = norm * (1 + B_SM * np.cos(phi))
+    ymax = max(y.max() + np.sqrt(y.max()), expd.max(), truth.max()) * 1.05
     ax.set_ylim(0, ymax)
     ax.set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
     ax.set_xticklabels([r"$-\pi$", r"$-\pi/2$", r"$0$", r"$\pi/2$", r"$\pi$"])
@@ -130,10 +131,10 @@ def plot():
     ax.set_ylabel("Events / bin")
     yt = [t for t in ax.get_yticks() if t <= ymax]
     _range_frame(ax, (-np.pi, np.pi), (0, yt[-1]))
-    ax.text(-np.pi * 0.97, norm * (1 - B_SM) * 1.02, r"SM, truth ($B=-\pi^2/16$)",
-            color=GREY, fontsize=7, va="bottom")
-    ax.text(0, expd.min() * 0.72, "SM after selection", color=RED, fontsize=7, ha="center",
-            va="top")
+    ax.text(0.0, norm * (1 + B_SM) * 0.93, r"SM, truth: $1-\frac{\pi^2}{16}\cos\Delta\phi$",
+            color=GREY, fontsize=7, ha="center", va="top")
+    ax.text(-2.75, expd.min() * 0.78, "SM after\nselection", color=RED, fontsize=7,
+            ha="left", va="top", linespacing=1.0)
     _save(fig, "fig1_acoplanarity")
     plt.close(fig)
 
@@ -161,11 +162,15 @@ def plot():
     d = fd["purity"]
     V = np.array(d["V"])
     fig, ax = plt.subplots(figsize=(3.2, 2.3))
-    for m, col, lab in (("mumu", INK, r"$Z\to\mu\mu$"), ("qq", BLUE, r"$Z\to q\bar q$")):
+    ends = {}
+    for m, col in (("mumu", INK), ("qq", BLUE)):
         p = np.array([np.nan if x is None else x for x in d[m]])
         ax.plot(V, p, color=col, lw=1.0)
-        k = np.where(np.isfinite(p))[0][-1]
-        ax.text(V[k] * 1.08, p[k], lab, color=col, fontsize=7, va="center")
+        ends[m] = p
+    k = 8
+    ax.annotate(r"$Z\to\mu\mu$ (black) and $Z\to q\bar q$ (blue)", xy=(V[k], ends["mumu"][k]),
+                xytext=(V[k] * 1.6, 0.92), fontsize=7, color=INK,
+                arrowprops=dict(arrowstyle="-", lw=0.4, color=GREY))
     ax.set_xscale("log")
     ax.set_ylim(0, 1)
     ax.set_xlim(1, 100)
@@ -177,35 +182,37 @@ def plot():
 
     # ---- Figure 3: expected exclusion, dot-and-band chart
     lim = res["limits"]
-    rows = []
-    for scen, lab in (("mumu", r"$Z\to\mu\mu$"), ("ll", r"$Z\to ee,\mu\mu$"),
-                      ("visible", r"all visible $Z$ (proj.)")):
-        for alt, alab, col in (("no_correlation", "no correlation", INK),
-                               ("local_bound", "local bound", RED)):
+    groups = (("mumu", r"$Z\to\mu\mu$"), ("ll", r"$Z\to ee,\mu\mu$"),
+              ("visible", "all visible $Z$" + "\n" + "(projection)"))
+    alts = (("no_correlation", "no correlation", INK, 0.18),
+            ("local_bound", "local bound", RED, -0.18))
+    fig, ax = plt.subplots(figsize=(3.4, 2.4))
+    xmax = 1.0
+    for gi, (scen, glab) in enumerate(groups):
+        yc = len(groups) - 1 - gi
+        for alt, alab, col, dy in alts:
             r = lim[scen][alt]["v95"]
-            rows.append((lab, alab, col, r))
-    fig, ax = plt.subplots(figsize=(3.4, 2.6))
-    ypos = []
-    for i, (lab, alab, col, r) in enumerate(rows):
-        y = len(rows) - i + (0.15 if i % 2 == 0 else -0.15) - (i // 2) * 0.6
-        ypos.append(y)
-        lo2, lo1, med, hi1, hi2 = (max(r[q], 1.0) for q in ("p02.3", "p15.9", "p50", "p84.1", "p97.7"))
-        ax.plot([lo2, hi2], [y, y], color=col, lw=0.6, solid_capstyle="butt")
-        ax.plot([lo1, hi1], [y, y], color=col, lw=2.4, solid_capstyle="butt", alpha=0.55)
-        ax.plot([med], [y], "o", color=col, ms=3.2)
-        if i % 2 == 0:
-            ax.text(0.85, y - 0.15, lab, ha="right", va="center", fontsize=7.5,
-                    transform=ax.get_yaxis_transform())
+            y = yc + dy
+            lo2, lo1, med, hi1, hi2 = (r[q] for q in ("p02.3", "p15.9", "p50", "p84.1", "p97.7"))
+            xmax = max(xmax, hi2)
+            if med < 1.0:
+                ax.text(1.05, y, "no exclusion" + (f" (95% band to {hi2:.1f}c)" if hi2 >= 1 else ""),
+                        color=col, fontsize=6.5, va="center")
+                continue
+            ax.plot([max(lo2, 1), hi2], [y, y], color=col, lw=0.6, solid_capstyle="butt")
+            ax.plot([max(lo1, 1), hi1], [y, y], color=col, lw=2.6, solid_capstyle="butt", alpha=0.5)
+            ax.plot([med], [y], "o", color=col, ms=3.0)
+            if scen == "visible":
+                ax.text(hi2 * 1.08, y, alab, color=col, fontsize=6.5, va="center")
     ax.set_xscale("log")
-    ax.set_yticks([])
+    ax.set_xlim(1, xmax * 3.2)
+    ax.set_ylim(-0.5, len(groups) - 0.5)
+    ax.set_yticks(range(len(groups)))
+    ax.set_yticklabels([g[1] for g in groups][::-1], fontsize=7.5)
+    ax.tick_params(axis="y", length=0)
     ax.spines["left"].set_visible(False)
-    xs = [max(r[q], 1.0) for *_, r in rows for q in ("p02.3", "p97.7")]
-    ax.set_xlim(1, max(xs) * 1.3)
-    ax.set_xlabel(r"Expected 95% CL exclusion: $v_\psi/c$ below")
-    ax.text(max(xs) * 1.25, ypos[-2] + 0.15, "no correlation", color=INK, fontsize=7, ha="right",
-            va="bottom")
-    ax.text(max(xs) * 1.25, ypos[-1] - 0.15, "local bound", color=RED, fontsize=7, ha="right",
-            va="top")
+    ax.spines["bottom"].set_bounds(1, xmax * 3.2)
+    ax.set_xlabel(r"Expected 95% CL exclusion of $v_\psi/c$ below")
     _save(fig, "fig3_exclusion")
     plt.close(fig)
 
@@ -220,8 +227,10 @@ def plot():
         hi = np.array([c["p84.1"] for c in cls])
         ax.fill_between(vg, np.clip(hi, 1e-4, 1), np.clip(lo, 1e-4, 1), color=col, alpha=0.15, lw=0)
         ax.plot(vg, np.clip(med, 1e-4, 1), color=col, lw=1.0)
-        k = int(np.argmin(np.abs(med - 0.3)))
-        ax.text(vg[k] * 1.1, med[k], lab, color=col, fontsize=7, va="bottom")
+        if alt == "local_bound":
+            ax.text(1.1, 0.3, lab, color=col, fontsize=7, ha="left", va="center")
+        else:
+            ax.text(40, 0.012, lab, color=col, fontsize=7, ha="left", va="center")
     ax.axhline(0.05, color=GREY, lw=0.5, ls=(0, (2, 2)))
     ax.text(vg[-1], 0.055, "95% CL", color=GREY, fontsize=7, ha="right", va="bottom")
     ax.set_xscale("log")
