@@ -393,6 +393,45 @@ def cmd_whizard():
     res["note"] = ("pion energies: 2 per event, so the KS p-value is approximate; "
                    "recoil mass from the generator-level muons")
     res["gate"] = bool(min(res["pion_energy"]["p_value"], res["recoil_mass"]["p_value"]) > 0.01)
+
+    # Diagnosis of a recoil-mass disagreement: radiated energy fraction
+    # ε = (√s - E_ll - E_H)/√s compared with the leading-log ISR radiator
+    # β ε^(β-1) convolved with the Born σ(ZH)(ŝ) (which vanishes at threshold).
+    import pyhepmc
+    sq = 250.0
+    eps_p = (sq - a["lep_m"][:, 0] - a["lep_p"][:, 0] - a["higgs"][:, 0]) / sq
+    eps_w = []
+    with pyhepmc.open("EventSample1002.hepmc") as f:
+        for ev in f:
+            ps = list(ev.particles)
+            mu = [p for p in ps if abs(p.pid) == 13 and p.status == 1][:2]
+            ta = [p for p in ps if abs(p.pid) == 15][:2]
+            eps_w.append((sq - sum(p.momentum.e for p in mu + ta)) / sq)
+    eps_w = np.array(eps_w)
+    beta = 2 / 137.036 / np.pi * (np.log(sq**2 / 0.000511**2) - 1)
+    mz, mh = 91.1876, 125.0
+
+    def born(shat):
+        lam = (1 - (mh + mz)**2 / shat) * (1 - (mh - mz)**2 / shat)
+        lam = np.where(lam > 0, lam, 0.0)
+        return np.sqrt(lam) * (lam + 12 * mz**2 / shat) / (shat * (1 - mz**2 / shat)**2)
+    e = np.logspace(-9, np.log10(1 - (mh + mz)**2 / sq**2), 200000)
+    wgt = beta * e**(beta - 1) * born(sq**2 * (1 - e))
+    cdf = np.concatenate([[0], np.cumsum(0.5 * (wgt[1:] + wgt[:-1]) * np.diff(e))])
+    cdf /= cdf[-1]
+    rows = []
+    for e0 in (0.004, 0.02, 0.05):
+        rows.append({"eps": e0, "LL_x_Born": float(1 - np.interp(e0, e, cdf)),
+                     "pythia_incl_FSR": float(np.mean(eps_p > e0)),
+                     "whizard_incl_FSR": float(np.mean(eps_w > e0))})
+    res["radiation_diagnosis"] = {
+        "beta_LL": beta, "rows": rows,
+        "note": ("P(ε > ε0) for the radiated energy fraction.  'LL_x_Born' is ISR only; "
+                 "the generator columns also contain final-state radiation off the "
+                 "leptons (and, for Pythia, the τ leptons).  The WHIZARD file carries "
+                 "no generator metadata, so whether it includes an ILC beam spectrum "
+                 "(beamstrahlung) cannot be checked from the file."),
+    }
     os.makedirs(RES, exist_ok=True)
     with open(f"{RES}/whizard_check.json", "w") as f:
         json.dump(res, f, indent=1)

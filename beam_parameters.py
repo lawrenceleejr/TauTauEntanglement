@@ -47,7 +47,8 @@ CTAU_TAU_MM = 0.08703               # mm [PDG]
 #   σ(θ), σ(φ) = ang_a ⊕ ang_b/(p sin^{1/2}θ)    ang_a = 0.023 mrad [CLD p. 39];
 #                                                  ang_b = 1 mrad GeV ASSUMPTION
 #   σ(E)/E    = 15%/√E ⊕ 1% (photons)            [FSR1 Table 12, CLD p. 43]
-#   jets: 5% for 45 GeV jets → Z four-momentum 5%/√2  [CLD p. 52] (projection)
+#   jets: σ(E)/E = 5% per jet (RMS90 4.5-5% for 45 GeV jets) [CLD p. 52];
+#         jet directions exact                              ASSUMPTION (projection)
 # ---------------------------------------------------------------------------
 DETECTOR = {
     "pt_table_theta_deg": (10.0, 30.0, 50.0, 70.0, 89.0),   # [CLD Table 15]
@@ -62,7 +63,7 @@ DETECTOR = {
     "pi_photon_veto_angle": 0.10,       # ASSUMPTION: π ν ID fails if a photon
     "pi_photon_veto_e": 1.0,            #   above 1 GeV lies within 0.1 rad of the pion
     "lep_photon_cone": 0.10,            # ASSUMPTION: FSR recovery cone, rad
-    "z_hadronic_rel_e": 0.05 / math.sqrt(2),
+    "jet_rel_e": 0.05,
     "beam_energy_spread": BEAM_ENERGY_SPREAD,
     "luminous_region_m": tuple(x * 1e-3 for x in LUMINOUS_REGION_MM),
     "m_pi": 0.13957, "m_mu": 0.1056584, "m_e": 0.000511,

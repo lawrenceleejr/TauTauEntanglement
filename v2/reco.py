@@ -111,21 +111,32 @@ SIGMA_CONE = 0.25e-3    # rad; 68% half-width of the Higgs-frame cone-angle resi
                         # on an independent 10^5-event test sample: 0.23 mrad
 
 
-def _hframe(p_h, e_tau_fixed=None):
-    e_tau = kin.mass(p_h) / 2 if e_tau_fixed is None else e_tau_fixed
-    return kin.beta_of(p_h), e_tau
+SIGMA_MH = 0.05          # GeV, soft Higgs-mass constraint in the fit
 
 
-def _residuals(par, n0, e1, e2, p_rec, meas, pv, sig_beam):
+def recoil_cov(meas, sig_beam):
+    """4x4 covariance of the recoil four-momentum: beam energies along the
+    beam directions plus the measured Z system."""
+    n = len(meas["pv"])
+    cov = np.array(meas["p_z_cov"], copy=True)
+    for key in ("beam_minus", "beam_plus"):
+        u = kin.four(np.ones(n), kin.unit(kin.p3(meas[key])))
+        cov += sig_beam**2 * u[:, :, None] * u[:, None, :]
+    cov += (1e-3)**2 * np.eye(4)
+    return cov
+
+
+def _residuals(par, n0, e1, e2, p_rec, chol, meas, pv):
     """Residuals of the τ-direction fit in units of their errors.
 
-    par = (α, β, δ-, δ+): τ- Higgs-frame direction n = unit(n0 + α e1 + β e2)
-    and the beam-energy corrections (GeV) applied to the recoil.
+    par = (α, β, z0..z3): τ- Higgs-frame direction n = unit(n0 + α e1 + β e2)
+    and the recoil correction δ = chol · z (z has a unit-Gaussian prior).
     Residuals: two Higgs-frame cone residuals, two signed track-miss
-    distances, two beam-energy pulls."""
+    distances, the Higgs-mass constraint and the four prior pulls."""
     n_h = kin.unit(n0 + par[:, 0:1] * e1 + par[:, 1:2] * e2)
-    p_h = p_rec + par[:, 2:3] * meas["_u_minus"] + par[:, 3:4] * meas["_u_plus"]
-    bh, e_tau = _hframe(p_h)
+    p_h = p_rec + np.einsum("nij,nj->ni", chol, par[:, 2:6])
+    bh = kin.beta_of(p_h)
+    e_tau = kin.mass(p_h) / 2
     a4 = kin.boost_to_rest(meas["pi_m"], bh)
     b4 = kin.boost_to_rest(meas["pi_p"], bh)
     th1 = np.arccos(np.clip(cone_cos(a4, e_tau), -1, 1))
@@ -142,39 +153,38 @@ def _residuals(par, n0, e1, e2, p_rec, meas, pv, sig_beam):
         var = meas[f"pi_{lab}_sd0"]**2 / 2 + meas[f"pi_{lab}_sz0"]**2 / 2 \
             + np.einsum("ni,nij,nj->n", nrm, meas["pv_cov"], nrm)
         r.append(kin.dot3(miss, nrm) / np.sqrt(var))
-    r.append(par[:, 2] / sig_beam)
-    r.append(par[:, 3] / sig_beam)
+    r.append((2 * e_tau - M_H) / SIGMA_MH)
+    for k in range(4):
+        r.append(par[:, 2 + k])
     return np.stack(r, axis=1), extra
 
 
-def fit_direction(n0, p_rec, meas, pv, sig_beam, n_iter=8):
-    """Gauss-Newton fit of the τ- direction and the two beam energies."""
-    one = np.ones(len(n0))
-    meas["_u_minus"] = kin.four(one, kin.unit(kin.p3(meas["beam_minus"])))
-    meas["_u_plus"] = kin.four(one, kin.unit(kin.p3(meas["beam_plus"])))
+def fit_direction(n0, p_rec, chol, meas, pv, n_iter=10):
+    """Gauss-Newton fit of the τ- direction and the recoil four-momentum."""
     ref = np.where(np.abs(n0[:, 2:3]) < 0.9, [[0, 0, 1.0]], [[1.0, 0, 0]])
     e1 = kin.unit(np.cross(n0, ref))
     e2 = np.cross(n0, e1)
-    par = np.zeros((len(n0), 4))
-    steps = np.array([1e-6, 1e-6, 1e-4, 1e-4])
-    lim = np.array([0.05, 0.05, 1.0, 1.0])
+    npar = 6
+    par = np.zeros((len(n0), npar))
+    steps = np.array([1e-6, 1e-6, 1e-4, 1e-4, 1e-4, 1e-4])
+    lim = np.array([0.05, 0.05, 2.0, 2.0, 2.0, 2.0])
     for _ in range(n_iter):
-        r0, _ = _residuals(par, n0, e1, e2, p_rec, meas, pv, sig_beam)
-        J = np.empty(r0.shape + (4,))
-        for k in range(4):
+        r0, _ = _residuals(par, n0, e1, e2, p_rec, chol, meas, pv)
+        J = np.empty(r0.shape + (npar,))
+        for k in range(npar):
             dp = par.copy()
             dp[:, k] += steps[k]
-            r1, _ = _residuals(dp, n0, e1, e2, p_rec, meas, pv, sig_beam)
+            r1, _ = _residuals(dp, n0, e1, e2, p_rec, chol, meas, pv)
             J[..., k] = (r1 - r0) / steps[k]
         J = np.nan_to_num(J, nan=0.0, posinf=0.0, neginf=0.0)
         r0 = np.nan_to_num(r0, nan=0.0, posinf=0.0, neginf=0.0)
         JtJ = np.einsum("nki,nkj->nij", J, J)
-        JtJ = JtJ + (1e-9 * np.trace(JtJ, axis1=1, axis2=2)[:, None, None] + 1e-12) * np.eye(4)
+        JtJ = JtJ + (1e-9 * np.trace(JtJ, axis1=1, axis2=2)[:, None, None] + 1e-12) * np.eye(npar)
         Jtr = np.einsum("nki,nk->ni", J, r0)
         step = -np.linalg.solve(JtJ, Jtr[..., None])[..., 0]
         par = par + np.clip(step, -lim, lim)
-    r, extra = _residuals(par, n0, e1, e2, p_rec, meas, pv, sig_beam)
-    return extra, np.sum(r**2, axis=1)
+    r, extra = _residuals(par, n0, e1, e2, p_rec, chol, meas, pv)
+    return extra, np.sum(np.nan_to_num(r, nan=1e6)**2, axis=1)
 
 
 def reconstruct(meas, isr=True, fit=True, sig_beam=None):
@@ -185,6 +195,7 @@ def reconstruct(meas, isr=True, fit=True, sig_beam=None):
     if sig_beam is None:
         import beam_parameters as bp
         sig_beam = max(bp.BEAM_ENERGY_SPREAD * meas["beam_minus"][0, 0], 1e-3)
+    chol = np.linalg.cholesky(recoil_cov(meas, sig_beam))
     pv = meas["pv"]
     p_rec = recoil(meas)
     cands = isr_candidates(p_rec, meas["beam_minus"], meas["beam_plus"]) if isr \
@@ -194,7 +205,7 @@ def reconstruct(meas, isr=True, fit=True, sig_beam=None):
         (n1, n2), cres, e_tau = cone_solutions(meas["pi_m"], meas["pi_p"], p_h)
         for si, n_start in enumerate((n1, n2)):
             if fit:
-                extra, chi2 = fit_direction(n_start, p_h, meas, pv, sig_beam)
+                extra, chi2 = fit_direction(n_start, p_h, chol, meas, pv)
                 n_h, p_fit, e_fit = extra["n_h"], extra["p_h"], extra["e_tau"]
             else:
                 n_h, p_fit, e_fit = n_start, p_h, e_tau

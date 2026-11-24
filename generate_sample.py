@@ -39,7 +39,7 @@ Z_MODES = {
 }
 
 FOUR = ("beams", "higgs", "z", "tau_m", "tau_p", "pi_m", "pi_p", "nu_m",
-        "nu_p", "lep_m", "lep_p")
+        "nu_p", "lep_m", "lep_p", "jet_1", "jet_2")
 VTX = ("pv", "dv_m", "dv_p")
 
 
@@ -178,6 +178,10 @@ def _worker(job):
         if zmode != "qq":
             out["lep_m"][k] = _p4(leps[lid])
             out["lep_p"][k] = _p4(leps[-lid])
+        else:
+            # the Z decay quarks (before showering) stand in for the two jets
+            out["jet_1"][k] = _p4(ev[z_last.daughter1()])
+            out["jet_2"][k] = _p4(ev[z_last.daughter2()])
         k += 1
     out["photon_p4"] = np.array(phot, dtype=float).reshape(-1, 4)
     out["photon_tag"] = np.array(phot_tag, dtype=np.int8)

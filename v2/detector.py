@@ -165,15 +165,37 @@ def measure(a, rng, sqrts, zmode, smear=True, det=DETECTOR, beam_effects=True):
         fsr = det_ok & near_l & ~near_pi
         pz = leps[0] + leps[1]
         np.add.at(pz, ge[fsr], g_meas[fsr])
+        # covariance: momentum-magnitude error of each lepton along (1, û)
+        cov = np.zeros((n, 4, 4))
+        for lp in leps:
+            u = kin.unit(kin.p3(lp))
+            pm = kin.mag(kin.p3(lp))
+            sin_t = np.sqrt(np.maximum(1 - u[:, 2]**2, 1e-12))
+            sp = pm**2 * sin_t * sigma_inv_pt(pm, sin_t, det)
+            v = kin.four(np.ones(n), u)
+            cov += (sp**2)[:, None, None] * v[:, :, None] * v[:, None, :]
+        m["p_z_cov"] = cov
         pv, pv_cov = fit_primary_vertex(lpts, ldirs, lsd0, lsz0, det)
         m["lep_m"], m["lep_p"] = leps
     else:
         fsr = np.zeros(len(g), bool)
-        pz = a["z"].copy()
-        if smear:
-            rel = det["z_hadronic_rel_e"]
-            pz[:, 0] *= 1 + rng.normal(size=n) * rel
-            pz[:, 1:] += rng.normal(size=(n, 3)) * (rel * a["z"][:, 0] / np.sqrt(3))[:, None]
+        # Two jets along the Z decay quarks; the four-momentum is rescaled so
+        # that the jets sum to the true Z (absorbing the parton shower), and
+        # each jet energy is smeared by the jet energy resolution.  Jet
+        # directions are taken as exact (their resolution is far better).
+        j1, j2 = a["jet_1"].copy(), a["jet_2"].copy()
+        rel = det["jet_rel_e"]
+        cov = np.zeros((n, 4, 4))
+        pz = np.zeros((n, 4))
+        for j in (j1, j2):
+            u = kin.unit(kin.p3(j))
+            e = j[:, 0] * a["z"][:, 0] / (j1[:, 0] + j2[:, 0])
+            if smear:
+                e = e * (1 + rng.normal(size=n) * rel)
+            v = kin.four(np.ones(n), u)
+            pz += e[:, None] * v
+            cov += (rel * e)[:, None, None]**2 * v[:, :, None] * v[:, None, :]
+        m["p_z_cov"] = cov
         # projection: primary vertex resolution taken equal to the leptonic case
         # (two high-momentum tracks + luminous region): conservative for Z -> qq.
         sd = sigma_d0(np.full(n, 45.0), np.ones(n), det)
@@ -187,6 +209,10 @@ def measure(a, rng, sqrts, zmode, smear=True, det=DETECTOR, beam_effects=True):
     m["pv"], m["pv_cov"] = (pv, pv_cov) if smear else (pv_true.copy(), pv_cov)
 
     other = det_ok & ~fsr & ~(near_pi & (g[:, 0] > det["pi_photon_veto_e"]))
+    if zmode == "qq":
+        # photons radiated in the Z decay belong to the jets, whose smeared
+        # four-momentum (the Z) already contains them
+        other &= a["photon_tag"] != 2
     pg = np.zeros((n, 4))
     np.add.at(pg, ge[other], g_meas[other])
     m["p_photons"] = pg
