@@ -34,14 +34,19 @@ Dependencies: numpy, scipy, matplotlib, pyhepmc, hist, mplhep, particle.
 ## Usage
 
 ```bash
-python run_analysis.py <path_to_hepmc_file> [--max-events N] [--smear]
+python run_analysis.py <path_to_hepmc_file> [--max-events N] [--smear] [--sqrts E]
 ```
+
+The bundled `EventSample*.hepmc` files are generated at 250 GeV, so they
+need `--sqrts 250`. The run stops if `--sqrts` (default 240) does not match
+the sample, because the recoil Higgs frame would be wrong.
 
 | Argument | Description |
 |---|---|
 | `hepmc_file` | Path to a HepMC3 file with e+e- -> ZH -> mu+mu- tau+tau- events |
 | `--max-events N` | Process at most N events (default: all) |
 | `--smear` | Apply ILC detector resolution smearing to tracks |
+| `--sqrts E` | Centre-of-mass energy of the sample in GeV (default 240) |
 
 Output is written to the `plots/` directory (PDFs, PNGs, and a
 `results.json` with numerical results).
